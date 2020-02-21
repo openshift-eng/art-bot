@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import click
 import os
 import slack
 import pprint
@@ -15,6 +16,10 @@ import json
 import datetime
 from multiprocessing.pool import ThreadPool
 import traceback
+import threading
+import logging
+
+import umb
 
 MONITORING_CHANNEL = 'GTDLQU9LH'  # art-bot-monitoring
 BOT_FRIENDLY_CHANNELS = 'GDBRP5YJH'  # channels we allow the bot to talk directly in instead of DM'ing user back
@@ -431,14 +436,14 @@ def respond(**payload):
                 print('Error sending snippet to monitoring channel')
                 traceback.print_exc()
 
-        monitoring_say(f"<@{user_id}> asked: {data['text']}")
-
         so = SlackOutput(say=say, snippet=snippet, monitoring_say=monitoring_say, monitoring_snippet=monitoring_snippet, request_payload=payload)
 
         print(f'Gating {from_channel} {direct_message_channel_id} {am_i_mentioned}')
 
         # We only want to respond if in a DM channel or we are mentioned specifically in another channel
         if from_channel == direct_message_channel_id or am_i_mentioned:
+
+            monitoring_say(f"<@{user_id}> asked: {data['text']}")
 
             if re.match(r'^help$', text, re.I):
                 show_help(so)
@@ -471,11 +476,92 @@ def respond(**payload):
         raise
 
 
-if not os.environ.get('SLACK_API_TOKEN', None):
-    print('You must export SLACK_API_TOKEN into the environment. You can find this in bitwarden.')
-    exit(1)
+def clair_consumer_callback(msg, user_data):
+    """
+    :param msg: The incoming message to handle
+    :param user_data: Any userdata provided to consumer.consume.
+    :return: Will always return False to indicate more messages should be processed
+    """
+    try:
+        print('annotations:')
+        pprint.pprint(msg.annotations)
 
-slack_token = os.environ["SLACK_API_TOKEN"]
-rtm_client = slack.RTMClient(token=slack_token, auto_reconnect=True)
-rtm_client.start()
+        print('properties:')
+        pprint.pprint(msg.properties)
 
+        print('body:')
+        pprint.pprint(msg.body)
+    except:
+        logging.error('Error handling message')
+        traceback.print_exc()
+
+    return False  # Tell consumer to keep consuming messages
+
+
+def consumer_thread(client_id, topic, callback_handler, consumer, durable, user_data):
+    try:
+        topic_clair_scan = f'Consumer.{client_id}.art-bot.VirtualTopic.{topic}'
+        if durable:
+            subscription_name = topic
+        else:
+            subscription_name = None
+        consumer.consume(topic_clair_scan, callback_handler, subscription_name=subscription_name, data=user_data)
+    except:
+        traceback.print_exc()
+
+
+@click.command()
+@click.option("--env", required=False, metavar="ENVIRONMENT",
+              default='stage',
+              type=click.Choice(['dev', 'stage', 'prod']),
+              help="Which UMB environment to use")
+@click.option('--client-id', required=False, metavar='CLIENT-ID',
+              type=click.STRING,
+              help='The client-id associated with the cert/key pair fo the UMB',
+              default='openshift-art-bot-slack-prod')
+@click.option("--client-cert", required=True, metavar="CERT-PATH",
+              type=click.Path(exists=True),
+              help="Path to the client certificate for UMB authentication")
+@click.option("--client-key", required=True, metavar="KEY-PATH",
+              type=click.Path(exists=True),
+              help="Path to the client key for UMB authentication")
+@click.option("--ca-certs", type=click.Path(exists=True),
+              default=umb.DEFAULT_CA_CHAIN,
+              help="Manually specify the path to the RHIT CA Trust Chain. "
+              "Default: {}".format(umb.DEFAULT_CA_CHAIN))
+def run(env, client_id, client_cert, client_key, ca_certs):
+    if not os.environ.get('SLACK_API_TOKEN', None):
+        print('You must export SLACK_API_TOKEN into the environment. You can find this in bitwarden.')
+        exit(1)
+
+    logging.basicConfig()
+    logging.getLogger('activemq').setLevel(logging.DEBUG)
+
+    def consumer_start(topic, callback_handler, durable=False, user_data=None):
+        """
+        Create a consumer for a topic on the UMB.
+        :param topic: The name of the topic (e.g. eng.clair.scan). The VirtualTopic name will be constructed for you.
+        :param callback_handler: The method to invoke when a message is received. The method should accept
+                                    (message, user_data)  and return True when the consumer thread should terminate.
+                                    If False is returned, the callback will continue to be invoked as messages arrive.
+        :param durable: Whether the subscription should be durable
+        :param user_data: Anything you want passed to the callback when a message is delivered
+        :return: The Thread created to run the consumer.
+        """
+        consumer = umb.get_consumer(env=env, client_cert_path=client_cert, client_key_path=client_key,
+                                    ca_chain_path=ca_certs)
+        t = threading.Thread(target=consumer_thread, args=(client_id, topic, callback_handler, consumer, durable, user_data))
+        t.start()
+        return t
+
+    t = consumer_start('eng.clair.>', clair_consumer_callback)
+
+    slack_token = os.environ["SLACK_API_TOKEN"]
+    rtm_client = slack.RTMClient(token=slack_token, auto_reconnect=True)
+    rtm_client.start()
+
+    t.join()
+
+
+if __name__ == '__main__':
+    run()
