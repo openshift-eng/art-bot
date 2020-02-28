@@ -500,8 +500,8 @@ def consumer_thread(client_id, topic, callback_handler, consumer, durable, user_
               help="Which UMB environment to use")
 @click.option('--client-id', required=False, metavar='CLIENT-ID',
               type=click.STRING,
-              help='The client-id associated with the cert/key pair fo the UMB',
-              default='openshift-art-bot-slack-prod')
+              help='The client-id associated with the cert/key pair for the UMB',
+              default='openshift-art-bot-slack')
 @click.option("--client-cert", required=True, metavar="CERT-PATH",
               type=click.Path(exists=True),
               help="Path to the client certificate for UMB authentication")
