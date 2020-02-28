@@ -428,27 +428,19 @@ def respond(**payload):
 
             so.monitoring_say(f"<@{user_id}> asked: {data['text']}")
 
-            if re.match(r'^help$', text, re.I):
-                show_help(so)
-
-            m = re.match(r'^what rpms are used in (?P<nvr>[\w.-]+)$', text, re.I)
-            if m:
-                list_components_for_image(so, **m.groupdict())
-
-            m = re.match(r'^what images do you build for (?P<major>\d)\.(?P<minor>\d+)$', text, re.I)
-            if m:
-                list_images_in_major_minor(so, **m.groupdict())
-
-            if re.match(r'^How can I get ART to build a new image$', text, re.I):
-                show_how_to_add_a_new_image(so)
-
-            m = re.match(r'^What rpms were used in the latest images builds for (?P<major>\d)\.(?P<minor>\d+)$', text, re.I)
-            if m:
-                list_components_for_major_minor(so, **m.groupdict())
-
-            m = re.match(r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', text, re.I)
-            if m:
-                list_component_data_for_release_tag(so, **m.groupdict())
+            regex_maps = [
+                # regex, flag(s), func
+                (r'^help$', re.I, show_help),
+                (r'^what rpms are used in (?P<nvr>[\w.-]+)$', re.I, list_components_for_image),
+                (r'^what images do you build for (?P<major>\d)\.(?P<minor>\d+)$', re.I, list_images_in_major_minor),
+                (r'^How can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
+                (r'^What rpms were used in the latest images builds for (?P<major>\d)\.(?P<minor>\d+)$', re.I, list_components_for_major_minor),
+                (r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, list_component_data_for_release_tag),
+            ]
+            for r in regex_maps:
+                m = re.match(r[0], text, r[1])
+                if m:
+                    r[2](so, **m.groupdict())
 
             if not so.said_something:
                 so.say("Sorry, I don't know how to help with that. Type 'help' to see what I can do.")
