@@ -20,6 +20,8 @@ import threading
 import logging
 
 import umb
+from artbotlib.buildinfo import buildinfo_for_release
+from artbotlib.translation import translate_names
 
 MONITORING_CHANNEL = 'GTDLQU9LH'  # art-bot-monitoring
 BOT_FRIENDLY_CHANNELS = 'GDBRP5YJH'  # channels we allow the bot to talk directly in instead of DM'ing user back
@@ -109,13 +111,17 @@ def show_help(so):
 How-to information
 - How can I get ART to build a new image?
 
-Release status:
-- What images do you build for {major}.{minor}?
-
 ART internal
 - What (commits|catalogs|distgits|nvrs|images) are associated with {release-tag}
 - What rpms are used in {image-nvr}?
-- What rpms were used in the latest images builds for {major}.{minor}? 
+- What rpms were used in the latest images builds for {major}.{minor}?
+
+Information:
+- What images do you build for {major}.{minor}?
+- Which build of {image name} is in {release image name or pullspec}?
+- translate distgit {name} to brew-image for {major}.{minor}
+- translate distgit {name} to brew-image
+  (assumes latest version)
 """)
 
 
@@ -436,6 +442,8 @@ def respond(**payload):
                 (r'^How can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
                 (r'^What rpms were used in the latest images builds for (?P<major>\d)\.(?P<minor>\d+)$', re.I, list_components_for_major_minor),
                 (r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, list_component_data_for_release_tag),
+                (r'(?:translate|xlate) ^$', re.I, translate_names),
+                (r'Which build of (?P<img_name>\S+) is in (?P<release_img>\S+)$', re.I, buildinfo_for_release),
             ]
             for r in regex_maps:
                 m = re.match(r[0], text, r[1])
