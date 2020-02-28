@@ -31,26 +31,62 @@ logger = logging.getLogger()
 
 class SlackOutput:
 
-    def __init__(self, say, snippet,
-                 monitoring_say, monitoring_snippet,
-                 request_payload):
-        self.say_func = say
-        self.snippet_func = snippet
-        self.monitoring_say_func = monitoring_say
-        self.monitoring_snippet_func = monitoring_snippet
+    def __init__(self, web_client, request_payload, target_channel_id, thread_ts):
         self.request_payload = request_payload
+        self.web_client = web_client
+        self.target_channel_id = target_channel_id
+        self.thread_ts = thread_ts
+        self.said_something = False
 
     def say(self, msg):
-        self.say_func(msg)
+        print(f'Responding back through: {self.target_channel_id}')
+        self.said_something = True
+        self.web_client.chat_postMessage(
+            channel=self.target_channel_id,
+            text=msg,
+            thread_ts=self.thread_ts
+        )
 
     def snippet(self, payload, intro=None, filename=None, filetype=None):
-        self.snippet_func(payload=payload, intro=intro, filename=filename, filetype=filetype)
+        self.said_something = True
+        print('Called with payload: {}'.format(payload))
+        print(f'Responding back through: {self.target_channel_id}')
+        r = self.web_client.files_upload(
+            initial_comment=intro,
+            channels=self.target_channel_id,
+            content=payload,
+            filename=filename,
+            filetype=filetype,
+            thread_ts=self.thread_ts
+        )
+        print('Response: ')
+        pprint.pprint(r)
 
     def monitoring_say(self, msg):
-        self.monitoring_say_func(msg)
+        try:
+            self.web_client.chat_postMessage(
+                channel=MONITORING_CHANNEL,
+                text=msg
+            )
+        except:
+            print('Error sending information to monitoring channel')
+            traceback.print_exc()
 
     def monitoring_snippet(self, payload, intro=None, filename=None, filetype=None):
-        self.monitoring_snippet_func(payload=payload, intro=intro, filename=filename, filetype=filetype)
+        try:
+            print('Called with monitoring payload: {}'.format(payload))
+            r = self.web_client.files_upload(
+                initial_comment=intro,
+                channels=MONITORING_CHANNEL,
+                content=payload,
+                filename=filename,
+                filetype=filetype,
+            )
+            print('Response: ')
+            pprint.pprint(r)
+        except:
+            print('Error sending snippet to monitoring channel')
+            traceback.print_exc()
 
     def from_user_mention(self):
         return f'<@{self.from_user_id()}>'
@@ -60,6 +96,7 @@ class SlackOutput:
 
     def from_channel(self):
         return self.request_payload.get('data').get('channel', None)
+
 
 # Do we have something that is not grade A?
 # What will the grades be by <date>
@@ -382,68 +419,14 @@ def respond(**payload):
         if target_channel_id != from_channel:
             thread_ts = None
 
-        said_something = False
-
-        def say(thing):
-            nonlocal said_something
-            print(f'Responding back through: {target_channel_id}')
-            said_something = True
-            web_client.chat_postMessage(
-                channel=target_channel_id,
-                text=thing,
-                thread_ts=thread_ts
-            )
-
-        def snippet(payload, intro=None, filename=None, filetype=None):
-            nonlocal said_something
-            said_something = True
-            print('Called with payload: {}'.format(payload))
-            print(f'Responding back through: {target_channel_id}')
-            r = web_client.files_upload(
-                initial_comment=intro,
-                channels=target_channel_id,
-                content=payload,
-                filename=filename,
-                filetype=filetype,
-                thread_ts=thread_ts
-            )
-            print('Response: ')
-            pprint.pprint(r)
-
-        def monitoring_say(thing):
-            try:
-                web_client.chat_postMessage(
-                    channel=MONITORING_CHANNEL,
-                    text=thing
-                )
-            except:
-                print('Error sending information to monitoring channel')
-                traceback.print_exc()
-
-        def monitoring_snippet(payload, intro=None, filename=None, filetype=None):
-            try:
-                print('Called with monitoring payload: {}'.format(payload))
-                r = web_client.files_upload(
-                    initial_comment=intro,
-                    channels=MONITORING_CHANNEL,
-                    content=payload,
-                    filename=filename,
-                    filetype=filetype,
-                )
-                print('Response: ')
-                pprint.pprint(r)
-            except:
-                print('Error sending snippet to monitoring channel')
-                traceback.print_exc()
-
-        so = SlackOutput(say=say, snippet=snippet, monitoring_say=monitoring_say, monitoring_snippet=monitoring_snippet, request_payload=payload)
+        so = SlackOutput(web_client=web_client, request_payload=payload, target_channel_id=target_channel_id, thread_ts=thread_ts)
 
         print(f'Gating {from_channel} {direct_message_channel_id} {am_i_mentioned}')
 
         # We only want to respond if in a DM channel or we are mentioned specifically in another channel
         if from_channel == direct_message_channel_id or am_i_mentioned:
 
-            monitoring_say(f"<@{user_id}> asked: {data['text']}")
+            so.monitoring_say(f"<@{user_id}> asked: {data['text']}")
 
             if re.match(r'^help$', text, re.I):
                 show_help(so)
@@ -467,8 +450,8 @@ def respond(**payload):
             if m:
                 list_component_data_for_release_tag(so, **m.groupdict())
 
-            if not said_something:
-                say("Sorry, I don't know how to help with that. Type 'help' to see what I can do.")
+            if not so.said_something:
+                so.say("Sorry, I don't know how to help with that. Type 'help' to see what I can do.")
     except:
         print('Error responding to message:')
         pprint.pprint(payload)
