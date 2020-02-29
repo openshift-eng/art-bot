@@ -110,7 +110,7 @@ FAQs
 ART internal
 - What (commits|catalogs|distgits|nvrs|images) are associated with {release-tag}
 - What rpms are used in {image-nvr}?
-- What rpms were used in the latest images builds for {major}.{minor}?
+- What rpms were used in the latest image builds for {major}.{minor}?
 
 Information:
 - What images do you build for {major}.{minor}?
@@ -265,21 +265,12 @@ def respond(**payload):
 
         # Get the id of the Slack user associated with the incoming event
         user_id = data['user']
-        text = data['text']
         ts = data['ts']
         thread_ts = data.get('thread_ts', ts)
 
         if user_id == BOT_ID:
             # things like snippets may look like they are from normal users; if it is from us, ignore it.
             return
-
-        am_i_mentioned = AT_BOT_ID in text
-
-        if am_i_mentioned:
-            text = text.replace(AT_BOT_ID, '').strip()
-
-        text = ' '.join(text.split())  # Replace different whitespace with single space
-        text = text.rstrip('?')  # remove any question marks from the end
 
         response = web_client.im_open(user=user_id)
         direct_message_channel_id = response["channel"]["id"]
@@ -294,12 +285,15 @@ def respond(**payload):
 
         so = SlackOutput(web_client=web_client, request_payload=payload, target_channel_id=target_channel_id, thread_ts=thread_ts)
 
+        am_i_mentioned = AT_BOT_ID in data['text']
         print(f'Gating {from_channel} {direct_message_channel_id} {am_i_mentioned}')
+        plain_text = extract_plain_text(payload)
+        print(f'Query was: {plain_text}')
 
         # We only want to respond if in a DM channel or we are mentioned specifically in another channel
         if from_channel == direct_message_channel_id or am_i_mentioned:
 
-            so.monitoring_say(f"<@{user_id}> asked: {data['text']}")
+            so.monitoring_say(f"<@{user_id}> asked: {plain_text}")
 
             regex_maps = [
                 # regex, flag(s), func
@@ -307,13 +301,13 @@ def respond(**payload):
                 (r'^what rpms are used in (?P<nvr>[\w.-]+)$', re.I, list_components_for_image),
                 (r'^what images do you build for (?P<major>\d)\.(?P<minor>\d+)$', re.I, list_images_in_major_minor),
                 (r'^How can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
-                (r'^What rpms were used in the latest images builds for (?P<major>\d)\.(?P<minor>\d+)$', re.I, list_components_for_major_minor),
+                (r'^What rpms were used in the latest image builds for (?P<major>\d)\.(?P<minor>\d+)$', re.I, list_components_for_major_minor),
                 (r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, list_component_data_for_release_tag),
-                (r'(?:translate|xlate) ^$', re.I, translate_names),
-                (r'Which build of (?P<img_name>\S+) is in (?P<release_img>\S+)$', re.I, buildinfo_for_release),
+                (r'(?:translate|xlate)', re.I, translate_names),
+                (r'(?:which|what) build of (?P<img_name>[-\w]+) is in (?P<release_img>[-.:/#\w]+)$', re.I, buildinfo_for_release),
             ]
             for r in regex_maps:
-                m = re.match(r[0], text, r[1])
+                m = re.match(r[0], plain_text, r[1])
                 if m:
                     r[2](so, **m.groupdict())
 
