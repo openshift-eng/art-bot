@@ -3,9 +3,9 @@ import re
 
 from . import util
 
-def buildinfo_for_release(so, img_name, release_img):
+def buildinfo_for_release(so, name, release_img):
 
-    img_name = "machine-os-content" if img_name == "rhcos" else img_name  # shortcut...
+    img_name = "machine-os-content" if name == "rhcos" else name  # rhcos shortcut...
 
     if ".ci." in re.sub(".*:", "", release_img):
         so.say("Sorry, no ART build info for a CI image.")
@@ -26,14 +26,14 @@ def buildinfo_for_release(so, img_name, release_img):
             # assume x86_64 if not specified; TODO: handle older images released without -x86_64 in pullspec
             release_img = f"{release_img}-x86_64"
 
-    rc, stdout, stderr = util.cmd_assert(so, f"oc adm release info {release_img} --image-for {img_name}")
+    rc, stdout, stderr = util.cmd_gather(f"oc adm release info {release_img} --image-for {img_name}")
     if rc:
         so.say(f"Sorry, I wasn't able to query the release image pullspec {release_img}.")
         util.please_notify_art_team_of_error(so, stderr)
         return
 
     pullspec = stdout.strip()
-    rc, stdout, stderr = util.cmd_assert(so, f"oc image info {pullspec} -o json")
+    rc, stdout, stderr = util.cmd_gather(f"oc image info {pullspec} -o json")
     if rc:
         so.say(f"Sorry, I wasn't able to query the component image pullspec {pullspec}.")
         util.please_notify_art_team_of_error(so, stderr)

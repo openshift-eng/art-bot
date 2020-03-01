@@ -115,8 +115,8 @@ ART internal
 Information:
 - What images do you build for {major}.{minor}?
 - Which build of {image name} is in {release image name or pullspec}?
-- translate distgit {name} to brew-image for {major}.{minor}
-- translate distgit {name} to brew-image
+- what is the (brew-image|brew-component) for dist-git {name} in {major}.{minor}?
+- what is the (brew-image|brew-component) for dist-git {name}?
   (assumes latest version)
 """)
 
@@ -295,16 +295,22 @@ def respond(**payload):
 
             so.monitoring_say(f"<@{user_id}> asked: {plain_text}")
 
+            re_snippets = dict(
+                major_minor=r'(?P<major>\d)\.(?P<minor>\d+)',
+                name=r'(?P<name>[\w.-]+)',
+                name_type=r'(?P<name_type>dist-?git)',
+                name_type2=r'(?P<name_type2>brew-image|brew-component)',
+            )
             regex_maps = [
                 # regex, flag(s), func
                 (r'^help$', re.I, show_help),
                 (r'^what rpms are used in (?P<nvr>[\w.-]+)$', re.I, list_components_for_image),
-                (r'^what images do you build for (?P<major>\d)\.(?P<minor>\d+)$', re.I, list_images_in_major_minor),
+                (r'^what images do you build for %(major_minor)s$' % re_snippets, re.I, list_images_in_major_minor),
                 (r'^How can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
-                (r'^What rpms were used in the latest image builds for (?P<major>\d)\.(?P<minor>\d+)$', re.I, list_components_for_major_minor),
+                (r'^What rpms were used in the latest image builds for %(major_minor)s$' % re_snippets, re.I, list_components_for_major_minor),
                 (r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, list_component_data_for_release_tag),
-                (r'(?:translate|xlate)', re.I, translate_names),
-                (r'(?:which|what) build of (?P<img_name>[-\w]+) is in (?P<release_img>[-.:/#\w]+)$', re.I, buildinfo_for_release),
+                (r'^what is the %(name_type2)s for %(name_type)s %(name)s(?: in %(major_minor)s)?$' % re_snippets, re.I, translate_names),
+                (r'^(which|what) build of %(name)s is in (?P<release_img>[-.:/#\w]+)$' % re_snippets, re.I, buildinfo_for_release),
             ]
             for r in regex_maps:
                 m = re.match(r[0], plain_text, r[1])
