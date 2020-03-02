@@ -6,20 +6,18 @@ import slack
 import pprint
 import re
 import koji
-import shlex
-import subprocess
 import logging
-from fcntl import fcntl, F_GETFL, F_SETFL
 from os import O_NONBLOCK, read
-import time
 import json
-import datetime
 from multiprocessing.pool import ThreadPool
 import traceback
 import threading
-import logging
 
 import umb
+from artbotlib.buildinfo import buildinfo_for_release
+from artbotlib.translation import translate_names
+from artbotlib.util import cmd_assert, please_notify_art_team_of_error
+from artbotlib.formatting import extract_plain_text
 
 MONITORING_CHANNEL = 'GTDLQU9LH'  # art-bot-monitoring
 BOT_FRIENDLY_CHANNELS = 'GDBRP5YJH'  # channels we allow the bot to talk directly in instead of DM'ing user back
@@ -106,143 +104,25 @@ class SlackOutput:
 def show_help(so):
     so.say("""Here are questions I can answer...
 
-How-to information
+FAQs
 - How can I get ART to build a new image?
-
-Release status:
-- What images do you build for {major}.{minor}?
 
 ART internal
 - What (commits|catalogs|distgits|nvrs|images) are associated with {release-tag}
 - What rpms are used in {image-nvr}?
-- What rpms were used in the latest images builds for {major}.{minor}? 
+- What rpms were used in the latest image builds for {major}.{minor}?
+
+Information:
+- What images do you build for {major}.{minor}?
+- Which build of {image name} is in {release image name or pullspec}?
+- what is the (brew-image|brew-component) for dist-git {name} in {major}.{minor}?
+- what is the (brew-image|brew-component) for dist-git {name}?
+  (assumes latest version)
 """)
 
 
 def show_how_to_add_a_new_image(so):
     so.say('You can find documentation for that process here: https://mojo.redhat.com/docs/DOC-1179058#jive_content_id_Getting_Started')
-
-
-def cmd_gather(cmd, set_env=None, cwd=None, realtime=False):
-    """
-    Runs a command and returns rc,stdout,stderr as a tuple.
-
-    If called while the `Dir` context manager is in effect, guarantees that the
-    process is executed in that directory, even if it is no longer the current
-    directory of the process (i.e. it is thread-safe).
-
-    :param cmd: The command and arguments to execute
-    :param cwd: The directory from which to run the command
-    :param set_env: Dict of env vars to set for command (overriding existing)
-    :param realtime: If True, output stdout and stderr in realtime instead of all at once.
-    :return: (rc,stdout,stderr)
-    """
-
-    if not isinstance(cmd, list):
-        cmd_list = shlex.split(cmd)
-    else:
-        cmd_list = cmd
-
-    cmd_info = '[cwd={}]: {}'.format(cwd, cmd_list)
-
-    env = os.environ.copy()
-    if set_env:
-        cmd_info = '[env={}] {}'.format(set_env, cmd_info)
-        env.update(set_env)
-
-    # Make sure output of launched commands is utf-8
-    env['LC_ALL'] = 'en_US.UTF-8'
-
-    logger.debug("Executing:cmd_gather {}".format(cmd_info))
-    try:
-        proc = subprocess.Popen(
-            cmd_list, cwd=cwd, env=env,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except OSError as exc:
-        logger.error("Subprocess errored running:\n{}\nWith error:\n{}\nIs {} installed?".format(
-            cmd_info, exc, cmd_list[0]
-        ))
-        return exc.errno, "", "Subprocess errored running:\n{}\nWith error:\n{}\nIs {} installed?".format(
-            cmd_info, exc, cmd_list[0]
-        )
-
-    if not realtime:
-        out, err = proc.communicate()
-        rc = proc.returncode
-    else:
-        out = b''
-        err = b''
-
-        # Many thanks to http://eyalarubas.com/python-subproc-nonblock.html
-        # setup non-blocking read
-        # set the O_NONBLOCK flag of proc.stdout file descriptor:
-        flags = fcntl(proc.stdout, F_GETFL)  # get current proc.stdout flags
-        fcntl(proc.stdout, F_SETFL, flags | O_NONBLOCK)
-        # set the O_NONBLOCK flag of proc.stderr file descriptor:
-        flags = fcntl(proc.stderr, F_GETFL)  # get current proc.stderr flags
-        fcntl(proc.stderr, F_SETFL, flags | O_NONBLOCK)
-
-        rc = None
-        while rc is None:
-            output = None
-            try:
-                output = read(proc.stdout.fileno(), 256)
-                logging.info(f'{cmd_info} stdout: {out.rstrip()}')
-                out += output
-            except OSError:
-                pass
-
-            error = None
-            try:
-                error = read(proc.stderr.fileno(), 256)
-                logging.warning(f'{cmd_info} stderr: {error.rstrip()}')
-                out += error
-            except OSError:
-                pass
-
-            rc = proc.poll()
-            time.sleep(0.0001)  # reduce busy-wait
-
-    # We read in bytes representing utf-8 output; decode so that python recognizes them as unicode strings
-    out = out.decode('utf-8')
-    err = err.decode('utf-8')
-    logger.debug(
-        "Process {}: exited with: {}\nstdout>>{}<<\nstderr>>{}<<\n".
-        format(cmd_info, rc, out, err))
-    return rc, out, err
-
-
-def cmd_assert(so, cmd, set_env=None, cwd=None, realtime=False):
-    """
-    A cmd_gather invocation, but if it fails, it will notify the
-    alert the monitoring channel and the requesting user with
-    information about the failure.
-    :return:
-    """
-
-    error_id = f'{so.from_user_id()}.{int(time.time()*1000)}'
-
-    def send_cmd_error(rc, stdout, stderr):
-        intro = f'Error running command (for user={so.from_user_mention()} error-id={error_id}): {cmd}'
-        payload = f"rc={rc}\n\nstdout={stdout}\n\nstderr={stderr}\n"
-        so.monitoring_snippet(intro=intro, filename='cmd_error.log', payload=payload)
-
-    try:
-        rc, stdout, stderr = cmd_gather(cmd, set_env, cwd, realtime)
-    except subprocess.CalledProcessError as exec:
-        send_cmd_error(exec.returncode, exec.stdout, exec.stderr)
-        raise
-    except:
-        send_cmd_error(-1000, '', traceback.format_exc())
-        raise
-
-    if rc:
-        logging.warning(f'error-id={error_id} . Non-zero return code from: {cmd}\nStdout:\n{stdout}\n\nStderr:\n{stderr}\n')
-        send_cmd_error(rc, stdout, stderr)
-        so.say(f'Sorry, but I encountered an error. Details have been sent to the ART team. Mention error-id={error_id} when requesting support.')
-        raise IOError(f'Non-zero return code from: {cmd}')
-
-    return rc, stdout, stderr
 
 
 def brew_list_components(nvr):
@@ -350,13 +230,6 @@ def list_components_for_major_minor(so, major, minor):
                    filename=f'{major_minor}-rpms.txt')
 
 
-def please_notify_art_team_of_error(so, payload):
-    dt = datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
-    so.snippet(payload=payload,
-               intro='Sorry, I encountered an error. Please contact @art-team with the following details.',
-               filename=f'error-details-{dt}.txt')
-
-
 def list_images_in_major_minor(so, major, minor):
     major_minor = f'{major}.{minor}'
     rc, stdout, stderr = cmd_assert(so, f'doozer --group openshift-{major_minor} images:print \'{{image_name_short}}\' --show-base --show-non-release --short')
@@ -392,21 +265,12 @@ def respond(**payload):
 
         # Get the id of the Slack user associated with the incoming event
         user_id = data['user']
-        text = data['text']
         ts = data['ts']
         thread_ts = data.get('thread_ts', ts)
 
         if user_id == BOT_ID:
             # things like snippets may look like they are from normal users; if it is from us, ignore it.
             return
-
-        am_i_mentioned = AT_BOT_ID in text
-
-        if am_i_mentioned:
-            text = text.replace(AT_BOT_ID, '').strip()
-
-        text = ' '.join(text.split())  # Replace different whitespace with single space
-        text = text.rstrip('?')  # remove any question marks from the end
 
         response = web_client.im_open(user=user_id)
         direct_message_channel_id = response["channel"]["id"]
@@ -421,34 +285,37 @@ def respond(**payload):
 
         so = SlackOutput(web_client=web_client, request_payload=payload, target_channel_id=target_channel_id, thread_ts=thread_ts)
 
+        am_i_mentioned = AT_BOT_ID in data['text']
         print(f'Gating {from_channel} {direct_message_channel_id} {am_i_mentioned}')
+        plain_text = extract_plain_text(payload)
+        print(f'Query was: {plain_text}')
 
         # We only want to respond if in a DM channel or we are mentioned specifically in another channel
         if from_channel == direct_message_channel_id or am_i_mentioned:
 
-            so.monitoring_say(f"<@{user_id}> asked: {data['text']}")
+            so.monitoring_say(f"<@{user_id}> asked: {plain_text}")
 
-            if re.match(r'^help$', text, re.I):
-                show_help(so)
-
-            m = re.match(r'^what rpms are used in (?P<nvr>[\w.-]+)$', text, re.I)
-            if m:
-                list_components_for_image(so, **m.groupdict())
-
-            m = re.match(r'^what images do you build for (?P<major>\d)\.(?P<minor>\d+)$', text, re.I)
-            if m:
-                list_images_in_major_minor(so, **m.groupdict())
-
-            if re.match(r'^How can I get ART to build a new image$', text, re.I):
-                show_how_to_add_a_new_image(so)
-
-            m = re.match(r'^What rpms were used in the latest images builds for (?P<major>\d)\.(?P<minor>\d+)$', text, re.I)
-            if m:
-                list_components_for_major_minor(so, **m.groupdict())
-
-            m = re.match(r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', text, re.I)
-            if m:
-                list_component_data_for_release_tag(so, **m.groupdict())
+            re_snippets = dict(
+                major_minor=r'(?P<major>\d)\.(?P<minor>\d+)',
+                name=r'(?P<name>[\w.-]+)',
+                name_type=r'(?P<name_type>dist-?git)',
+                name_type2=r'(?P<name_type2>brew-image|brew-component)',
+            )
+            regex_maps = [
+                # regex, flag(s), func
+                (r'^help$', re.I, show_help),
+                (r'^what rpms are used in (?P<nvr>[\w.-]+)$', re.I, list_components_for_image),
+                (r'^what images do you build for %(major_minor)s$' % re_snippets, re.I, list_images_in_major_minor),
+                (r'^How can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
+                (r'^What rpms were used in the latest image builds for %(major_minor)s$' % re_snippets, re.I, list_components_for_major_minor),
+                (r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, list_component_data_for_release_tag),
+                (r'^what is the %(name_type2)s for %(name_type)s %(name)s(?: in %(major_minor)s)?$' % re_snippets, re.I, translate_names),
+                (r'^(which|what) build of %(name)s is in (?P<release_img>[-.:/#\w]+)$' % re_snippets, re.I, buildinfo_for_release),
+            ]
+            for r in regex_maps:
+                m = re.match(r[0], plain_text, r[1])
+                if m:
+                    r[2](so, **m.groupdict())
 
             if not so.said_something:
                 so.say("Sorry, I don't know how to help with that. Type 'help' to see what I can do.")
