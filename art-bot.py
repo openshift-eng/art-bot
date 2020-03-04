@@ -20,7 +20,8 @@ from artbotlib.util import cmd_assert, please_notify_art_team_of_error
 from artbotlib.formatting import extract_plain_text
 
 MONITORING_CHANNEL = 'GTDLQU9LH'  # art-bot-monitoring
-BOT_FRIENDLY_CHANNELS = 'GDBRP5YJH'  # channels we allow the bot to talk directly in instead of DM'ing user back
+# channels we allow the bot to talk directly in instead of DM'ing user back
+BOT_FRIENDLY_CHANNELS = ['GDBRP5YJH', 'CB95J6R4N']  # art-team, #aos-art
 BOT_ID = 'UTHKYT7FB'
 AT_BOT_ID = f'<@{BOT_ID}>'
 
