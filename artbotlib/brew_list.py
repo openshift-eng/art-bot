@@ -3,13 +3,23 @@ import koji
 
 from . import util
 
+# TODO: use a real cache with expiry and stuff
+CACHE = {}
+
+
 def brew_list_components(nvr):
+    if nvr in CACHE.setdefault("nvras_for_image", {}):
+        return CACHE["nvras_for_image"][nvr]
+
     koji_api = koji.ClientSession('https://brewhub.engineering.redhat.com/brewhub', opts={'serverca': '/etc/pki/brew/legacy.crt'})
     build = koji_api.getBuild(nvr, strict=True)
+
     components = set()
     for archive in koji_api.listArchives(build['id']):
         for rpm in koji_api.listRPMs(imageID=archive['id']):
             components.add('{nvr}.{arch}'.format(**rpm))
+
+    CACHE["nvras_for_image"][nvr] = components
     return components
 
 
@@ -89,48 +99,66 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
                intro=f'The release components map to {data_type} as follows:',
                filename='{}-{}.txt'.format(release_tag, data_type))
 
+def latest_images_for_version(so, major_minor):
+    if major_minor not in CACHE.setdefault('latest_images_built_for_version', {}):
+        so.say(f'Determining images for {major_minor} - this may take awhile (~2 minutes)...')
+
+        rc, stdout, stderr = util.cmd_assert(so, f'doozer --group openshift-{major_minor} images:print \'{{component}}-{{version}}-{{release}}\' --show-base --show-non-release --short')
+        if rc:
+            util.please_notify_art_team_of_error(so, stderr)
+            return None
+
+        image_nvrs = [nvr.strip() for nvr in stdout.strip().split('\n')]
+        CACHE['latest_images_built_for_version'][major_minor] = image_nvrs
+
+    return CACHE['latest_images_built_for_version'][major_minor]
+
 
 def list_components_for_major_minor(so, major, minor):
-    so.say('I can answer that! But this will take awhile (~10 minutes)...')
     major_minor = f'{major}.{minor}'
-    rc, stdout, stderr = util.cmd_assert(so, f'doozer --group openshift-{major_minor} images:print \'{{component}}-{{version}}-{{release}}\' --show-base --show-non-release --short')
-    if rc:
-        util.please_notify_art_team_of_error(so, stderr)
-    else:
-        output = f'I found the following nvrs for {major_minor} images:\n{stdout}\n'
-        all_components = set()
-        for nvr in stdout.strip().split('\n'):
-            all_components.update(brew_list_components(nvr.strip()))
-        output += 'And here are the rpms used in their construction:\n'
-        output += '\n'.join(sorted(all_components))
-        so.snippet(payload=output,
-                   intro='Here ya go...',
-                   filename=f'{major_minor}-rpms.txt')
+
+    image_nvrs = latest_images_for_version(so, major_minor)
+    if not image_nvrs:  # error retrieving
+        return
+
+    all_components = set()
+    for nvr in image_nvrs:
+        all_components.update(brew_list_components(nvr))
+
+    image_nvrs = '\n'.join(sorted(image_nvrs))
+    output = f'I found the following nvrs for {major_minor} images:\n{image_nvrs}\n'
+    output += 'And here are the rpms used in their construction:\n'
+    output += '\n'.join(sorted(all_components))
+    so.snippet(
+        payload=output,
+        intro='Here ya go...',
+        filename=f'{major_minor}-rpms.txt'
+    )
 
 
 def list_images_using_rpm(so, name, major, minor):
-    so.say('I can answer that! But this will take awhile (~2 minutes)...')
     major_minor = f'{major}.{minor}'
-    rc, stdout, stderr = util.cmd_assert(so, f'doozer --group openshift-{major_minor} images:print \'{{component}}-{{version}}-{{release}}\' --show-base --show-non-release --short')
-    if rc:
-        util.please_notify_art_team_of_error(so, stderr)
-    else:
-        rpm_for_image = dict()
-        for image_nvr in stdout.strip().split('\n'):
-            first = True
-            for rpm in brew_list_components(image_nvr.strip()):
-                n, v, r = rpm.rsplit('-', 2)
-                if n == name:
-                    rpm_for_image[image_nvr] = rpm
 
-        if not rpm_for_image:
-            so.say(f'It looks like no images in {major_minor} use RPM {name}.')
-            return
+    image_nvrs = latest_images_for_version(so, major_minor)
+    if not image_nvrs:  # error retrieving
+        return
 
-        output = '\n'.join(f'{image} uses {rpm_for_image[image]}' for image in sorted(rpm_for_image.keys()))
-        so.snippet(payload=output,
-                   intro=f'Here are the images that used {name} in their construction:\n',
-                   filename=f'{major_minor}-rpm-{name}-images.txt')
+    rpm_for_image = dict()
+    for image_nvr in image_nvrs:
+        first = True
+        for rpm_nvra in brew_list_components(image_nvr):
+            n, _, _ = rpm_nvra.rsplit('-', 2)
+            if n == name:
+                rpm_for_image[image_nvr] = rpm_nvra
+
+    if not rpm_for_image:
+        so.say(f'It looks like no images in {major_minor} use RPM {name}.')
+        return
+
+    output = '\n'.join(f'{image} uses {rpm_for_image[image]}' for image in sorted(rpm_for_image.keys()))
+    so.snippet(payload=output,
+               intro=f'Here are the images that used {name} in their construction:\n',
+               filename=f'{major_minor}-rpm-{name}-images.txt')
 
 
 def list_images_in_major_minor(so, major, minor):
