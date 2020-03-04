@@ -105,20 +105,23 @@ class SlackOutput:
 def show_help(so):
     so.say("""Here are questions I can answer...
 
-FAQs
-- How can I get ART to build a new image?
-
-ART internal
-- What (commits|catalogs|distgits|nvrs|images) are associated with {release-tag}
-- What rpms are used in {image-nvr}?
-- What rpms were used in the latest image builds for {major}.{minor}?
-
-Information:
+ART config
 - What images do you build for {major}.{minor}?
-- Which build of {image name} is in {release image name or pullspec}?
 - what is the (brew-image|brew-component) for dist-git {name} in {major}.{minor}?
 - what is the (brew-image|brew-component) for dist-git {name}?
   (assumes latest version)
+
+ART build info
+- What rpms are used in {image-nvr}?
+- What rpms were used in the latest image builds for {major}.{minor}?
+- Where in {major}.{minor} is the {name} RPM used?
+
+ART releases:
+- What (commits|catalogs|distgits|nvrs|images) are associated with {release-tag}?
+- Which build of {image name} is in {release image name or pullspec}?
+
+FAQs
+- How can I get ART to build a new image?
 """)
 
 
@@ -231,6 +234,31 @@ def list_components_for_major_minor(so, major, minor):
                    filename=f'{major_minor}-rpms.txt')
 
 
+def list_images_using_rpm(so, name, major, minor):
+    so.say('I can answer that! But this will take awhile (~2 minutes)...')
+    major_minor = f'{major}.{minor}'
+    rc, stdout, stderr = cmd_assert(so, f'doozer --group openshift-{major_minor} images:print \'{{component}}-{{version}}-{{release}}\' --show-base --show-non-release --short')
+    if rc:
+        please_notify_art_team_of_error(so, stderr)
+    else:
+        rpm_for_image = dict()
+        for image_nvr in stdout.strip().split('\n'):
+            first = True
+            for rpm in brew_list_components(image_nvr.strip()):
+                n, v, r = rpm.rsplit('-', 2)
+                if n == name:
+                    rpm_for_image[image_nvr] = rpm
+
+        if not rpm_for_image:
+            so.say(f'It looks like no images in {major_minor} use RPM {name}.')
+            return
+
+        output = '\n'.join(f'{image} uses {rpm_for_image[image]}' for image in sorted(rpm_for_image.keys()))
+        so.snippet(payload=output,
+                   intro=f'Here are the images that used {name} in their construction:\n',
+                   filename=f'{major_minor}-rpm-{name}-images.txt')
+
+
 def list_images_in_major_minor(so, major, minor):
     major_minor = f'{major}.{minor}'
     rc, stdout, stderr = cmd_assert(so, f'doozer --group openshift-{major_minor} images:print \'{{image_name_short}}\' --show-base --show-non-release --short')
@@ -309,6 +337,7 @@ def respond(**payload):
                 (r'^what images do you build for %(major_minor)s$' % re_snippets, re.I, list_images_in_major_minor),
                 (r'^How can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
                 (r'^What rpms were used in the latest image builds for %(major_minor)s$' % re_snippets, re.I, list_components_for_major_minor),
+                (r'^where in %(major_minor)s is the %(name)s RPM used$' % re_snippets, re.I, list_images_using_rpm),
                 (r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, list_component_data_for_release_tag),
                 (r'^what is the %(name_type2)s for %(name_type)s %(name)s(?: in %(major_minor)s)?$' % re_snippets, re.I, translate_names),
                 (r'^(which|what) build of %(name)s is in (?P<release_img>[-.:/#\w]+)$' % re_snippets, re.I, buildinfo_for_release),
