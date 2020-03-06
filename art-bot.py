@@ -112,7 +112,8 @@ ART config
   (assumes latest version)
 
 ART build info
-- What rpms are used in {image-nvr}?
+- What rpms are in image {image-nvr}?
+- Which rpm {rpm1,rpm2,...} is in image {image-nvr}?
 - What rpms were used in the latest image builds for {major}.{minor}?
 - Where in {major}.{minor} is the {name} RPM used?
 
@@ -189,11 +190,13 @@ def respond(**payload):
                 name=r'(?P<name>[\w.-]+)',
                 name_type=r'(?P<name_type>dist-?git)',
                 name_type2=r'(?P<name_type2>brew-image|brew-component)',
+                nvr=r'(?P<nvr>[\w.-]+)',
             )
             regex_maps = [
                 # regex, flag(s), func
                 (r'^help$', re.I, show_help),
-                (r'^what rpms are used in (?P<nvr>[\w.-]+)$', re.I, brew_list.list_components_for_image),
+                (r'^what rpms are in image %(nvr)s$' % re_snippets, re.I, brew_list.list_components_for_image),
+                (r'^which rpms? (?P<rpms>[-\w.,* ]+) (is|are) in image %(nvr)s$' % re_snippets, re.I, brew_list.specific_rpms_for_image),
                 (r'^what images do you build for %(major_minor)s$' % re_snippets, re.I, brew_list.list_images_in_major_minor),
                 (r'^How can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
                 (r'^What rpms were used in the latest image builds for %(major_minor)s$' % re_snippets, re.I, brew_list.list_components_for_major_minor),

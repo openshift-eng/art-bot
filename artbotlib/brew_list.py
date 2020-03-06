@@ -1,3 +1,4 @@
+import fnmatch
 import json
 import koji
 
@@ -24,9 +25,24 @@ def brew_list_components(nvr):
 
 
 def list_components_for_image(so, nvr):
-    so.say('Sure.. let me check on {}'.format(nvr))
     so.snippet(payload='\n'.join(sorted(brew_list_components(nvr))),
                intro='The following rpms are used',
+               filename='{}-rpms.txt'.format(nvr))
+
+
+def specific_rpms_for_image(so, rpms, nvr):
+    matchers = [rpm.strip() for rpm in rpms.split(",")]
+    matched = set()
+    for rpma in brew_list_components(nvr):
+        name, _, _ = rpma.rsplit("-", 2)
+        if any(fnmatch.fnmatch(name, m) for m in matchers):
+            matched.add(rpma)
+
+    if not matched:
+        so.say(f'Sorry, no rpms matching {matchers} were found in build {nvr}')
+    else:
+        so.snippet(payload='\n'.join(sorted(matched)),
+               intro=f'The following rpm(s) are used in {nvr}',
                filename='{}-rpms.txt'.format(nvr))
 
 
