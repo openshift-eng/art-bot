@@ -12,8 +12,13 @@ def brew_list_components(nvr):
     if nvr in CACHE.setdefault("nvras_for_image", {}):
         return CACHE["nvras_for_image"][nvr]
 
-    koji_api = koji.ClientSession('https://brewhub.engineering.redhat.com/brewhub', opts={'serverca': '/etc/pki/brew/legacy.crt'})
-    build = koji_api.getBuild(nvr, strict=True)
+    try:
+        koji_api = koji.ClientSession('https://brewhub.engineering.redhat.com/brewhub', opts={'serverca': '/etc/pki/brew/legacy.crt'})
+        build = koji_api.getBuild(nvr, strict=True)
+    except Exception as e:
+        # not clear how we'd like to learn about this... shouldn't happen much
+        print(f"error searching for image {nvr} components in brew: {e}")
+        return set()
 
     components = set()
     for archive in koji_api.listArchives(build['id']):
@@ -125,6 +130,9 @@ def latest_images_for_version(so, major_minor):
             return None
 
         image_nvrs = [nvr.strip() for nvr in stdout.strip().split('\n')]
+        # if there is no build for an image, doozer still prints it out like "component--".
+        # filter out those non-builds so we don't expect to find them later.
+        image_nvrs = [nvr for nvr in image_nvrs if not nvr.endswith('-')]
         CACHE['latest_images_built_for_version'][major_minor] = image_nvrs
 
     return CACHE['latest_images_built_for_version'][major_minor]
@@ -161,7 +169,6 @@ def list_images_using_rpm(so, name, major, minor):
 
     rpm_for_image = dict()
     for image_nvr in image_nvrs:
-        first = True
         for rpm_nvra in brew_list_components(image_nvr):
             n, _, _ = rpm_nvra.rsplit('-', 2)
             if n == name:
@@ -185,5 +192,3 @@ def list_images_in_major_minor(so, major, minor):
     else:
         so.snippet(payload=stdout, intro=f'Here are the images being built for openshift-{major_minor}',
                    filename=f'openshift-{major_minor}.images.txt')
-
-
