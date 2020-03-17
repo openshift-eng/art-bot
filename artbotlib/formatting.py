@@ -1,4 +1,5 @@
 import re
+from . import util
 
 
 def extract_plain_text(json_data):
@@ -32,3 +33,48 @@ y-s390x-2020-02-21-235937'}],
 
     # reformat to homogenize miscellaneous confusing bits
     return re.sub(r"\s+", " ", text).lstrip().rstrip(" ?").lower()
+
+
+def repeat_in_chunks(so, name=None):
+    """
+    Repeat what the user says, one "sentence" at a time, in the indicated channel if specified.
+    But only if the bot and the user are in the channel.
+    """
+
+    # remove the "@art-bot chunk to channel:" directive at the beginning.
+    text = re.sub(r"^[^:]+:", "", so.request_payload["data"]["text"])
+
+    # split by eol and periods followed by a space. ignore formatting if possible.
+    chunks = re.sub(r"(\S\S\.)(\s+|$)", r"\1\n", text, flags=re.M).splitlines()
+
+    # find the requested channel
+    if not name:
+        channel_id = so.from_channel()
+        name = "this channel"
+    else:
+        channel = util.lookup_channel(so.web_client, name)
+        if not channel:
+            so.say(f"This app must be added to channel {name} in order to speak there.")
+            return
+        channel_id = channel["id"]
+
+        # make sure the user is also a member of the channel
+        members_function = lambda c: so.web_client.conversations_members(channel=channel_id, cursor=c)
+        if so.from_user_id() not in util.paginator(members_function, "members"):
+            so.say(f"You must be a member of channel {name} to have me speak there.")
+            return
+
+
+    so.say(f"Sending that to {name}.")
+    msg = dict(
+            channel=channel_id,
+            text=f"{so.from_user_mention()} asked me to say:",
+            unfurl_links=False,
+            unfurl_media=False,
+    )
+    so.web_client.chat_postMessage(**msg)
+    # send one message per chunk to private channel.
+    for chunk in chunks:
+        if re.search(r"\S", chunk):  # slack doesn't like empty lines, skip those
+            msg["text"] = chunk
+            so.web_client.chat_postMessage(**msg)

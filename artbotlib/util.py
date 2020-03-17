@@ -17,6 +17,26 @@ def please_notify_art_team_of_error(so, payload):
                filename=f'error-details-{dt}.txt')
 
 
+def paginator(paged_function, member_name):
+    """
+    Lists are paginated, so here's a generator to page through all of them if needed.
+    paged_function: a function that takes a cursor parameter and returns a paginated response object
+    member_name: the member of the response object that has the paginated payload
+
+    Example usage:
+        for channel in paginator(lambda cursor: web_client.users_conversations(cursor=cursor), "channels"):
+            # do stuff with channel
+    """
+    cursor = ""
+    while True:
+        response = paged_function(cursor)
+        for ch in response[member_name]:
+            yield ch
+        cursor = response["response_metadata"].get("next_cursor")
+        if not cursor:
+            break
+
+
 def lookup_channel(web_client, name, only_private=False, only_public=False):
     """
     Look up a channel by name.
@@ -33,19 +53,8 @@ def lookup_channel(web_client, name, only_private=False, only_public=False):
     else:
         types = "public_channel, private_channel"
 
-    # conversations are paginated, so here's a generator to page through all of them if needed
-    def channel_list():
-        cursor = ""
-        while True:
-            response = web_client.users_conversations(types=types, cursor=cursor)
-            for ch in response["channels"]:
-                yield ch
-            cursor = response["response_metadata"].get("next_cursor")
-            if not cursor:
-                break
-
     channel = None
-    for ch in channel_list():
+    for ch in paginator(lambda c: web_client.users_conversations(types=types, cursor=c), "channels"):
         if ch["name"] == name:
             channel = ch
             break

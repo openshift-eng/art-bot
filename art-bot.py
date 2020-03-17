@@ -17,7 +17,7 @@ import umb
 from artbotlib.buildinfo import buildinfo_for_release
 from artbotlib.translation import translate_names
 from artbotlib.util import cmd_assert, please_notify_art_team_of_error, lookup_channel
-from artbotlib.formatting import extract_plain_text
+from artbotlib.formatting import extract_plain_text, repeat_in_chunks
 from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list
 
@@ -49,8 +49,9 @@ ART releases:
 - What (commits|catalogs|distgits|nvrs|images) are associated with {release-tag}?
 - Which build of {image name} is in {release image name or pullspec}?
 
-FAQs
+misc:
 - How can I get ART to build a new image?
+- Chunk (to {channel}): something you want repeated a sentence/line at a time in channel.
 """)
 
 
@@ -165,6 +166,7 @@ def respond(**payload):
                 (r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, brew_list.list_component_data_for_release_tag),
                 (r'^what is the %(name_type2)s for %(name_type)s %(name)s(?: in %(major_minor)s)?$' % re_snippets, re.I, translate_names),
                 (r'^(which|what) build of %(name)s is in (?P<release_img>[-.:/#\w]+)$' % re_snippets, re.I, buildinfo_for_release),
+                (r'^chunk ?(to #?%(name)s)?:' % re_snippets, re.I, repeat_in_chunks),
             ]
             for r in regex_maps:
                 m = re.match(r[0], plain_text, r[1])
