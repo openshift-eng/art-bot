@@ -17,6 +17,7 @@ from artbotlib.buildinfo import buildinfo_for_release
 from artbotlib.translation import translate_names
 from artbotlib.util import cmd_assert, please_notify_art_team_of_error
 from artbotlib.formatting import extract_plain_text
+from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list
 
 MONITORING_CHANNEL = 'GTDLQU9LH'  # art-bot-monitoring
@@ -26,75 +27,6 @@ BOT_ID = 'UTHKYT7FB'
 AT_BOT_ID = f'<@{BOT_ID}>'
 
 logger = logging.getLogger()
-
-
-class SlackOutput:
-
-    def __init__(self, web_client, request_payload, target_channel_id, thread_ts):
-        self.request_payload = request_payload
-        self.web_client = web_client
-        self.target_channel_id = target_channel_id
-        self.thread_ts = thread_ts
-        self.said_something = False
-
-    def say(self, msg):
-        print(f'Responding back through: {self.target_channel_id}')
-        self.said_something = True
-        self.web_client.chat_postMessage(
-            channel=self.target_channel_id,
-            text=msg,
-            thread_ts=self.thread_ts
-        )
-
-    def snippet(self, payload, intro=None, filename=None, filetype=None):
-        self.said_something = True
-        print('Called with payload: {}'.format(payload))
-        print(f'Responding back through: {self.target_channel_id}')
-        r = self.web_client.files_upload(
-            initial_comment=intro,
-            channels=self.target_channel_id,
-            content=payload,
-            filename=filename,
-            filetype=filetype,
-            thread_ts=self.thread_ts
-        )
-        print('Response: ')
-        pprint.pprint(r)
-
-    def monitoring_say(self, msg):
-        try:
-            self.web_client.chat_postMessage(
-                channel=MONITORING_CHANNEL,
-                text=msg
-            )
-        except:
-            print('Error sending information to monitoring channel')
-            traceback.print_exc()
-
-    def monitoring_snippet(self, payload, intro=None, filename=None, filetype=None):
-        try:
-            print('Called with monitoring payload: {}'.format(payload))
-            r = self.web_client.files_upload(
-                initial_comment=intro,
-                channels=MONITORING_CHANNEL,
-                content=payload,
-                filename=filename,
-                filetype=filetype,
-            )
-            print('Response: ')
-            pprint.pprint(r)
-        except:
-            print('Error sending snippet to monitoring channel')
-            traceback.print_exc()
-
-    def from_user_mention(self):
-        return f'<@{self.from_user_id()}>'
-
-    def from_user_id(self):
-        return self.request_payload.get('data').get('user', None)
-
-    def from_channel(self):
-        return self.request_payload.get('data').get('channel', None)
 
 
 # Do we have something that is not grade A?
@@ -172,7 +104,13 @@ def respond(**payload):
         if target_channel_id != from_channel:
             thread_ts = None
 
-        so = SlackOutput(web_client=web_client, request_payload=payload, target_channel_id=target_channel_id, thread_ts=thread_ts)
+        so = SlackOutput(
+            web_client=web_client,
+            request_payload=payload,
+            target_channel_id=target_channel_id,
+            monitoring_channel_id=MONITORING_CHANNEL,
+            thread_ts=thread_ts,
+        )
 
         am_i_mentioned = AT_BOT_ID in data['text']
         print(f'Gating {from_channel} {direct_message_channel_id} {am_i_mentioned}')
