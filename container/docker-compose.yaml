@@ -1,0 +1,23 @@
+version: "0.1"
+
+services:
+  elliott:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: local/art-bot:latest
+    command: /bin/bash
+    volumes:
+    - ../:/workspaces/art-bot:cached,z
+    - ${HOME:-}${USERPROFILE:-}/.ssh:/home/$USER/.ssh:ro,cached,z
+    - ./doozer-settings.yaml:/home/$USER/.config/doozer/settings.yaml:ro,cached,z
+    - ./elliott-settings.yaml:/home/$USER/.config/elliott/settings.yaml:ro,cached,z
+    - ./krb5-redhat.conf:/etc/krb5.conf.d/krb5-redhat.conf:ro,cached,z
+    - ${KRB5CCNAME#FILE:}:/tmp/krb5cc:ro,cached,z
+    - ./brewkoji.conf:/etc/koji.conf.d/brewkoji.conf:ro,cached,z
+    - dev-art-bot-working-dir:/workspaces/art-bot-working-dir:delegated,z
+    working_dir: /workspaces/art-bot
+    tty: true
+    stdin_open: true
+volumes:
+  dev-art-bot-working-dir:
