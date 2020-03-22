@@ -2,12 +2,13 @@
 
 import click
 import os
+import os.path
 import slack
 import pprint
 import re
 import logging
 from os import O_NONBLOCK, read
-import json
+import yaml
 from multiprocessing.pool import ThreadPool
 import traceback
 import threading
@@ -15,16 +16,11 @@ import threading
 import umb
 from artbotlib.buildinfo import buildinfo_for_release
 from artbotlib.translation import translate_names
-from artbotlib.util import cmd_assert, please_notify_art_team_of_error
+from artbotlib.util import cmd_assert, please_notify_art_team_of_error, lookup_channel
 from artbotlib.formatting import extract_plain_text
 from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list
 
-MONITORING_CHANNEL = 'GTDLQU9LH'  # art-bot-monitoring
-# channels we allow the bot to talk directly in instead of DM'ing user back
-BOT_FRIENDLY_CHANNELS = ['GDBRP5YJH', 'CB95J6R4N']  # art-team, #aos-art
-BOT_ID = 'UTHKYT7FB'
-AT_BOT_ID = f'<@{BOT_ID}>'
 
 logger = logging.getLogger()
 
@@ -61,9 +57,35 @@ def show_how_to_add_a_new_image(so):
     so.say('You can find documentation for that process here: https://mojo.redhat.com/docs/DOC-1179058#jive_content_id_Getting_Started')
 
 
+bot_config = {}
+@slack.RTMClient.run_on(event="open")
+def on_load(**payload):
+    pprint.pprint(payload["data"])
+    web_client = payload["web_client"]
+    try:
+        bot_config["self"] = payload["data"]["self"]  # e.g. {'id': 'UTHKYT7FB', 'name': 'art-bot'}
+
+        if "monitoring_channel" not in bot_config:
+            raise Exception("No monitoring_channel configured.")
+        found = lookup_channel(web_client, bot_config["monitoring_channel"], only_private=True)
+        if not found:
+            raise Exception(f"Invalid monitoring channel configured: {bot_config['monitoring_channel']}")
+        bot_config["monitoring_channel_id"] = found["id"]
+
+        bot_config.setdefault("friendly_channels", [])
+        bot_config["friendly_channel_ids"] = []
+        for channel in bot_config["friendly_channels"]:
+            found = lookup_channel(web_client, channel)
+            if not found:
+                raise Exception(f"Invalid friendly channel configured: {channel}")
+            bot_config["friendly_channel_ids"].append(found["id"])
+
+    except Exception as exc:
+        print(f"Error with the contents of your settings file {config_file}:\n{exc}")
+        exit(1)
+
+
 pool = ThreadPool(20)
-
-
 @slack.RTMClient.run_on(event='message')
 def incoming_message(**payload):
     pool.apply_async(respond, kwds=payload)
@@ -89,7 +111,7 @@ def respond(**payload):
         ts = data['ts']
         thread_ts = data.get('thread_ts', ts)
 
-        if user_id == BOT_ID:
+        if user_id == bot_config["self"]["id"]:
             # things like snippets may look like they are from normal users; if it is from us, ignore it.
             return
 
@@ -97,7 +119,8 @@ def respond(**payload):
         direct_message_channel_id = response["channel"]["id"]
 
         target_channel_id = direct_message_channel_id
-        if from_channel in BOT_FRIENDLY_CHANNELS:
+        if from_channel in bot_config["friendly_channel_ids"]:
+            # in these channels we allow the bot to respond directly instead of DM'ing user back
             target_channel_id = from_channel
 
         # If we changing channels, we cannot target the initial message to create a thread
@@ -108,11 +131,11 @@ def respond(**payload):
             web_client=web_client,
             request_payload=payload,
             target_channel_id=target_channel_id,
-            monitoring_channel_id=MONITORING_CHANNEL,
+            monitoring_channel_id=bot_config["monitoring_channel_id"],
             thread_ts=thread_ts,
         )
 
-        am_i_mentioned = AT_BOT_ID in data['text']
+        am_i_mentioned = f'<@{bot_config["self"]["id"]}>' in data['text']
         print(f'Gating {from_channel} {direct_message_channel_id} {am_i_mentioned}')
         plain_text = extract_plain_text(payload)
         print(f'Query was: {plain_text}')
@@ -154,6 +177,29 @@ def respond(**payload):
         raise
 
 
+def consumer_start(topic, callback_handler, durable=False, user_data=None):
+    """
+    Create a consumer for a topic on the UMB.
+    :param topic: The name of the topic (e.g. eng.clair.scan). The VirtualTopic name will be constructed for you.
+    :param callback_handler: The method to invoke when a message is received. The method should accept
+                                (message, user_data)  and return True when the consumer thread should terminate.
+                                If False is returned, the callback will continue to be invoked as messages arrive.
+    :param durable: Whether the subscription should be durable
+    :param user_data: Anything you want passed to the callback when a message is delivered
+    :return: The Thread created to run the consumer.
+    """
+    config = bot_config["umb"]
+    consumer = umb.get_consumer(
+        env=config["env"],
+        client_cert_path=config["client_cert_file"],
+        client_key_path=config["client_key_file"],
+        ca_chain_path=config["ca_certs_file"],
+    )
+    t = threading.Thread(target=consumer_thread, args=(bot_config["umb"]["client_id"], topic, callback_handler, consumer, durable, user_data))
+    t.start()
+    return t
+
+
 def clair_consumer_callback(msg, user_data):
     """
     :param msg: The incoming message to handle
@@ -189,57 +235,58 @@ def consumer_thread(client_id, topic, callback_handler, consumer, durable, user_
 
 
 @click.command()
-@click.option("--env", required=False, metavar="ENVIRONMENT",
-              default='stage',
-              type=click.Choice(['dev', 'stage', 'prod']),
-              help="Which UMB environment to use")
-@click.option('--client-id', required=False, metavar='CLIENT-ID',
-              type=click.STRING,
-              help='The client-id associated with the cert/key pair for the UMB',
-              default='openshift-art-bot-slack')
-@click.option("--client-cert", required=True, metavar="CERT-PATH",
-              type=click.Path(exists=True),
-              help="Path to the client certificate for UMB authentication")
-@click.option("--client-key", required=True, metavar="KEY-PATH",
-              type=click.Path(exists=True),
-              help="Path to the client key for UMB authentication")
-@click.option("--ca-certs", type=click.Path(exists=True),
-              default=umb.DEFAULT_CA_CHAIN,
-              help="Manually specify the path to the RHIT CA Trust Chain. "
-              "Default: {}".format(umb.DEFAULT_CA_CHAIN))
-def run(env, client_id, client_cert, client_key, ca_certs):
-    if not os.environ.get('SLACK_API_TOKEN', None):
-        print('You must export SLACK_API_TOKEN into the environment. You can find this in bitwarden.')
+def run():
+
+    try:
+        config_file = os.environ.get("ART_BOT_SETTINGS_YAML", f"{os.environ['HOME']}/.config/art-bot/settings.yaml")
+        with open(config_file, 'r') as stream:
+            bot_config.update(yaml.safe_load(stream))
+    except yaml.YAMLError as exc:
+        print(f"Error reading yaml in file {config_file}: {exc}")
+        exit(1)
+    except Exception as exc:
+        print(f"Error loading art-bot config file {config_file}: {exc}")
+        exit(1)
+
+    def abs_path_home(filename):
+        # if not absolute, relative to home dir
+        return filename if filename.startswith("/") else f"{os.environ['HOME']}/{filename}"
+
+    try:
+        with open(abs_path_home(bot_config["slack_api_token_file"]), "r") as stream:
+            bot_config["slack_api_token"] = stream.read().strip()
+    except Exception as exc:
+        print(f"Error: {exc}\nYou must provide a slack API token in your config. You can find this in bitwarden.")
         exit(1)
 
     logging.basicConfig()
     logging.getLogger('activemq').setLevel(logging.DEBUG)
 
-    def consumer_start(topic, callback_handler, durable=False, user_data=None):
-        """
-        Create a consumer for a topic on the UMB.
-        :param topic: The name of the topic (e.g. eng.clair.scan). The VirtualTopic name will be constructed for you.
-        :param callback_handler: The method to invoke when a message is received. The method should accept
-                                    (message, user_data)  and return True when the consumer thread should terminate.
-                                    If False is returned, the callback will continue to be invoked as messages arrive.
-        :param durable: Whether the subscription should be durable
-        :param user_data: Anything you want passed to the callback when a message is delivered
-        :return: The Thread created to run the consumer.
-        """
-        consumer = umb.get_consumer(env=env, client_cert_path=client_cert, client_key_path=client_key,
-                                    ca_chain_path=ca_certs)
-        t = threading.Thread(target=consumer_thread, args=(client_id, topic, callback_handler, consumer, durable, user_data))
-        t.start()
-        return t
+    rtm_client = slack.RTMClient(token=bot_config['slack_api_token'], auto_reconnect=True)
 
-    t = consumer_start('eng.clair.>', clair_consumer_callback)
+    if "umb" in bot_config:
+        # umb listener setup is optional
 
-    slack_token = os.environ["SLACK_API_TOKEN"]
-    rtm_client = slack.RTMClient(token=slack_token, auto_reconnect=True)
+        bot_config["umb"].setdefault("env", "stage")
+        bot_config["umb"].setdefault("ca_certs_file", umb.DEFAULT_CA_CHAIN)
+        bot_config["umb"].setdefault("client_id", "openshift-art-bot-slack")
+        try:
+            if bot_config["umb"]["env"] not in ["dev", "stage", "prod"]:
+                raise Exception(f"invalid umb env specified: {bot_config['umb']['env']}")
+            for umbfile in ["client_cert_file", "client_key_file", "ca_certs_file"]:
+                if not bot_config["umb"].get(umbfile, None):
+                    raise Exception(f"config must specify a file for umb {umbfile}")
+                bot_config["umb"][umbfile] = abs_path_home(bot_config["umb"][umbfile])
+                if not os.path.isfile(bot_config["umb"][umbfile]):
+                    raise Exception(f"config specifies a file for umb {umbfile} that does not exist: {bot_config['umb'][umbfile]}")
+        except Exception as exc:
+            print(f"Error in umb configuration: {exc}")
+            exit(1)
+
+        clair_consumer = consumer_start('eng.clair.>', clair_consumer_callback)
+        clair_consumer.join()
+
     rtm_client.start()
-
-    t.join()
-
 
 if __name__ == '__main__':
     run()

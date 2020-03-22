@@ -17,6 +17,42 @@ def please_notify_art_team_of_error(so, payload):
                filename=f'error-details-{dt}.txt')
 
 
+def lookup_channel(web_client, name, only_private=False, only_public=False):
+    """
+    Look up a channel by name.
+    Only searches channels to which the bot has been added.
+    Returns None or a channel record e.g. {'id': 'CB95J6R4N', 'name': 'aos-art', 'is_private': False, ...}
+    """
+    if only_private and only_public:
+        raise Exception("channels cannot be both private and public")
+
+    if only_private:
+        types = "private_channel"
+    elif only_public:
+        types = "public_channel" if only_public else types
+    else:
+        types = "public_channel, private_channel"
+
+    # conversations are paginated, so here's a generator to page through all of them if needed
+    def channel_list():
+        cursor = ""
+        while True:
+            response = web_client.users_conversations(types=types, cursor=cursor)
+            for ch in response["channels"]:
+                yield ch
+            cursor = response["response_metadata"].get("next_cursor")
+            if not cursor:
+                break
+
+    channel = None
+    for ch in channel_list():
+        if ch["name"] == name:
+            channel = ch
+            break
+
+    return channel
+
+
 def cmd_gather(cmd, set_env=None, cwd=None, realtime=False):
     """
     Runs a command and returns rc,stdout,stderr as a tuple.
