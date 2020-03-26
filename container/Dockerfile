@@ -1,4 +1,4 @@
-FROM fedora:31
+FROM docker.io/library/fedora:31
 LABEL name="art-bot" \
   description="art-bot container image" \
   maintainer="OpenShift Automated Release Tooling (ART) Team <aos-team-art@redhat.com>"
@@ -37,19 +37,38 @@ ARG USER_GID=$USER_UID
 # Create the "dev" user
 RUN groupadd --gid "$USER_GID" "$USERNAME" \
  && useradd --uid "$USER_UID" --gid "$USER_GID" -m "$USERNAME" \
- # give it access to its files
- && mkdir -p /workspaces/{art-bot,.docker,.config} \
+ # give access to its files
+ && mkdir -p /workspaces/art-bot \
  && mkdir -p /workspaces/{elliott,doozer}{,-working-space} \
+ && mkdir -p /home/"$USERNAME"/.config/{elliott,doozer,art-bot} \
+ && mkdir -p /home/"$USERNAME"/.docker \
+ && mkdir -p /home/"$USERNAME"/.local/{bin,lib/python3.7/site-packages} \
  && chown -R "${USER_UID}:${USER_GID}" /home/"$USERNAME" /workspaces \
- && chmod 0755 /home/"$USERNAME" \
+ && chmod -R 0755 /home/"$USERNAME" \
+ && chmod -R 0777 /workspaces \
  # and allow it passwordless sudo
  && echo "$USERNAME" ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/"$USERNAME" \
  && chmod 0440 /etc/sudoers.d/"$USERNAME"
 
-# Preinstall dependencies
-COPY ./ /workspaces/art-bot/
 USER "$USER_UID"
 WORKDIR /workspaces/art-bot
-RUN pip3 install --user rh-doozer rh-elliott
-RUN pip3 install --user -r ./requirements.txt
+
+# install dependencies (allow even openshift's random user to see)
+ENV PATH=/home/"$USERNAME"/.local/bin:/home/"$USERNAME"/bin:"$PATH" \
+    PYTHONPATH=/home/"$USERNAME"/.local/lib/python3.7/site-packages/
+RUN umask a+rx && pip3 install --user rh-doozer rh-elliott
+COPY requirements.txt ./
+RUN umask a+rx && pip3 install --user -r ./requirements.txt
+
+# install art-bot and default configs
+COPY container/krb5-redhat.conf /etc/krb5.conf.d/krb5-redhat.conf
+COPY container/brewkoji.conf /etc/koji.conf.d/brewkoji.conf
+COPY . /tmp/art-bot
+USER 0
+RUN cp -r /tmp/art-bot/{artbotlib,umb,art-bot.py} . \
+ && cp /tmp/art-bot/container/doozer-settings.yaml /home/"$USERNAME"/.config/doozer/settings.yaml \
+ && cp /tmp/art-bot/container/elliott-settings.yaml /home/"$USERNAME"/.config/elliott/settings.yaml \
+ && cp /tmp/art-bot/settings.yaml /home/"$USERNAME"/.config/art-bot/settings.yaml \
+ && rm -rf /tmp/art-bot
+USER "$USER_UID"
 
