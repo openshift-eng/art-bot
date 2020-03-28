@@ -12,6 +12,7 @@ import yaml
 from multiprocessing.pool import ThreadPool
 import traceback
 import threading
+import random
 
 import umb
 from artbotlib.buildinfo import buildinfo_for_release
@@ -28,6 +29,11 @@ logger = logging.getLogger()
 # Do we have something that is not grade A?
 # What will the grades be by <date>
 # listen to the UMB and publish events to slack #release-x.y
+
+
+def greet_user(so):
+    greetings = ["Hi", "Hey", "Hello", "Howdy", "What's up", "Yo", "Greetings", "G'day", "Mahalo"]
+    so.say(f"{greetings[random.randint(1, len(greetings)) - 1]}, {so.from_user_mention()}")
 
 
 def show_help(so):
@@ -156,6 +162,7 @@ def respond(**payload):
             )
             regex_maps = [
                 # regex, flag(s), func
+                (r"^\W*(hi|hey|hello|howdy|what's up|yo|welcome|greetings)\b", re.I, greet_user),
                 (r'^help$', re.I, show_help),
                 (r'^what rpms are in image %(nvr)s$' % re_snippets, re.I, brew_list.list_components_for_image),
                 (r'^which rpms? (?P<rpms>[-\w.,* ]+) (is|are) in image %(nvr)s$' % re_snippets, re.I, brew_list.specific_rpms_for_image),
