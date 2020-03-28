@@ -2,7 +2,7 @@ import re
 from . import util
 
 
-def extract_plain_text(json_data):
+def extract_plain_text(json_data, alt_username=None):
     """
     Take data that looks like the following:
 
@@ -32,7 +32,13 @@ y-s390x-2020-02-21-235937'}],
                 text += element["text"]
 
     # reformat to homogenize miscellaneous confusing bits
-    return re.sub(r"\s+", " ", text).lstrip().rstrip(" ?").lower()
+    text = re.sub(r"\s+", " ", text).lstrip().rstrip(" ?").lower()
+
+    # remove bare references to alt_username
+    if alt_username:
+        text = text.replace(f'@{alt_username} ', '')
+
+    return text
 
 
 def repeat_in_chunks(so, name=None):
@@ -58,7 +64,7 @@ def repeat_in_chunks(so, name=None):
             return
         channel_id = channel["id"]
 
-        # make sure the user is also a member of the channel
+        # make sure the user is also a member of the conversation
         members_function = lambda c: so.web_client.conversations_members(channel=channel_id, cursor=c)
         if so.from_user_id() not in util.paginator(members_function, "members"):
             so.say(f"You must be a member of channel {name} to have me speak there.")
@@ -66,15 +72,14 @@ def repeat_in_chunks(so, name=None):
 
 
     so.say(f"Sending that to {name}.")
-    msg = dict(
+    opts = dict(
             channel=channel_id,
-            text=f"{so.from_user_mention()} asked me to say:",
+            thread_ts=None,
             unfurl_links=False,
             unfurl_media=False,
     )
-    so.web_client.chat_postMessage(**msg)
-    # send one message per chunk to private channel.
+    so.say(f"{so.from_user_mention()} asked me to say:", **opts)
+    # send one message per chunk to conversation.
     for chunk in chunks:
         if re.search(r"\S", chunk):  # slack doesn't like empty lines, skip those
-            msg["text"] = chunk
-            so.web_client.chat_postMessage(**msg)
+            so.say(chunk, **opts)

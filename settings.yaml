@@ -1,7 +1,9 @@
 ---
 
-# art-bot looks for this in ~/.config/art-bot/settings.yaml by default
+# art-bot looks for this file in ~/.config/art-bot/settings.yaml by default
 
+# react to and respond as this name instead of the default
+username: art-bot-dev
 # channel where bot reports what is being asked and any errors
 monitoring_channel: art-bot-monitoring
 # channels the bot can respond in instead of DM'ing user back

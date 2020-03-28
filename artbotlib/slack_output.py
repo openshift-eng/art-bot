@@ -4,22 +4,28 @@ import traceback
 
 class SlackOutput:
 
-    def __init__(self, web_client, request_payload, target_channel_id, monitoring_channel_id, thread_ts):
+    def __init__(self, web_client, request_payload, target_channel_id, monitoring_channel_id, thread_ts, alt_username):
         self.web_client = web_client
         self.request_payload = request_payload
         self.target_channel_id = target_channel_id
-        self.thread_ts = thread_ts
         self.monitoring_channel_id = monitoring_channel_id
+        self.thread_ts = thread_ts
+        self.username_opts = dict(as_user=False, username=alt_username, icon_emoji=":hammer_and_wrench:") if alt_username else dict()
         self.said_something = False
 
-    def say(self, msg):
+    def say(self, text, **msg_opts):
         print(f"Responding back through: {self.target_channel_id}")
         self.said_something = True
-        self.web_client.chat_postMessage(
+        msg = dict(
             channel=self.target_channel_id,
-            text=msg,
-            thread_ts=self.thread_ts
+            text=text,
+            thread_ts=self.thread_ts,
+            **self.username_opts,
         )
+        msg.update(msg_opts)
+        response = self.web_client.chat_postMessage(**msg)
+        print(f"response ok: {response.get('ok')}\n")
+        pprint.pprint(f"ok: {response.get('message')}")
 
     def snippet(self, payload, intro=None, filename=None, filetype=None):
         self.said_something = True
@@ -31,17 +37,20 @@ class SlackOutput:
             content=payload,
             filename=filename,
             filetype=filetype,
-            thread_ts=self.thread_ts
+            thread_ts=self.thread_ts,
         )
         print("Response: ")
         pprint.pprint(r)
 
-    def monitoring_say(self, msg):
+    def monitoring_say(self, text, **msg_opts):
         try:
-            self.web_client.chat_postMessage(
+            msg = dict(
                 channel=self.monitoring_channel_id,
-                text=msg
+                text=text,
+                **self.username_opts,
             )
+            msg.update(msg_opts)
+            self.web_client.chat_postMessage(**msg)
         except:
             print("Error sending information to monitoring channel")
             traceback.print_exc()
