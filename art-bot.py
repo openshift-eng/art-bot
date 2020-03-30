@@ -12,12 +12,13 @@ import yaml
 from multiprocessing.pool import ThreadPool
 import traceback
 import threading
+import random
 
 import umb
 from artbotlib.buildinfo import buildinfo_for_release
 from artbotlib.translation import translate_names
 from artbotlib.util import cmd_assert, please_notify_art_team_of_error, lookup_channel
-from artbotlib.formatting import extract_plain_text
+from artbotlib.formatting import extract_plain_text, repeat_in_chunks
 from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list
 
@@ -28,6 +29,11 @@ logger = logging.getLogger()
 # Do we have something that is not grade A?
 # What will the grades be by <date>
 # listen to the UMB and publish events to slack #release-x.y
+
+
+def greet_user(so):
+    greetings = ["Hi", "Hey", "Hello", "Howdy", "What's up", "Yo", "Greetings", "G'day", "Mahalo"]
+    so.say(f"{greetings[random.randint(1, len(greetings)) - 1]}, {so.from_user_mention()}")
 
 
 def show_help(so):
@@ -49,8 +55,9 @@ ART releases:
 - What (commits|catalogs|distgits|nvrs|images) are associated with {release-tag}?
 - Which build of {image name} is in {release image name or pullspec}?
 
-FAQs
+misc:
 - How can I get ART to build a new image?
+- Chunk (to {channel}): something you want repeated a sentence/line at a time in channel.
 """)
 
 
@@ -81,6 +88,8 @@ def on_load(**payload):
                 raise Exception(f"Invalid friendly channel configured: {channel}")
             bot_config["friendly_channel_ids"].append(found["id"])
 
+        bot_config.setdefault("username", bot_config["self"]["name"])
+
     except Exception as exc:
         print(f"Error with the contents of your settings file {config_file}:\n{exc}")
         exit(1)
@@ -97,7 +106,7 @@ def respond(**payload):
         data = payload['data']
         web_client = payload['web_client']
 
-        print('DATA')
+        print('\n----------------- DATA -----------------\n')
         pprint.pprint(data)
 
         if 'user' not in data:
@@ -128,51 +137,69 @@ def respond(**payload):
         if target_channel_id != from_channel:
             thread_ts = None
 
+        alt_username = None
+        am_i_DMed = from_channel == direct_message_channel_id
+        if bot_config["self"]["name"] != bot_config["username"]:
+            alt_username = bot_config["username"]
+            # alternate user must be mentioned specifically, even in a DM, else msg is left to default bot user to handle
+            am_i_mentioned = f'@{bot_config["username"]}' in data['text']
+            am_i_DMed = am_i_DMed and am_i_mentioned
+            plain_text = extract_plain_text(payload, alt_username)
+        else:
+            am_i_mentioned = f'<@{bot_config["self"]["id"]}>' in data['text']
+            plain_text = extract_plain_text(payload)
+            if plain_text.startswith("@"):
+                return  # assume it's for an alternate name
+
+        print(f'Gating {from_channel} {am_i_DMed} {am_i_mentioned}')
+
+        print(f'Query was: {plain_text}')
+
+        # We only want to respond if in a DM channel or we are mentioned specifically in another channel
+        if not am_i_DMed and not am_i_mentioned:
+            return
+
         so = SlackOutput(
             web_client=web_client,
             request_payload=payload,
             target_channel_id=target_channel_id,
             monitoring_channel_id=bot_config["monitoring_channel_id"],
             thread_ts=thread_ts,
+            alt_username=alt_username,
         )
 
-        am_i_mentioned = f'<@{bot_config["self"]["id"]}>' in data['text']
-        print(f'Gating {from_channel} {direct_message_channel_id} {am_i_mentioned}')
-        plain_text = extract_plain_text(payload)
-        print(f'Query was: {plain_text}')
+        so.monitoring_say(f"<@{user_id}> asked: {plain_text}")
 
-        # We only want to respond if in a DM channel or we are mentioned specifically in another channel
-        if from_channel == direct_message_channel_id or am_i_mentioned:
+        re_snippets = dict(
+            major_minor=r'(?P<major>\d)\.(?P<minor>\d+)',
+            name=r'(?P<name>[\w.-]+)',
+            name_type=r'(?P<name_type>dist-?git)',
+            name_type2=r'(?P<name_type2>brew-image|brew-component)',
+            nvr=r'(?P<nvr>[\w.-]+)',
+        )
+        regex_maps = [
+            # regex, flag(s), func
+            (r"^\W*(hi|hey|hello|howdy|what's up|yo|welcome|greetings)\b", re.I, greet_user),
+            (r'^help$', re.I, show_help),
+            (r'^what rpms are in image %(nvr)s$' % re_snippets, re.I, brew_list.list_components_for_image),
+            (r'^which rpms? (?P<rpms>[-\w.,* ]+) (is|are) in image %(nvr)s$' % re_snippets, re.I, brew_list.specific_rpms_for_image),
+            (r'^what images do you build for %(major_minor)s$' % re_snippets, re.I, brew_list.list_images_in_major_minor),
+            (r'^How can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
+            (r'^What rpms were used in the latest image builds for %(major_minor)s$' % re_snippets, re.I, brew_list.list_components_for_major_minor),
+            (r'^where in %(major_minor)s is the %(name)s RPM used$' % re_snippets, re.I, brew_list.list_images_using_rpm),
+            (r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, brew_list.list_component_data_for_release_tag),
+            (r'^what is the %(name_type2)s for %(name_type)s %(name)s(?: in %(major_minor)s)?$' % re_snippets, re.I, translate_names),
+            (r'^(which|what) build of %(name)s is in (?P<release_img>[-.:/#\w]+)$' % re_snippets, re.I, buildinfo_for_release),
+            (r'^chunks? ?((to|in) #?%(name)s)?:' % re_snippets, re.I, repeat_in_chunks),
+        ]
+        for r in regex_maps:
+            m = re.match(r[0], plain_text, r[1])
+            if m:
+                r[2](so, **m.groupdict())
 
-            so.monitoring_say(f"<@{user_id}> asked: {plain_text}")
+        if not so.said_something:
+            so.say("Sorry, I don't know how to help with that. Type 'help' to see what I can do.")
 
-            re_snippets = dict(
-                major_minor=r'(?P<major>\d)\.(?P<minor>\d+)',
-                name=r'(?P<name>[\w.-]+)',
-                name_type=r'(?P<name_type>dist-?git)',
-                name_type2=r'(?P<name_type2>brew-image|brew-component)',
-                nvr=r'(?P<nvr>[\w.-]+)',
-            )
-            regex_maps = [
-                # regex, flag(s), func
-                (r'^help$', re.I, show_help),
-                (r'^what rpms are in image %(nvr)s$' % re_snippets, re.I, brew_list.list_components_for_image),
-                (r'^which rpms? (?P<rpms>[-\w.,* ]+) (is|are) in image %(nvr)s$' % re_snippets, re.I, brew_list.specific_rpms_for_image),
-                (r'^what images do you build for %(major_minor)s$' % re_snippets, re.I, brew_list.list_images_in_major_minor),
-                (r'^How can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
-                (r'^What rpms were used in the latest image builds for %(major_minor)s$' % re_snippets, re.I, brew_list.list_components_for_major_minor),
-                (r'^where in %(major_minor)s is the %(name)s RPM used$' % re_snippets, re.I, brew_list.list_images_using_rpm),
-                (r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, brew_list.list_component_data_for_release_tag),
-                (r'^what is the %(name_type2)s for %(name_type)s %(name)s(?: in %(major_minor)s)?$' % re_snippets, re.I, translate_names),
-                (r'^(which|what) build of %(name)s is in (?P<release_img>[-.:/#\w]+)$' % re_snippets, re.I, buildinfo_for_release),
-            ]
-            for r in regex_maps:
-                m = re.match(r[0], plain_text, r[1])
-                if m:
-                    r[2](so, **m.groupdict())
-
-            if not so.said_something:
-                so.say("Sorry, I don't know how to help with that. Type 'help' to see what I can do.")
     except:
         print('Error responding to message:')
         pprint.pprint(payload)
