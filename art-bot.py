@@ -39,25 +39,25 @@ def greet_user(so):
 def show_help(so):
     so.say("""Here are questions I can answer...
 
-ART config
-- What images do you build for {major}.{minor}?
-- what is the (brew-image|brew-component) for dist-git {name} in {major}.{minor}?
-- what is the (brew-image|brew-component) for dist-git {name}?
+_*ART releases:*_
+* Which build of `image_name` is in `release image name or pullspec`?
+* What (commits|catalogs|distgits|nvrs|images) are associated with `release-tag`?
+
+_*ART build info:*_
+* Where in `major.minor` (is|are) the `name1,name2,...` (RPM|package) used?
+* What rpms were used in the latest image builds for `major.minor`?
+* What rpms are in image `image-nvr`?
+* Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
+
+_*ART config:*_
+* What images build in `major.minor`?
+* What is the (brew-image|brew-component) for dist-git `name` in `major.minor`?
+* What is the (brew-image|brew-component) for dist-git `name`?
   (assumes latest version)
 
-ART build info
-- What rpms are in image {image-nvr}?
-- Which rpm {rpm1,rpm2,...} is in image {image-nvr}?
-- What rpms were used in the latest image builds for {major}.{minor}?
-- Where in {major}.{minor} is the {name} RPM used?
-
-ART releases:
-- What (commits|catalogs|distgits|nvrs|images) are associated with {release-tag}?
-- Which build of {image name} is in {release image name or pullspec}?
-
-misc:
-- How can I get ART to build a new image?
-- Chunk (to {channel}): something you want repeated a sentence/line at a time in channel.
+_*misc:*_
+* How can I get ART to build a new image?
+* Chunk (to `channel`): something you want repeated a sentence/line at a time in channel.
 """)
 
 
@@ -173,23 +173,33 @@ def respond(**payload):
         re_snippets = dict(
             major_minor=r'(?P<major>\d)\.(?P<minor>\d+)',
             name=r'(?P<name>[\w.-]+)',
+            names=r'(?P<names>[\w.,-]+)',
             name_type=r'(?P<name_type>dist-?git)',
             name_type2=r'(?P<name_type2>brew-image|brew-component)',
             nvr=r'(?P<nvr>[\w.-]+)',
+            wh=r'(which|what)',
         )
         regex_maps = [
             # regex, flag(s), func
-            (r"^\W*(hi|hey|hello|howdy|what's up|yo|welcome|greetings)\b", re.I, greet_user),
+            (r"^\W*(hi|hey|hello|howdy|what'?s? up|yo|welcome|greetings)\b", re.I, greet_user),
             (r'^help$', re.I, show_help),
-            (r'^what rpms are in image %(nvr)s$' % re_snippets, re.I, brew_list.list_components_for_image),
-            (r'^which rpms? (?P<rpms>[-\w.,* ]+) (is|are) in image %(nvr)s$' % re_snippets, re.I, brew_list.specific_rpms_for_image),
-            (r'^what images do you build for %(major_minor)s$' % re_snippets, re.I, brew_list.list_images_in_major_minor),
-            (r'^How can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
-            (r'^What rpms were used in the latest image builds for %(major_minor)s$' % re_snippets, re.I, brew_list.list_components_for_major_minor),
-            (r'^where in %(major_minor)s is the %(name)s RPM used$' % re_snippets, re.I, brew_list.list_images_using_rpm),
-            (r'^What (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, brew_list.list_component_data_for_release_tag),
+
+            # ART releases:
+            (r'^%(wh)s build of %(name)s is in (?P<release_img>[-.:/#\w]+)$' % re_snippets, re.I, buildinfo_for_release),
+            (r'^%(wh)s (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, brew_list.list_component_data_for_release_tag),
+
+            # ART build info
+            (r'^%(wh)s images build in %(major_minor)s$' % re_snippets, re.I, brew_list.list_images_in_major_minor),
+            (r'^%(wh)s rpms were used in the latest image builds for %(major_minor)s$' % re_snippets, re.I, brew_list.list_components_for_major_minor),
+            (r'^%(wh)s rpms are in image %(nvr)s$' % re_snippets, re.I, brew_list.list_components_for_image),
+            (r'^%(wh)s rpms? (?P<rpms>[-\w.,* ]+) (is|are) in image %(nvr)s$' % re_snippets, re.I, brew_list.specific_rpms_for_image),
+
+            # ART config
+            (r'^where in %(major_minor)s (is|are) the %(names)s (?P<search_type>RPM|package)s? used$' % re_snippets, re.I, brew_list.list_uses_of_rpms),
             (r'^what is the %(name_type2)s for %(name_type)s %(name)s(?: in %(major_minor)s)?$' % re_snippets, re.I, translate_names),
-            (r'^(which|what) build of %(name)s is in (?P<release_img>[-.:/#\w]+)$' % re_snippets, re.I, buildinfo_for_release),
+
+            # misc
+            (r'^how can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
             (r'^chunks? ?((to|in) #?%(name)s)?:' % re_snippets, re.I, repeat_in_chunks),
         ]
         for r in regex_maps:
@@ -198,7 +208,7 @@ def respond(**payload):
                 r[2](so, **m.groupdict())
 
         if not so.said_something:
-            so.say("Sorry, I don't know how to help with that. Type 'help' to see what I can do.")
+            so.say("Sorry, I can't help with that yet. Ask 'help' to see what I can do.")
 
     except:
         print('Error responding to message:')
