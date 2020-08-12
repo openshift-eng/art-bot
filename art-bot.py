@@ -208,7 +208,7 @@ def respond(**payload):
                 r[2](so, **m.groupdict())
 
         if not so.said_something:
-            so.say("Sorry, I can't help with that yet. Ask 'help' to see what I can do.")
+            so.say("Sorry, I can't help with that yet. However, Thiago is probably pushing the fix.")
 
     except:
         print('Error responding to message:')
