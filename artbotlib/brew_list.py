@@ -1,6 +1,5 @@
 import fnmatch
 import json
-import koji
 import re
 import urllib.request
 
@@ -16,7 +15,7 @@ def brew_list_components(nvr):
         return CACHE["nvras_for_image"][nvr]
 
     try:
-        koji_api = koji.ClientSession('https://brewhub.engineering.redhat.com/brewhub', opts={'serverca': '/etc/pki/brew/legacy.crt'})
+        koji_api = util.koji_client_session()
         build = koji_api.getBuild(nvr, strict=True)
     except Exception as e:
         # not clear how we'd like to learn about this... shouldn't happen much
@@ -164,15 +163,6 @@ def list_components_for_major_minor(so, major, minor):
     )
 
 
-def _koji_client_session():
-    koji_api = koji.ClientSession(
-        'https://brewhub.engineering.redhat.com/brewhub',
-        opts=dict(serverca='/etc/pki/brew/legacy.crt'),
-    )
-    koji_api.hello()  # test for connectivity
-    return koji_api
-
-
 def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
     """
     List all of the uses for a list of RPMs or packages,
@@ -190,7 +180,7 @@ def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
         return
 
     try:
-        koji_api = _koji_client_session()
+        koji_api = util.koji_client_session()
     except Exception as ex:
         so.monitoring_say(f"Failed to connect to brew; cannot look up components: {ex}")
         so.say("Failed to connect to brew; cannot look up components.")

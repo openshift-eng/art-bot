@@ -1,5 +1,6 @@
 import datetime
 from fcntl import fcntl, F_GETFL, F_SETFL
+import koji
 import logging
 import os
 import shlex
@@ -151,9 +152,6 @@ def cmd_gather(cmd, set_env=None, cwd=None, realtime=False):
     return rc, out, err
 
 
-
-
-
 def cmd_assert(so, cmd, set_env=None, cwd=None, realtime=False):
     """
     A cmd_gather invocation, but if it fails, it will notify the
@@ -185,3 +183,12 @@ def cmd_assert(so, cmd, set_env=None, cwd=None, realtime=False):
         raise IOError(f'Non-zero return code from: {cmd}')
 
     return rc, stdout, stderr
+
+
+def koji_client_session():
+    koji_api = koji.ClientSession(
+        'https://brewhub.engineering.redhat.com/brewhub',
+        opts=dict(serverca='/etc/pki/brew/legacy.crt'),
+    )
+    koji_api.hello()  # test for connectivity
+    return koji_api
