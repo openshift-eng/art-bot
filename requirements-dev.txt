@@ -8,5 +8,3 @@ pygit2 ; python_version >= '3.5'
 pylint
 pytest
 tox
-typing
-typing-extensions

@@ -1,3 +1,4 @@
+import cachetools
 import datetime
 from fcntl import fcntl, F_GETFL, F_SETFL
 import koji
@@ -5,6 +6,7 @@ import logging
 import os
 import shlex
 import subprocess
+from threading import RLock
 import time
 
 
@@ -192,3 +194,21 @@ def koji_client_session():
     )
     koji_api.hello()  # test for connectivity
     return koji_api
+
+
+LOCK = RLock()
+CACHE = cachetools.LRUCache(maxsize=2000)
+def cached(func):
+    """decorator to memoize functions"""
+    @cachetools.cached(CACHE, lock=LOCK)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+CACHE_TTL = cachetools.TTLCache(maxsize=100, ttl=3600)  # expire after an hour
+def cached_ttl(func):
+    """decorator to memoize functions"""
+    @cachetools.cached(CACHE_TTL, lock=LOCK)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper

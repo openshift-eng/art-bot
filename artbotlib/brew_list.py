@@ -6,33 +6,29 @@ import urllib.request
 from . import util
 
 RHCOS_BASE_URL = "https://releases-rhcos-art.cloud.privileged.psi.redhat.com/storage/releases"
-# TODO: use a real cache with expiry and stuff
-CACHE = {}
 
 
+@util.cached
 def brew_list_components(nvr):
-    if nvr in CACHE.setdefault("nvras_for_image", {}):
-        return CACHE["nvras_for_image"][nvr]
-
-    try:
-        koji_api = util.koji_client_session()
-        build = koji_api.getBuild(nvr, strict=True)
-    except Exception as e:
-        # not clear how we'd like to learn about this... shouldn't happen much
-        print(f"error searching for image {nvr} components in brew: {e}")
-        return set()
+    koji_api = util.koji_client_session()
+    build = koji_api.getBuild(nvr, strict=True)
 
     components = set()
     for archive in koji_api.listArchives(build['id']):
         for rpm in koji_api.listRPMs(imageID=archive['id']):
             components.add('{nvr}.{arch}'.format(**rpm))
 
-    CACHE["nvras_for_image"][nvr] = components
     return components
 
 
 def list_components_for_image(so, nvr):
-    so.snippet(payload='\n'.join(sorted(brew_list_components(nvr))),
+    try:
+        components = brew_list_components(nvr)
+    except Exception as e:
+        so.say(f"Sorry, I couldn't find image {nvr} RPMs in brew: {e}")
+        return
+
+    so.snippet(payload='\n'.join(sorted(components)),
                intro='The following rpms are used',
                filename='{}-rpms.txt'.format(nvr))
 
@@ -124,21 +120,26 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
 
 
 def latest_images_for_version(so, major_minor):
-    if major_minor not in CACHE.setdefault('latest_images_built_for_version', {}):
-        so.say(f'Determining images for {major_minor} - this may take a few minutes...')
+    key = f'latest_images_built_for_version-{major_minor}'
+    image_nvrs = util.CACHE_TTL.get(key)
+    if image_nvrs:
+        return image_nvrs
 
-        rc, stdout, stderr = util.cmd_assert(so, f'doozer --group openshift-{major_minor} images:print \'{{component}}-{{version}}-{{release}}\' --show-base --show-non-release --short')
+    so.say(f"Determining images for {major_minor} - this may take a few minutes...")
+
+    try:
+        rc, stdout, stderr = util.cmd_assert(so, f"doozer --group openshift-{major_minor} images:print '{{component}}-{{version}}-{{release}}' --show-base --show-non-release --short")
         if rc:
-            util.please_notify_art_team_of_error(so, stderr)
-            return []
+            raise Exception()
+    except Exception:  # convert any exception into generic (cmd_assert already reports details to monitoring)
+        so.say(f"Failed to retrieve latest images for version '{major_minor}': doozer could not find version '{major_minor}'")
+        return []
 
-        image_nvrs = [nvr.strip() for nvr in stdout.strip().split('\n')]
-        # if there is no build for an image, doozer still prints it out like "component--".
-        # filter out those non-builds so we don't expect to find them later.
-        image_nvrs = [nvr for nvr in image_nvrs if not nvr.endswith('-')]
-        CACHE['latest_images_built_for_version'][major_minor] = image_nvrs
-
-    return CACHE['latest_images_built_for_version'][major_minor]
+    image_nvrs = [nvr.strip() for nvr in stdout.strip().split('\n')]
+    # if there is no build for an image, doozer still prints it out like "component--".
+    # filter out those non-builds so we don't expect to find them later.
+    util.CACHE_TTL[key] = image_nvrs = [nvr for nvr in image_nvrs if not nvr.endswith('-')]
+    return image_nvrs
 
 
 def list_components_for_major_minor(so, major, minor):
@@ -158,7 +159,7 @@ def list_components_for_major_minor(so, major, minor):
     output += '\n'.join(sorted(all_components))
     so.snippet(
         payload=output,
-        intro='Here ya go...',
+        intro=f'For latest {major_minor} builds (cached for an hour):',
         filename=f'{major_minor}-rpms.txt'
     )
 
@@ -190,7 +191,12 @@ def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
     if search_type.lower() == "rpm":
         rpms_search = set(name.lower() for name in name_list)
     else:
-        rpms_for_package = _find_rpms_in_packages(koji_api, name_list, major_minor)
+        try:
+            rpms_for_package = _find_rpms_in_packages(koji_api, name_list, major_minor)
+        except Exception as ex:
+            so.monitoring_say(f"Failed to look up packages in brew: {ex}")
+            so.say(f"Failed looking up packages in brew. Do tags exist for {major_minor}?")
+            return
         if not rpms_for_package:
             so.say(f"Could not find any package(s) named {name_list} in brew.")
             return
@@ -199,9 +205,13 @@ def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
             so.say(f"Could not find package(s) {missing} in brew.")
         rpms_search = set(rpm.lower() for rpms in rpms_for_package.values() for rpm in rpms)
 
+    image_nvrs = latest_images_for_version(so, major_minor)
+    if not image_nvrs:  # error retrieving
+        return
+
     rpms_for_image = dict()
     rpms_seen = set()
-    _index_rpms_in_images(latest_images_for_version(so, major_minor), rpms_search, rpms_for_image, rpms_seen)
+    _index_rpms_in_images(image_nvrs, rpms_search, rpms_for_image, rpms_seen)
     _index_rpms_in_rhcos(_find_rhcos_build_rpms(so, major_minor), rpms_search, rpms_for_image, rpms_seen)
 
     if not rpms_for_image:
