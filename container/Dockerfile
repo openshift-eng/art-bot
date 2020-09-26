@@ -14,7 +14,7 @@ RUN curl -o /etc/pki/ca-trust/source/anchors/RH-IT-Root-CA.crt --fail -L \
     krb5-workstation python-bugzilla-cli git rsync docker \
     python3 python3-certifi python3-rpm python3-rhmsg \
     # development dependencies
-    gcc krb5-devel libgit2-devel openssl-devel krb5-devel \
+    gcc gcc-c++ krb5-devel libgit2-devel openssl-devel krb5-devel \
     python3-devel python3-pip \
     # other tools
     bash-completion vim tmux procps-ng psmisc wget net-tools iproute \
