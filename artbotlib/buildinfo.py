@@ -11,24 +11,27 @@ def buildinfo_for_release(so, name, release_img):
         so.say("Sorry, no ART build info for a CI image.")
         return
 
+    release_img_pullspec = release_img
     if ":" in release_img:
         # assume it's a pullspec already; make sure it's a known domain
-        if not re.match(r'(quay.io|registry.svc.ci.openshift.org)/', release_img):
+        if not re.match(r"(quay.io|registry.svc.ci.openshift.org)/", release_img):
             so.say("Sorry, I can only look up pullspecs for quay.io or registry.svc.ci.")
             return
+        release_img = re.sub(r".*/", "", release_img)
     elif "nightly" in release_img:
         suffix = "-s390x" if "s390x" in release_img else "-ppc64le" if "ppc64le" in release_img else ""
-        release_img = f"registry.svc.ci.openshift.org/ocp{suffix}/release{suffix}:{release_img}"
+        release_img_pullspec = f"registry.svc.ci.openshift.org/ocp{suffix}/release{suffix}:{release_img}"
     else:
         # assume public release name
-        release_img = f"quay.io/openshift-release-dev/ocp-release:{release_img}"
-        if not re.search(r'-(s390x|ppc64le|x86_64)$', release_img):
+        release_img_pullspec = f"quay.io/openshift-release-dev/ocp-release:{release_img}"
+        if not re.search(r"-(s390x|ppc64le|x86_64)$", release_img_pullspec):
             # assume x86_64 if not specified; TODO: handle older images released without -x86_64 in pullspec
-            release_img = f"{release_img}-x86_64"
+            release_img_pullspec = f"{release_img_pullspec}-x86_64"
+    release_img_text = f"<docker://{release_img_pullspec}|{release_img}>"
 
-    rc, stdout, stderr = util.cmd_gather(f"oc adm release info {release_img} --image-for {img_name}")
+    rc, stdout, stderr = util.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for {img_name}")
     if rc:
-        so.say(f"Sorry, I wasn't able to query the release image pullspec {release_img}.")
+        so.say(f"Sorry, I wasn't able to query the release image pullspec {release_img_pullspec}.")
         util.please_notify_art_team_of_error(so, stderr)
         return
 
@@ -38,6 +41,8 @@ def buildinfo_for_release(so, name, release_img):
         so.say(f"Sorry, I wasn't able to query the component image pullspec {pullspec}.")
         util.please_notify_art_team_of_error(so, stderr)
         return
+
+    pullspec_text = f"(<docker://{pullspec}|pullspec>)"
 
     try:
         data = json.loads(stdout)
@@ -59,7 +64,7 @@ def buildinfo_for_release(so, name, release_img):
         if contents_url:
             rhcos_build = f"<{contents_url}|{rhcos_build}> (<{stream_url}|stream>)"
 
-        so.say(f"image {pullspec} came from RHCOS build {rhcos_build}")
+        so.say(f"{release_img_text} `{img_name}` image {pullspec_text} came from RHCOS build {rhcos_build}")
         return
 
     try:
@@ -72,7 +77,14 @@ def buildinfo_for_release(so, name, release_img):
         return
 
     nvr = f"{name}-{version}-{release}"
-    so.say(f"{img_name} image {pullspec} came from brew build {nvr}")
+    url = brew_build_url(nvr)
+    nvr_text = f"<{url}|{nvr}>" if url else nvr
+
+    source_commit = labels.get("io.openshift.build.commit.id", "None")[:8]
+    source_commit_url = labels.get("io.openshift.build.commit.url")
+    source_text = f" from commit <{source_commit_url}|{source_commit}>" if source_commit_url else ""
+
+    so.say(f"{release_img_text} `{img_name}` image {pullspec_text} came from brew build {nvr_text}{source_text}")
     return
 
 
@@ -99,3 +111,14 @@ def rhcos_build_urls(build_id, arch="x86_64"):
     contents = f"https://releases-rhcos-art.cloud.privileged.psi.redhat.com/contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
     stream = f"https://releases-rhcos-art.cloud.privileged.psi.redhat.com/?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}#{build_id}"
     return contents, stream
+
+
+def brew_build_url(nvr):
+    try:
+        build = util.koji_client_session().getBuild(nvr, strict=True)
+    except Exception as e:
+        # not clear how we'd like to learn about this... shouldn't happen much
+        print(f"error searching for image {nvr} components in brew: {e}")
+        return None
+
+    return f"https://brewweb.engineering.redhat.com/brew/buildinfo?buildID={build['id']}"
