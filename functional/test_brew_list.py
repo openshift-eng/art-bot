@@ -1,11 +1,11 @@
 import flexmock
 import pytest
 
-from artbotlib import brew_list
+from artbotlib import brew_list, util
 
 
 def test_find_rpms_in_packages():
-    koji_api = brew_list._koji_client_session()
+    koji_api = util.koji_client_session()
             
     pkg_names = ["cri-o", "skopeo", "glibc", "bogus-surely-never-there"]
     rpms_for_package = brew_list._find_rpms_in_packages(koji_api, pkg_names, "4.3")

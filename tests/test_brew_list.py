@@ -196,14 +196,14 @@ def test_list_uses_of_rpms_invalid_name(so):
 
 
 def test_list_uses_of_rpms_brew_failure(so):
-    flexmock(brew_list).should_receive("_koji_client_session").and_raise(Exception("bork"))
+    flexmock(brew_list.util).should_receive("koji_client_session").and_raise(Exception("bork"))
     brew_list.list_uses_of_rpms(so, "spam", "4", "0")
     assert "bork" in so.said_monitoring
     assert "Failed to connect to brew" in so.said
 
 
 def test_list_uses_of_rpms_unknown_packages(so):
-    flexmock(brew_list).should_receive("_koji_client_session").and_return(object())
+    flexmock(brew_list.util).should_receive("koji_client_session").and_return(object())
     flexmock(brew_list).should_receive("_find_rpms_in_packages").and_return({})
     brew_list.list_uses_of_rpms(so, "spam", "4", "0", "package")
     assert "Could not find any package" in so.said
@@ -245,7 +245,7 @@ def test_list_uses_of_pkgs(so, names, rpms_for_package, rpms_for_image, rhcos_rp
     major, minor = "4", "0"
     search_type = "package" if rpms_for_package else "rpm"
 
-    flexmock(brew_list).should_receive("_koji_client_session").and_return(object())
+    flexmock(brew_list.util).should_receive("koji_client_session").and_return(object())
     flexmock(brew_list).should_receive("_find_rpms_in_packages").and_return(rpms_for_package)
     flexmock(brew_list).should_receive("latest_images_for_version").and_return(rpms_for_image.keys())
     flexmock(brew_list, brew_list_components=lambda nvr: rpms_for_image[nvr])
