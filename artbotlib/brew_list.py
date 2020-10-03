@@ -211,8 +211,9 @@ def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
 
     rpms_for_image = dict()
     rpms_seen = set()
+    if int(major) > 3:
+        _index_rpms_in_rhcos(_find_rhcos_build_rpms(so, major_minor), rpms_search, rpms_for_image, rpms_seen)
     _index_rpms_in_images(image_nvrs, rpms_search, rpms_for_image, rpms_seen)
-    _index_rpms_in_rhcos(_find_rhcos_build_rpms(so, major_minor), rpms_search, rpms_for_image, rpms_seen)
 
     if not rpms_for_image:
         so.say(f"It looks like nothing in {major_minor} uses that.")
