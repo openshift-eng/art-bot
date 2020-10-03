@@ -1,0 +1,31 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    build: art-bot
+  name: art-bot-base
+spec:
+  failedBuildsHistoryLimit: 5
+  output:
+    to:
+      kind: ImageStreamTag
+      name: art-bot:base
+  runPolicy: Serial
+  source:
+    dockerfile: container/Dockerfile
+    git:
+      ref: master
+      uri: https://github.com/openshift/art-bot
+    type: Git
+  strategy:
+    dockerStrategy:
+      dockerfilePath: container/Dockerfile
+      from:
+        kind: ImageStreamTag
+        name: art-bot:fedora-31
+    type: Docker
+  successfulBuildsHistoryLimit: 5
+  triggers:
+  - type: ConfigChange
+  - imageChange:
+    type: ImageChange

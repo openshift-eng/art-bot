@@ -1,0 +1,16 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  labels:
+    build: art-bot
+  name: art-bot
+spec:
+  lookupPolicy:
+    local: false
+  tags:
+  - from:
+      kind: DockerImage
+      name: docker.io/fedora:31
+    name: "fedora-31"
+    referencePolicy:
+      type: Source

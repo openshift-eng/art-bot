@@ -1,0 +1,29 @@
+FROM art-bot
+
+# This build is meant to be based on an existing build and
+# update just doozer, elliott, and art-bot.
+
+# use same non-root user from the initial install
+ARG USERNAME=dev
+# On Linux, replace with your actual UID, GID if not the default 1000
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+USER "$USER_UID"
+
+# install dependencies (allow even openshift's random user to see)
+COPY requirements.txt requirements-dev.txt ./
+RUN umask a+rx && pip3 install --user --upgrade rh-doozer rh-elliott -r ./requirements.txt -r ./requirements-dev.txt
+
+# install art-bot and default configs
+COPY container/krb5-redhat.conf /etc/krb5.conf.d/krb5-redhat.conf
+COPY container/brewkoji.conf /etc/koji.conf.d/brewkoji.conf
+COPY . /tmp/art-bot
+USER 0
+RUN cp -r /tmp/art-bot/{artbotlib,umb,art-bot.py} . \
+ && cp /tmp/art-bot/container/doozer-settings.yaml /home/"$USERNAME"/.config/doozer/settings.yaml \
+ && cp /tmp/art-bot/container/elliott-settings.yaml /home/"$USERNAME"/.config/elliott/settings.yaml \
+ && cp /tmp/art-bot/settings.yaml /home/"$USERNAME"/.config/art-bot/settings.yaml \
+ && rm -rf /tmp/art-bot
+USER "$USER_UID"
+

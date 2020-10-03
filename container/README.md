@@ -46,3 +46,15 @@ To run, use a script like (this is specific to user lmeyer, much is optional and
 - Beware: the ~/.ssh mount will change selinux context on that dir, which generally has the
   effect of preventing sshd from seeing your public keys and logging you in if you ssh into
   your system. If that's a problem for you, then clone the directory and mount that.
+
+That build includes a lot of slow installs that usually do not need to be repeated.
+To simply update art-bot and its deps, build on top of the initial build:
+
+    $ podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668 -f container/Dockerfile.latest -t art-bot .
+
+To install dev dependencies (for running tests), also build on top of the initial build:
+
+    $ podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668 -f container/Dockerfile.dev -t art-bot:dev .
+
+
+
