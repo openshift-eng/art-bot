@@ -3,11 +3,10 @@
 import click
 import os
 import os.path
-import slack
+from slack_sdk.rtm.v2 import RTMClient
 import pprint
 import re
 import logging
-from os import O_NONBLOCK, read
 import yaml
 from multiprocessing.pool import ThreadPool
 import traceback
@@ -66,13 +65,14 @@ def show_how_to_add_a_new_image(so):
 
 
 bot_config = {}
-@slack.RTMClient.run_on(event="open")
-def on_load(**payload):
-    pprint.pprint(payload["data"])
-    web_client = payload["web_client"]
-    try:
-        bot_config["self"] = payload["data"]["self"]  # e.g. {'id': 'UTHKYT7FB', 'name': 'art-bot'}
 
+
+def on_load(client: RTMClient, event: dict):
+    pprint.pprint(event)
+    web_client = client.web_client
+    r = web_client.auth_test()
+    try:
+        bot_config["self"] = {"id": r.data["user_id"], "name": r.data["user"]}
         if "monitoring_channel" not in bot_config:
             raise Exception("No monitoring_channel configured.")
         found = lookup_channel(web_client, bot_config["monitoring_channel"], only_private=True)
@@ -91,20 +91,21 @@ def on_load(**payload):
         bot_config.setdefault("username", bot_config["self"]["name"])
 
     except Exception as exc:
-        print(f"Error with the contents of your settings file {config_file}:\n{exc}")
+        print(f"Error with the contents of your settings file:\n{exc}")
         exit(1)
 
 
 pool = ThreadPool(20)
-@slack.RTMClient.run_on(event='message')
-def incoming_message(**payload):
-    pool.apply_async(respond, kwds=payload)
 
 
-def respond(**payload):
+def incoming_message(client: RTMClient, event: dict):
+    pool.apply_async(respond, (client, event))
+
+
+def respond(client: RTMClient, event: dict):
     try:
-        data = payload['data']
-        web_client = payload['web_client']
+        data = event
+        web_client = client.web_client
 
         print('\n----------------- DATA -----------------\n')
         pprint.pprint(data)
@@ -125,7 +126,7 @@ def respond(**payload):
             # things like snippets may look like they are from normal users; if it is from us, ignore it.
             return
 
-        response = web_client.im_open(user=user_id)
+        response = web_client.conversations_open(users=user_id)
         direct_message_channel_id = response["channel"]["id"]
 
         target_channel_id = direct_message_channel_id
@@ -144,10 +145,10 @@ def respond(**payload):
             # alternate user must be mentioned specifically, even in a DM, else msg is left to default bot user to handle
             am_i_mentioned = f'@{bot_config["username"]}' in data['text']
             am_i_DMed = am_i_DMed and am_i_mentioned
-            plain_text = extract_plain_text(payload, alt_username)
+            plain_text = extract_plain_text({"data": data}, alt_username)
         else:
             am_i_mentioned = f'<@{bot_config["self"]["id"]}>' in data['text']
-            plain_text = extract_plain_text(payload)
+            plain_text = extract_plain_text({"data": data})
             if plain_text.startswith("@"):
                 return  # assume it's for an alternate name
 
@@ -161,7 +162,7 @@ def respond(**payload):
 
         so = SlackOutput(
             web_client=web_client,
-            request_payload=payload,
+            event=event,
             target_channel_id=target_channel_id,
             monitoring_channel_id=bot_config["monitoring_channel_id"],
             thread_ts=thread_ts,
@@ -210,9 +211,9 @@ def respond(**payload):
         if not so.said_something:
             so.say("Sorry, I can't help with that yet. Ask 'help' to see what I can do.")
 
-    except:
+    except Exception:
         print('Error responding to message:')
-        pprint.pprint(payload)
+        pprint.pprint(event)
         traceback.print_exc()
         raise
 
@@ -255,7 +256,7 @@ def clair_consumer_callback(msg, user_data):
 
         print('body:')
         pprint.pprint(msg.body)
-    except:
+    except Exception:
         logging.error('Error handling message')
         traceback.print_exc()
 
@@ -270,7 +271,7 @@ def consumer_thread(client_id, topic, callback_handler, consumer, durable, user_
         else:
             subscription_name = None
         consumer.consume(topic_clair_scan, callback_handler, subscription_name=subscription_name, data=user_data)
-    except:
+    except Exception:
         traceback.print_exc()
 
 
@@ -302,7 +303,9 @@ def run():
     logging.basicConfig()
     logging.getLogger('activemq').setLevel(logging.DEBUG)
 
-    rtm_client = slack.RTMClient(token=bot_config['slack_api_token'], auto_reconnect=True)
+    rtm_client = RTMClient(token=bot_config['slack_api_token'])
+    rtm_client.on("hello")(on_load)
+    rtm_client.on("message")(incoming_message)
 
     if "umb" in bot_config:
         # umb listener setup is optional
@@ -327,6 +330,7 @@ def run():
         clair_consumer.join()
 
     rtm_client.start()
+
 
 if __name__ == '__main__':
     run()

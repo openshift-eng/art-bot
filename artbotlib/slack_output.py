@@ -4,9 +4,9 @@ import traceback
 
 class SlackOutput:
 
-    def __init__(self, web_client, request_payload, target_channel_id, monitoring_channel_id, thread_ts, alt_username):
+    def __init__(self, web_client, event, target_channel_id, monitoring_channel_id, thread_ts, alt_username):
         self.web_client = web_client
-        self.request_payload = request_payload
+        self.event = event
         self.target_channel_id = target_channel_id
         self.monitoring_channel_id = monitoring_channel_id
         self.thread_ts = thread_ts
@@ -75,7 +75,7 @@ class SlackOutput:
         return f"<@{self.from_user_id()}>"
 
     def from_user_id(self):
-        return self.request_payload.get("data").get("user", None)
+        return self.event.get("user", None)
 
     def from_channel(self):
-        return self.request_payload.get("data").get("channel", None)
+        return self.event.get("channel", None)
