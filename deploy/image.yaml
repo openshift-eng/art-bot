@@ -6,11 +6,11 @@ metadata:
   name: art-bot
 spec:
   lookupPolicy:
-    local: false
+    local: true
   tags:
   - from:
       kind: DockerImage
-      name: docker.io/fedora:31
-    name: "fedora-31"
+      name: registry.fedoraproject.org/fedora:33
+    name: "fedora-33"
     referencePolicy:
       type: Source

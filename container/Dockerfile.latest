@@ -1,4 +1,4 @@
-FROM art-bot
+FROM art-bot:base
 
 # This build is meant to be based on an existing build and
 # update just doozer, elliott, and art-bot.
@@ -9,11 +9,11 @@ ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-USER "$USER_UID"
+USER 0
 
 # install dependencies (allow even openshift's random user to see)
 COPY requirements.txt ./
-RUN umask a+rx && pip3 install --user --upgrade rh-doozer rh-elliott -r ./requirements.txt
+RUN umask a+rx && pip3 install --upgrade rh-doozer rh-elliott -r ./requirements.txt
 
 # install art-bot and default configs
 COPY container/krb5-redhat.conf /etc/krb5.conf.d/krb5-redhat.conf
@@ -26,4 +26,3 @@ RUN cp -r /tmp/art-bot/{artbotlib,umb,art-bot.py} . \
  && cp /tmp/art-bot/settings.yaml /home/"$USERNAME"/.config/art-bot/settings.yaml \
  && rm -rf /tmp/art-bot
 USER "$USER_UID"
-

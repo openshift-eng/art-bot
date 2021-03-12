@@ -1,4 +1,7 @@
 import re
+
+from artbotlib.slack_output import SlackOutput
+
 from . import util
 
 
@@ -41,14 +44,14 @@ y-s390x-2020-02-21-235937'}],
     return text
 
 
-def repeat_in_chunks(so, name=None):
+def repeat_in_chunks(so: SlackOutput, name=None):
     """
     Repeat what the user says, one "sentence" at a time, in the indicated channel if specified.
     But only if the bot and the user are in the channel.
     """
 
     # remove the "@art-bot chunk to channel:" directive at the beginning.
-    text = re.sub(r"^[^:]+:", "", so.request_payload["data"]["text"])
+    text = re.sub(r"^[^:]+:", "", so.event["text"])
 
     # split by eol and periods followed by a space. ignore formatting if possible.
     chunks = re.sub(r"(\S\S\.)(\s+|$)", r"\1\n", text, flags=re.M).splitlines()
