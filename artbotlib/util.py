@@ -9,7 +9,6 @@ import subprocess
 from threading import RLock
 import time
 
-
 logger = logging.getLogger()
 
 
@@ -188,10 +187,7 @@ def cmd_assert(so, cmd, set_env=None, cwd=None, realtime=False):
 
 
 def koji_client_session():
-    koji_api = koji.ClientSession(
-        'https://brewhub.engineering.redhat.com/brewhub',
-        opts=dict(serverca='/etc/pki/brew/legacy.crt'),
-    )
+    koji_api = koji.ClientSession('https://brewhub.engineering.redhat.com/brewhub')
     koji_api.hello()  # test for connectivity
     return koji_api
 

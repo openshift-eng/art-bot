@@ -22,7 +22,7 @@ spec:
       dockerfilePath: container/Dockerfile
       from:
         kind: ImageStreamTag
-        name: art-bot:fedora-31
+        name: art-bot:fedora-33
     type: Docker
   successfulBuildsHistoryLimit: 5
   triggers:
