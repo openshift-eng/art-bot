@@ -16,7 +16,7 @@ RUN curl -o /etc/pki/ca-trust/source/anchors/RH-IT-Root-CA.crt --fail -L \
     # development dependencies
     gcc krb5-devel python3-devel python3-pip \
     # other tools
-    wget curl iputils procps-ng psmisc net-tools iproute \
+    bash-completion vim tmux wget curl iputils procps-ng psmisc net-tools iproute \
     # install brewkoji
     koji brewkoji \
  && dnf clean all
