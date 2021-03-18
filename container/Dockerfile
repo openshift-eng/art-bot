@@ -59,7 +59,6 @@ RUN umask a+rx && pip3 install -r ./requirements.txt
 
 # install art-bot and default configs
 COPY container/krb5-redhat.conf /etc/krb5.conf.d/krb5-redhat.conf
-COPY container/brewkoji.conf /etc/koji.conf.d/brewkoji.conf
 COPY . /tmp/art-bot
 USER 0
 RUN cp -r /tmp/art-bot/{artbotlib,umb,art-bot.py} . \
