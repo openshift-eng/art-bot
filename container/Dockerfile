@@ -53,9 +53,11 @@ WORKDIR /workspaces/art-bot
 
 # install dependencies (allow even openshift's random user to see)
 ENV PATH=/home/"$USERNAME"/.local/bin:/home/"$USERNAME"/bin:"$PATH"
-RUN umask a+rx && pip3 install rh-doozer rh-elliott
 COPY requirements.txt ./
-RUN umask a+rx && pip3 install -r ./requirements.txt
+RUN umask a+rx && pip3 install --upgrade \
+    https://github.com/openshift/doozer/archive/refs/heads/master.zip \
+    https://github.com/openshift/elliott/archive/refs/heads/master.zip \
+    -r ./requirements.txt
 
 # install art-bot and default configs
 COPY container/krb5-redhat.conf /etc/krb5.conf.d/krb5-redhat.conf
