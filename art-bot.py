@@ -19,7 +19,7 @@ from artbotlib.translation import translate_names
 from artbotlib.util import cmd_assert, please_notify_art_team_of_error, lookup_channel
 from artbotlib.formatting import extract_plain_text, repeat_in_chunks
 from artbotlib.slack_output import SlackOutput
-from artbotlib import brew_list
+from artbotlib import brew_list, elliott
 
 
 logger = logging.getLogger()
@@ -194,6 +194,9 @@ def respond(client: RTMClient, event: dict):
             (r'^%(wh)s rpms were used in the latest image builds for %(major_minor)s$' % re_snippets, re.I, brew_list.list_components_for_major_minor),
             (r'^%(wh)s rpms are in image %(nvr)s$' % re_snippets, re.I, brew_list.list_components_for_image),
             (r'^%(wh)s rpms? (?P<rpms>[-\w.,* ]+) (is|are) in image %(nvr)s$' % re_snippets, re.I, brew_list.specific_rpms_for_image),
+
+            # ART advisory info:
+            (r'image list.*advisory (\d+)', re.I, elliott.image_list)
 
             # ART config
             (r'^where in %(major_minor)s (is|are) the %(names)s (?P<search_type>RPM|package)s? used$' % re_snippets, re.I, brew_list.list_uses_of_rpms),
