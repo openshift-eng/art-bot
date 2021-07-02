@@ -196,7 +196,7 @@ def respond(client: RTMClient, event: dict):
             (r'^%(wh)s rpms? (?P<rpms>[-\w.,* ]+) (is|are) in image %(nvr)s$' % re_snippets, re.I, brew_list.specific_rpms_for_image),
 
             # ART advisory info:
-            (r'image list.*advisory (\d+)', re.I, elliott.image_list)
+            (r'image list.*advisory (\d+)', re.I, elliott.image_list),
 
             # ART config
             (r'^where in %(major_minor)s (is|are) the %(names)s (?P<search_type>RPM|package)s? used$' % re_snippets, re.I, brew_list.list_uses_of_rpms),
