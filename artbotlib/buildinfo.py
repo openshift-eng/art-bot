@@ -14,13 +14,13 @@ def buildinfo_for_release(so, name, release_img):
     release_img_pullspec = release_img
     if ":" in release_img:
         # assume it's a pullspec already; make sure it's a known domain
-        if not re.match(r"(quay.io|registry.svc.ci.openshift.org)/", release_img):
-            so.say("Sorry, I can only look up pullspecs for quay.io or registry.svc.ci.")
+        if not re.match(r"(quay.io|registry.ci.openshift.org)/", release_img):
+            so.say("Sorry, I can only look up pullspecs for quay.io or registry.ci.openshift.org")
             return
         release_img = re.sub(r".*/", "", release_img)
     elif "nightly" in release_img:
         suffix = "-s390x" if "s390x" in release_img else "-ppc64le" if "ppc64le" in release_img else ""
-        release_img_pullspec = f"registry.svc.ci.openshift.org/ocp{suffix}/release{suffix}:{release_img}"
+        release_img_pullspec = f"registry.ci.openshift.org/ocp{suffix}/release{suffix}:{release_img}"
     else:
         # assume public release name
         release_img_pullspec = f"quay.io/openshift-release-dev/ocp-release:{release_img}"

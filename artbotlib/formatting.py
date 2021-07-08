@@ -15,17 +15,17 @@ def extract_plain_text(json_data, alt_username=None):
                                                  {'text': ' Which build of sdn '
                                                           'is in ',
                                                   'type': 'text'},
-                                                 {'text': 'registry.svc.ci.openshift.org/ocp-s390x/release-s390x:4.4.0-0.nightly-s390
+                                                 {'text': 'registry.ci.openshift.org/ocp-s390x/release-s390x:4.4.0-0.nightly-s390
 x-2020-02-21-235937',
                                                   'type': 'link',
-                                                  'url': 'http://registry.svc.ci.openshift.org/ocp-s390x/release-s390x:4.4.0-0.nightl
+                                                  'url': 'http://registry.ci.openshift.org/ocp-s390x/release-s390x:4.4.0-0.nightl
 y-s390x-2020-02-21-235937'}],
                                     'type': 'rich_text_section'}],
                       'type': 'rich_text'}],
                       ...
 
     and extract just the text parts to come up with:
-    "Which build of sdn is in registry.svc.ci.openshift.org/ocp-s390x/release-s390x:4.4.0-0.nightly-s390x-2020-02-21-235937"
+    "Which build of sdn is in registry.ci.openshift.org/ocp-s390x/release-s390x:4.4.0-0.nightly-s390x-2020-02-21-235937"
     """
 
     text = ""
