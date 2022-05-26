@@ -10,6 +10,7 @@ monitoring_channel: art-bot-monitoring
 friendly_channels:
 - team-art
 - aos-art
+- forum-release
 
 # files are relative to $HOME if not absolute.
 # you'll need to look these up in vault and create the files locally.
