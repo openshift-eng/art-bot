@@ -55,8 +55,8 @@ WORKDIR /workspaces/art-bot
 ENV PATH=/home/"$USERNAME"/.local/bin:/home/"$USERNAME"/bin:"$PATH"
 COPY requirements.txt ./
 RUN umask a+rx && pip3 install --upgrade \
-    https://github.com/openshift/doozer/archive/refs/heads/master.zip \
-    https://github.com/openshift/elliott/archive/refs/heads/master.zip \
+    git+https://github.com/openshift/doozer.git#egg=rh-doozer \
+    git+https://github.com/openshift/elliott.git#egg=rh-elliott \
     -r ./requirements.txt
 
 # install art-bot and default configs
