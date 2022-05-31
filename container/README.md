@@ -3,7 +3,7 @@
 ## Production
 
 Normally art-bot runs as an OpenShift workload in our ocp4 space (see
-https://github.com/openshift-eng/art-docs/blob/master/infra/art-bot.md). The
+https://github.com/openshift-eng/art-docs/blob/master/content/infra/art-bot.md). The
 container is built initially from `Dockerfile` and then code-only updates can
 be added with `Dockerfile.latest` (skipping all the RPM installs etc).
 Credentials and config are mounted in as secrets and configmaps.
@@ -35,7 +35,7 @@ The following demonstrates usage for a user `lmeyer` with uid/gid 3668 (as assig
 
 * To build, from the context of the top level of this repo:
 
-    $ podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668 -f container/Dockerfile -t art-bot .
+    $ podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668 -f container/Dockerfile -t art-bot:base .
 
   This will give you a container that runs as your own user ID, which simplies
   (somewhat) using the resources mounted in from your home directory.
@@ -56,7 +56,7 @@ To simplify these steps, here is a script that takes a parameter to build these:
 base_cmd="podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668"
 
 if [[ "$1" == base ]]; then
-    $base_cmd -f container/Dockerfile -t art-bot:latest .
+    $base_cmd -f container/Dockerfile -t art-bot:base .
 elif [[ "$1" == dev ]]; then
     $base_cmd -f container/Dockerfile.dev -t art-bot:dev .
 else  # default is to just run an update
