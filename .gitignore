@@ -130,3 +130,6 @@ dmypy.json
 
 # art-bot specific
 slack-api-token
+
+# Pycharm
+.idea
