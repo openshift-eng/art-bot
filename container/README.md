@@ -56,7 +56,7 @@ To simplify these steps, here is a script that takes a parameter to build these:
 base_cmd="podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668"
 
 if [[ "$1" == base ]]; then
-    $base_cmd -f container/Dockerfile -t art-bot:base .
+    $base_cmd -f container/Dockerfile -t art-bot:latest .
 elif [[ "$1" == dev ]]; then
     $base_cmd -f container/Dockerfile.dev -t art-bot:dev .
 else  # default is to just run an update
