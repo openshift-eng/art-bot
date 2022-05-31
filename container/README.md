@@ -3,7 +3,7 @@
 ## Production
 
 Normally art-bot runs as an OpenShift workload in our ocp4 space (see
-https://github.com/openshift-eng/art-docs/blob/master/content/infra/art-bot.md). The
+https://art-docs.engineering.redhat.com/infra/art-bot/). The
 container is built initially from `Dockerfile` and then code-only updates can
 be added with `Dockerfile.latest` (skipping all the RPM installs etc).
 Credentials and config are mounted in as secrets and configmaps.
