@@ -49,6 +49,9 @@ _*ART build info:*_
 * What rpms are in image `image-nvr`?
 * Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
 
+_*Advisory details:*_
+* Image list advisory `advisory_id`
+
 _*ART Pipeline details:*_
 * What is the image pipeline for distgit `distgit_repo_name`
 * What is the image pipeline for distgit `distgit_repo_name` with version `version_id`
