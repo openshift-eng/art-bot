@@ -60,6 +60,12 @@ def cdn_to_comet(cdn_name):
         return "Couldn't find delivery repo name."
 
 
+def check_distgit_availability(distgit_repo_name):
+    response = requests.get(f"https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}")
+
+    return response.status_code == 200
+
+
 def pipeline_from_distgit(so, distgit_repo_name, version):
     """
     List the Brew package name, CDN repo name and CDN repo details by getting the distgit name as input.
@@ -72,14 +78,20 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
     if not version:
         version = "4.11"  # Default version set to 4.11, if unspecified
 
-    brew_package_name = distgit_to_brew(distgit_repo_name, version)
-    cdn_repo_name = brew_to_cdn(brew_package_name, "8Base-RHOSE-4.10")  # Default variant set to 8Base-RHOSE-4.10"
-    cdn_repo_id = cdn_to_comet(cdn_repo_name)
-
     payload = ""
-    payload += f"Distgit Repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
-    payload += f"Brew package: *{brew_package_name}*\n"
-    payload += f"CDN repo: *{cdn_repo_name}*\n"
-    payload += f"Delivery (Comet) repo: *{cdn_repo_id}*\n"
+    if check_distgit_availability(distgit_repo_name): # Check if the given distgit repo actually exists
+        payload += f"Distgit Repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
+
+        brew_package_name = distgit_to_brew(distgit_repo_name, version)
+        cdn_repo_name = brew_to_cdn(brew_package_name, "8Base-RHOSE-4.10")  # Default variant set to 8Base-RHOSE-4.10"
+        cdn_repo_id = cdn_to_comet(cdn_repo_name)
+
+        payload += f"Brew package: *{brew_package_name}*\n"
+        payload += f"CDN repo: *{cdn_repo_name}*\n"
+        payload += f"Delivery (Comet) repo: *{cdn_repo_id}*\n"
+
+    else:
+        # If incorrect distgit name provided, no need to proceed.
+        payload += f"No distgit repo with name *{distgit_repo_name}* exists."
 
     so.say(payload)
