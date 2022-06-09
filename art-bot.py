@@ -20,6 +20,7 @@ from artbotlib.util import cmd_assert, please_notify_art_team_of_error, lookup_c
 from artbotlib.formatting import extract_plain_text, repeat_in_chunks
 from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list, elliott
+from artbotlib.pipeline_image_names import pipeline_from_distgit
 
 
 logger = logging.getLogger()
@@ -47,6 +48,10 @@ _*ART build info:*_
 * What rpms were used in the latest image builds for `major.minor`?
 * What rpms are in image `image-nvr`?
 * Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
+
+_*ART Pipeline details:*_
+* What is the image pipeline for distgit `distgit_repo_name`
+* What is the image pipeline for distgit `distgit_repo_name` with version `version_id`
 
 _*ART config:*_
 * What images build in `major.minor`?
@@ -201,6 +206,9 @@ def respond(client: RTMClient, event: dict):
             # ART config
             (r'^where in %(major_minor)s (is|are) the %(names)s (?P<search_type>RPM|package)s? used$' % re_snippets, re.I, brew_list.list_uses_of_rpms),
             (r'^what is the %(name_type2)s for %(name_type)s %(name)s(?: in %(major_minor)s)?$' % re_snippets, re.I, translate_names),
+
+            # ART pipeline
+            (r'^what is the image pipeline for distgit (?P<distgit_repo_name>\S*)( with version (?P<version>\d+.\d+))?$', re.I, pipeline_from_distgit),
 
             # misc
             (r'^how can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),

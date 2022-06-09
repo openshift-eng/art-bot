@@ -3,3 +3,5 @@ slack_sdk ~= 3.4.0
 cachetools
 aiohttp>=3.7.3
 click
+requests_kerberos
+PyYAML
