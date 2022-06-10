@@ -75,7 +75,7 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
     """
 
     if not version:
-        version = "4.11"  # Default version set to 4.11, if unspecified
+        version = "4.10"  # Default version set to 4.10, if unspecified
 
     payload = ""
     if check_distgit_availability(distgit_repo_name):  # Check if the given distgit repo actually exists
