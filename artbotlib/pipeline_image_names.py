@@ -82,7 +82,7 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
         payload += f"Distgit Repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
 
         brew_package_name = distgit_to_brew(distgit_repo_name, version)
-        cdn_repo_name = brew_to_cdn(brew_package_name, "8Base-RHOSE-4.10")  # Default variant set to 8Base-RHOSE-4.10"
+        cdn_repo_name = brew_to_cdn(brew_package_name, f"8Base-RHOSE-{version}")
         cdn_repo_id = cdn_to_comet(cdn_repo_name)
 
         payload += f"Brew package: *{brew_package_name}*\n"
