@@ -60,7 +60,7 @@ def cdn_to_comet(cdn_name):
         return "Couldn't find delivery repo name."
 
 
-def check_distgit_availability(distgit_repo_name):
+def distgit_is_available(distgit_repo_name):
     response = requests.head(f"https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}")
     return response.status_code == 200
 
@@ -78,7 +78,7 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
         version = "4.10"  # Default version set to 4.10, if unspecified
 
     payload = ""
-    if check_distgit_availability(distgit_repo_name):  # Check if the given distgit repo actually exists
+    if distgit_is_available(distgit_repo_name):  # Check if the given distgit repo actually exists
         payload += f"Distgit Repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
 
         brew_package_name = distgit_to_brew(distgit_repo_name, version)

@@ -1,4 +1,4 @@
-from artbotlib.pipeline_image_names import distgit_to_brew, brew_to_cdn, cdn_to_comet, check_distgit_availability
+from artbotlib.pipeline_image_names import distgit_to_brew, brew_to_cdn, cdn_to_comet, distgit_is_available
 
 
 def test_distgit_to_brew_1():
@@ -44,14 +44,14 @@ def test_cdn_to_comet():
 
 
 def test_distgit_repo_availability1():
-    actual = check_distgit_availability("openshift-enterprise-cli")
+    actual = distgit_is_available("openshift-enterprise-cli")
     expected = True
 
     assert actual == expected
 
 
 def test_distgit_repo_availability2():
-    actual = check_distgit_availability("booyah")
+    actual = distgit_is_available("booyah")
     expected = False
 
     assert actual == expected
