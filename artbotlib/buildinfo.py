@@ -19,7 +19,7 @@ def buildinfo_for_release(so, name, release_img):
             return
         release_img = re.sub(r".*/", "", release_img)
     elif "nightly" in release_img:
-        suffix = "-s390x" if "s390x" in release_img else "-ppc64le" if "ppc64le" in release_img else ""
+        suffix = "-s390x" if "s390x" in release_img else "-ppc64le" if "ppc64le" in release_img else "-arm64" if "arm64" in release_img else ""
         release_img_pullspec = f"registry.ci.openshift.org/ocp{suffix}/release{suffix}:{release_img}"
     else:
         # assume public release name
