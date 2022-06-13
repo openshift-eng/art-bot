@@ -48,7 +48,7 @@ class DeliveryRepoNotFound(ArtBotExceptions):
         super().__init__(self.message)
 
 
-class BrewIdException(ArtBotExceptions):
+class BrewIdNotFound(ArtBotExceptions):
     """Exception raised if brew id not found for the given brew package name
 
             Attributes:
@@ -142,7 +142,7 @@ def distgit_is_available(distgit_repo_name):
     return response.status_code == 200
 
 
-def get_brew_id(so, brew_name):
+def get_brew_id(brew_name):
     """
     Get the brew id for the given brew name.
 
@@ -157,7 +157,7 @@ def get_brew_id(so, brew_name):
     try:
         brew_id = koji_api.getPackageID(brew_name)
     except Exception:
-        raise BrewIdException(brew_name)
+        raise BrewIdNotFound(brew_name)
 
     return brew_id
 

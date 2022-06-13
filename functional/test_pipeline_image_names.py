@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock
 from artbotlib.pipeline_image_names import distgit_to_brew, brew_to_cdn, cdn_to_comet, distgit_is_available, \
-    DistgitNotFound, CdnNotFound, DeliveryRepoNotFound
+    DistgitNotFound, CdnNotFound, DeliveryRepoNotFound, get_brew_id, BrewIdNotFound, KojiClientError
 
 
 def test_distgit_to_brew_1():
@@ -60,5 +60,19 @@ def test_distgit_repo_availability1():
 def test_distgit_repo_availability2():
     actual = distgit_is_available("booyah")
     expected = False
+
+    assert actual == expected
+
+
+def test_get_brew_id1():
+    actual = get_brew_id("openshift-enterprise-console-container")
+    expected = 69142
+
+    assert actual == expected
+
+
+def test_get_brew_id2():
+    actual = get_brew_id("openshift-enterprise-console-container-booyah")
+    expected = None
 
     assert actual == expected
