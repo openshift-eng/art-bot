@@ -1,8 +1,10 @@
 import requests
 import yaml
 from requests_kerberos import HTTPKerberosAuth, REQUIRED
+from . import util
 
 
+# Super class for all ART bot exceptions
 class ArtBotExceptions(Exception):
     def __int__(self, message):
         self.message = message
@@ -43,6 +45,31 @@ class DeliveryRepoNotFound(ArtBotExceptions):
 
     def __init__(self, cdn_name):
         self.message = f"Delivery Repo not found for CDN `{cdn_name}`"
+        super().__init__(self.message)
+
+
+class BrewIdException(ArtBotExceptions):
+    """Exception raised if brew id not found for the given brew package name
+
+            Attributes:
+                message -- explanation of the error
+            """
+
+    def __init__(self, brew_name):
+        self.message = f"Brew ID not found for brew package `{brew_name}`. Check API call."
+        super().__init__(self.message)
+
+
+# Other exceptions
+class KojiClientError(Exception):
+    """Exception raised when we cannot connect to brew.
+
+        Attributes:
+            message -- explanation of the error
+        """
+
+    def __init__(self):
+        self.message = "Failed to connect to Brew."
         super().__init__(self.message)
 
 
@@ -115,6 +142,26 @@ def distgit_is_available(distgit_repo_name):
     return response.status_code == 200
 
 
+def get_brew_id(so, brew_name):
+    """
+    Get the brew id for the given brew name.
+
+    :so: SlackOutput object for reporting results.
+    :brew_name: The name of the brew package
+    """
+    try:
+        koji_api = util.koji_client_session()
+    except Exception:
+        raise KojiClientError
+
+    try:
+        brew_id = koji_api.getPackageID(brew_name)
+    except Exception:
+        raise BrewIdException(brew_name)
+
+    return brew_id
+
+
 def pipeline_from_distgit(so, distgit_repo_name, version):
     """
     List the Brew package name, CDN repo name and CDN repo details by getting the distgit name as input.
@@ -123,6 +170,7 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
     :distgit_repo_name: Name of the distgit repo we get as input
     :version: OS version
     """
+    so.say("Fetching data. Please wait...")
 
     if not version:
         version = "4.10"  # Default version set to 4.10, if unspecified
@@ -134,7 +182,8 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
 
         try:
             brew_package_name = distgit_to_brew(distgit_repo_name, version)
-            payload += f"Brew package: *{brew_package_name}*\n"
+            brew_id = get_brew_id(so, brew_package_name)
+            payload += f"Brew package: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_package_name}*>\n"
 
             cdn_repo_name = brew_to_cdn(brew_package_name, f"8Base-RHOSE-{version}")
             payload += f"CDN repo: *{cdn_repo_name}*\n"
@@ -149,6 +198,8 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
         except KerberosAuthenticationError as e:
             print(e.message)
             return
+        except KojiClientError as e:
+            print(e.message)
         except Exception as e:
             print(f"UNKNOWN ERROR: {e}")
 
