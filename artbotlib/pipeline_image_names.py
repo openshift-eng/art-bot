@@ -130,7 +130,7 @@ class KerberosAuthenticationError(Exception):
     """
 
     def __init__(self):
-        self.message = "Kerberos authentication failed. Check keytab"
+        self.message = "Kerberos authentication failed."
         super().__init__(self.message)
 
 
@@ -286,17 +286,22 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
             payload += "\n"
             payload += e.message
             so.say(payload)
+            so.monitoring_say(f"ERROR: {e.message}")
             return
         except KerberosAuthenticationError as e:
-            print(e.message)
+            so.say(e.message + " Contact the ART Team")
+            so.monitoring_say(f"ERROR: {e.message} Check keytab.")
             return
         except KojiClientError as e:
-            print(e.message)
+            so.say(e.message)
+            so.monitoring_say(f"ERROR: {e.message}")
         except Exception as e:
-            print(f"UNKNOWN ERROR: {e}")
+            so.say("Unknown error. Contact the ART team.")
+            so.monitoring_say(f"ERROR: Unclassified: {e}")
 
     else:
         # If incorrect distgit name provided, no need to proceed.
         payload += f"No distgit repo with name *{distgit_repo_name}* exists."
+        so.monitoring_say(f"No distgit repo with name *{distgit_repo_name}* exists.")
 
     so.say(payload)
