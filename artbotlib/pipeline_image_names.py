@@ -60,6 +60,42 @@ class BrewIdNotFound(ArtBotExceptions):
         super().__init__(self.message)
 
 
+class VariantIdNotFound(ArtBotExceptions):
+    """Exception raised if variant id not found for a CDN repo
+
+            Attributes:
+                message -- explanation of the error
+            """
+
+    def __init__(self, cdn_name, variant_name):
+        self.message = f"Variant ID not found for CDN `{cdn_name}` and variant `{variant_name}`"
+        super().__init__(self.message)
+
+
+class CdnIdNotFound(ArtBotExceptions):
+    """Exception raised if CDN id not found for a CDN repo
+
+            Attributes:
+                message -- explanation of the error
+            """
+
+    def __init__(self, cdn_name):
+        self.message = f"CDN ID not found for CDN `{cdn_name}`"
+        super().__init__(self.message)
+
+
+class ProductIdNotFound(ArtBotExceptions):
+    """Exception raised if Product id not found for a product variant
+
+            Attributes:
+                message -- explanation of the error
+            """
+
+    def __init__(self, variant_id):
+        self.message = f"Product ID not found for variant `{variant_id}`"
+        super().__init__(self.message)
+
+
 # Other exceptions
 class KojiClientError(Exception):
     """Exception raised when we cannot connect to brew.
@@ -120,21 +156,35 @@ def brew_to_cdn(brew_name, variant_name):
         raise CdnNotFound(brew_name, variant_name)
 
 
-def cdn_to_comet(cdn_name):
+def get_cdn_repo_details(cdn_name):
     # Kerberos authentication
     kerberos_auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, sanitize_mutual_error_response=False)
 
     # Sending the kerberos ticket along with the request
     response = requests.get(f"https://errata.devel.redhat.com/api/v1/cdn_repos/{cdn_name}",
                             auth=kerberos_auth)
-
     if response.status_code == 401:
         raise KerberosAuthenticationError
 
+    return response.json()
+
+
+def cdn_to_comet(cdn_name):
+    response = get_cdn_repo_details(cdn_name)
+
     try:
-        return response.json()['data']['attributes']['external_name']
+        return response['data']['attributes']['external_name']
     except Exception:
         raise DeliveryRepoNotFound(cdn_name)
+
+
+def get_cdn_repo_id(cdn_name):
+    response = get_cdn_repo_details(cdn_name)
+
+    try:
+        return response['data']['id']
+    except Exception:
+        raise CdnIdNotFound(cdn_name)
 
 
 def distgit_is_available(distgit_repo_name):
@@ -162,6 +212,33 @@ def get_brew_id(brew_name):
     return brew_id
 
 
+def get_variant_id(cdn_name, variant_name):
+    response = get_cdn_repo_details(cdn_name)
+
+    try:
+        for data in response['data']['relationships']['variants']:
+            if data['name'] == variant_name:
+                return data['id']
+    except Exception:
+        raise VariantIdNotFound(cdn_name, variant_name)
+
+
+def get_product_id(variant_id):
+    # Kerberos authentication
+    kerberos_auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, sanitize_mutual_error_response=False)
+
+    # Sending the kerberos ticket along with the request
+    response = requests.get(f"https://errata.devel.redhat.com/api/v1/variants/{variant_id}",
+                            auth=kerberos_auth)
+    if response.status_code == 401:
+        raise KerberosAuthenticationError
+
+    try:
+        return response.json()['data']['attributes']['relationships']['product_version']['id']
+    except Exception:
+        raise ProductIdNotFound(variant_id)
+
+
 def pipeline_from_distgit(so, distgit_repo_name, version):
     """
     List the Brew package name, CDN repo name and CDN repo details by getting the distgit name as input.
@@ -182,14 +259,18 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
 
         try:
             brew_package_name = distgit_to_brew(distgit_repo_name, version)
-            brew_id = get_brew_id(so, brew_package_name)
+            brew_id = get_brew_id(brew_package_name)
             payload += f"Brew package: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_package_name}*>\n"
 
-            cdn_repo_name = brew_to_cdn(brew_package_name, f"8Base-RHOSE-{version}")
-            payload += f"CDN repo: *{cdn_repo_name}*\n"
+            variant = f"8Base-RHOSE-{version}"
+            cdn_repo_name = brew_to_cdn(brew_package_name, variant)
+            cdn_repo_id = get_cdn_repo_id(cdn_repo_name)
+            variant_id = get_variant_id(cdn_repo_name, variant)
+            product_id = get_product_id(variant_id)
+            payload += f"CDN repo: <https://errata.devel.redhat.com/product_versions/{product_id}/cdn_repos/{cdn_repo_id}|*{cdn_repo_name}*>\n"
 
-            cdn_repo_id = cdn_to_comet(cdn_repo_name)
-            payload += f"Delivery (Comet) repo: *{cdn_repo_id}*\n"
+            delivery_repo_name = cdn_to_comet(cdn_repo_name)
+            payload += f"Delivery (Comet) repo: *{delivery_repo_name}*\n"
         except ArtBotExceptions as e:
             payload += "\n"
             payload += e.message
