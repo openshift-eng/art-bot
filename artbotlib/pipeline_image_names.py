@@ -10,6 +10,7 @@ class ArtBotExceptions(Exception):
         self.message = message
 
 
+# Art bot exceptions
 class DistgitNotFound(ArtBotExceptions):
     """Exception raised for errors in the input dist-git name.
 
@@ -24,8 +25,8 @@ class DistgitNotFound(ArtBotExceptions):
         super().__init__(self.message)
 
 
-class CdnNotFound(ArtBotExceptions):
-    """Exception raised if CDN is not found
+class CdnFromBrewNotFound(ArtBotExceptions):
+    """Exception raised if CDN is not found from brew name and variant
 
         Attributes:
             message -- explanation of the error
@@ -33,6 +34,18 @@ class CdnNotFound(ArtBotExceptions):
 
     def __init__(self, brew_name, variant):
         self.message = f"CDN was not found for brew `{brew_name}` and variant `{variant}`"
+        super().__init__(self.message)
+
+
+class CdnNotFound(ArtBotExceptions):
+    """Exception raised if CDN is not found from CDN name
+
+        Attributes:
+            message -- explanation of the error
+        """
+
+    def __init__(self, cdn_name):
+        self.message = f"CDN was not found for CDN name {cdn_name}"
         super().__init__(self.message)
 
 
@@ -121,6 +134,20 @@ class KerberosAuthenticationError(Exception):
         super().__init__(self.message)
 
 
+# Methods
+def request_with_kerberos(url):
+    # Kerberos authentication
+    kerberos_auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, sanitize_mutual_error_response=False)
+
+    # Sending the kerberos ticket along with the request
+    response = requests.get(url, auth=kerberos_auth)
+
+    if response.status_code == 401:
+        raise KerberosAuthenticationError
+
+    return response
+
+
 def distgit_to_brew(distgit_name, version):
     brew_name = f"{distgit_name}-container"
 
@@ -140,31 +167,21 @@ def distgit_to_brew(distgit_name, version):
 
 
 def brew_to_cdn(brew_name, variant_name):
-    # Kerberos authentication
-    kerberos_auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, sanitize_mutual_error_response=False)
-
     url = f"https://errata.devel.redhat.com/api/v1/cdn_repo_package_tags?page[number]=1&filter[package_name]={brew_name}&filter[variant_name]={variant_name}"
-    # Sending the kerberos ticket along with the request
-    response = requests.get(url, auth=kerberos_auth)
-
-    if response.status_code == 401:
-        raise KerberosAuthenticationError
+    response = request_with_kerberos(url)
 
     try:
         return response.json()['data'][0]['relationships']['cdn_repo']['name']
     except Exception:
-        raise CdnNotFound(brew_name, variant_name)
+        raise CdnFromBrewNotFound(brew_name, variant_name)
 
 
 def get_cdn_repo_details(cdn_name):
-    # Kerberos authentication
-    kerberos_auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, sanitize_mutual_error_response=False)
+    url = f"https://errata.devel.redhat.com/api/v1/cdn_repos/{cdn_name}"
+    response = request_with_kerberos(url)
 
-    # Sending the kerberos ticket along with the request
-    response = requests.get(f"https://errata.devel.redhat.com/api/v1/cdn_repos/{cdn_name}",
-                            auth=kerberos_auth)
-    if response.status_code == 401:
-        raise KerberosAuthenticationError
+    if response.status_code == 404:
+        raise CdnNotFound(cdn_name)
 
     return response.json()
 
@@ -205,7 +222,7 @@ def get_brew_id(brew_name):
         raise KojiClientError
 
     try:
-        brew_id = koji_api.getPackageID(brew_name)
+        brew_id = koji_api.getPackageID(brew_name, strict=True)
     except Exception:
         raise BrewIdNotFound(brew_name)
 
@@ -224,14 +241,8 @@ def get_variant_id(cdn_name, variant_name):
 
 
 def get_product_id(variant_id):
-    # Kerberos authentication
-    kerberos_auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, sanitize_mutual_error_response=False)
-
-    # Sending the kerberos ticket along with the request
-    response = requests.get(f"https://errata.devel.redhat.com/api/v1/variants/{variant_id}",
-                            auth=kerberos_auth)
-    if response.status_code == 401:
-        raise KerberosAuthenticationError
+    url = f"https://errata.devel.redhat.com/api/v1/variants/{variant_id}"
+    response = request_with_kerberos(url)
 
     try:
         return response.json()['data']['attributes']['relationships']['product_version']['id']
@@ -243,7 +254,7 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
     """
     List the Brew package name, CDN repo name and CDN repo details by getting the distgit name as input.
 
-    :so: SlackOuput object for reporting results.
+    :so: SlackOutput object for reporting results.
     :distgit_repo_name: Name of the distgit repo we get as input
     :version: OS version
     """

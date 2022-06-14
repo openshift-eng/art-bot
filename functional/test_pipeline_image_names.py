@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock
 from artbotlib.pipeline_image_names import distgit_to_brew, brew_to_cdn, cdn_to_comet, distgit_is_available, \
-    DistgitNotFound, CdnNotFound, DeliveryRepoNotFound, get_brew_id, BrewIdNotFound, KojiClientError
+    DistgitNotFound, CdnFromBrewNotFound, DeliveryRepoNotFound, get_brew_id, CdnNotFound
 
 
 def test_distgit_to_brew_1():
@@ -34,7 +34,7 @@ def test_brew_to_cdn1():
 def test_brew_to_cdn2():
     with pytest.raises(Exception) as e:
         brew_to_cdn("openshift-enterprise-console-container", "8Base-RHOSED-4.10")
-    assert e.type == CdnNotFound
+    assert e.type == CdnFromBrewNotFound
 
 
 def test_cdn_to_comet1():
@@ -47,7 +47,7 @@ def test_cdn_to_comet1():
 def test_cdn_to_comet2():
     with pytest.raises(Exception) as e:
         cdn_to_comet("redhat-openshift4-ose-consoleeee")
-    assert e.type == DeliveryRepoNotFound
+    assert e.type == DeliveryRepoNotFound or e.type == CdnNotFound
 
 
 def test_distgit_repo_availability1():
