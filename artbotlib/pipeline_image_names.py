@@ -170,10 +170,13 @@ def brew_to_cdn(brew_name, variant_name):
     url = f"https://errata.devel.redhat.com/api/v1/cdn_repo_package_tags?page[number]=1&filter[package_name]={brew_name}&filter[variant_name]={variant_name}"
     response = request_with_kerberos(url)
 
-    try:
-        return response.json()['data'][0]['relationships']['cdn_repo']['name']
-    except Exception:
+    repos = []
+    for item in response.json()['data']:
+        repos.append(item['relationships']['cdn_repo']['name'])
+
+    if not repos:
         raise CdnFromBrewNotFound(brew_name, variant_name)
+    return repos
 
 
 def get_cdn_repo_details(cdn_name):
@@ -274,14 +277,19 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
             payload += f"Brew package: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_package_name}*>\n"
 
             variant = f"8Base-RHOSE-{version}"
-            cdn_repo_name = brew_to_cdn(brew_package_name, variant)
-            cdn_repo_id = get_cdn_repo_id(cdn_repo_name)
-            variant_id = get_variant_id(cdn_repo_name, variant)
-            product_id = get_product_id(variant_id)
-            payload += f"CDN repo: <https://errata.devel.redhat.com/product_versions/{product_id}/cdn_repos/{cdn_repo_id}|*{cdn_repo_name}*>\n"
+            cdn_repo_names = brew_to_cdn(brew_package_name, variant)
+            if len(cdn_repo_names) > 1:
+                payload += "\n *Found more than one Brew to CDN mappings:*\n\n"
 
-            delivery_repo_name = cdn_to_comet(cdn_repo_name)
-            payload += f"Delivery (Comet) repo: *{delivery_repo_name}*\n"
+            for cdn_repo_name in cdn_repo_names:
+
+                cdn_repo_id = get_cdn_repo_id(cdn_repo_name)
+                variant_id = get_variant_id(cdn_repo_name, variant)
+                product_id = get_product_id(variant_id)
+                payload += f"CDN repo: <https://errata.devel.redhat.com/product_versions/{product_id}/cdn_repos/{cdn_repo_id}|*{cdn_repo_name}*>\n"
+
+                delivery_repo_name = cdn_to_comet(cdn_repo_name)
+                payload += f"Delivery (Comet) repo: *{delivery_repo_name}*\n\n"
         except ArtBotExceptions as e:
             payload += "\n"
             payload += e.message

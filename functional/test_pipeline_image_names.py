@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock
 from artbotlib.pipeline_image_names import distgit_to_brew, brew_to_cdn, cdn_to_comet, distgit_is_available, \
-    DistgitNotFound, CdnFromBrewNotFound, DeliveryRepoNotFound, get_brew_id, CdnNotFound
+    DistgitNotFound, CdnFromBrewNotFound, DeliveryRepoNotFound, get_brew_id, CdnNotFound, BrewIdNotFound
 
 
 def test_distgit_to_brew_1():
@@ -26,7 +26,7 @@ def test_distgit_to_brew_3():
 
 def test_brew_to_cdn1():
     actual = brew_to_cdn("openshift-enterprise-console-container", "8Base-RHOSE-4.10")
-    expected = "redhat-openshift4-ose-console"
+    expected = ["redhat-openshift4-ose-console"]
 
     assert actual == expected
 
@@ -72,7 +72,6 @@ def test_get_brew_id1():
 
 
 def test_get_brew_id2():
-    actual = get_brew_id("openshift-enterprise-console-container-booyah")
-    expected = None
-
-    assert actual == expected
+    with pytest.raises(Exception) as e:
+        get_brew_id("openshift-enterprise-console-container-booyah")
+    assert e.type == BrewIdNotFound
