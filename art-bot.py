@@ -211,7 +211,7 @@ def respond(client: RTMClient, event: dict):
             (r'^what is the %(name_type2)s for %(name_type)s %(name)s(?: in %(major_minor)s)?$' % re_snippets, re.I, translate_names),
 
             # ART pipeline
-            (r'^what is the image pipeline for distgit (?P<distgit_repo_name>\S*)( with version (?P<version>\d+.\d+))?$', re.I, pipeline_from_distgit),
+            (r'^.*(image )?pipeline for distgit (?P<distgit_repo_name>\S*)( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_distgit),
 
             # misc
             (r'^how can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
