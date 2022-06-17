@@ -1,173 +1,8 @@
 import requests
 import yaml
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
+from artbotlib import exceptions
 from . import util
-
-
-# Super class for all ART bot exceptions
-class ArtBotExceptions(Exception):
-    def __int__(self, message):
-        self.message = message
-
-
-# Art bot exceptions
-class DistgitNotFound(ArtBotExceptions):
-    """Exception raised for errors in the input dist-git name.
-
-    Attributes:
-        distgit_name -- input dist-git name which caused the error
-        message -- explanation of the error
-    """
-
-    def __init__(self, distgit_name, url):
-        self.distgit_name = distgit_name
-        self.message = f"image dist-git {distgit_name} definition was not found at {url}"
-        super().__init__(self.message)
-
-
-class CdnFromBrewNotFound(ArtBotExceptions):
-    """Exception raised if CDN is not found from brew name and variant
-
-        Attributes:
-            message -- explanation of the error
-        """
-
-    def __init__(self, brew_name, variant):
-        self.message = f"CDN was not found for brew `{brew_name}` and variant `{variant}`"
-        super().__init__(self.message)
-
-
-class CdnNotFound(ArtBotExceptions):
-    """Exception raised if CDN is not found from CDN name
-
-        Attributes:
-            message -- explanation of the error
-        """
-
-    def __init__(self, cdn_name):
-        self.message = f"CDN was not found for CDN name {cdn_name}"
-        super().__init__(self.message)
-
-
-class DeliveryRepoNotFound(ArtBotExceptions):
-    """Exception raised if delivery repo not found
-
-        Attributes:
-            message -- explanation of the error
-        """
-
-    def __init__(self, cdn_name):
-        self.message = f"Delivery Repo not found for CDN `{cdn_name}`"
-        super().__init__(self.message)
-
-
-class BrewIdNotFound(ArtBotExceptions):
-    """Exception raised if brew id not found for the given brew package name
-
-            Attributes:
-                message -- explanation of the error
-            """
-
-    def __init__(self, brew_name):
-        self.message = f"Brew ID not found for brew package `{brew_name}`. Check API call."
-        super().__init__(self.message)
-
-
-class VariantIdNotFound(ArtBotExceptions):
-    """Exception raised if variant id not found for a CDN repo
-
-            Attributes:
-                message -- explanation of the error
-            """
-
-    def __init__(self, cdn_name, variant_name):
-        self.message = f"Variant ID not found for CDN `{cdn_name}` and variant `{variant_name}`"
-        super().__init__(self.message)
-
-
-class CdnIdNotFound(ArtBotExceptions):
-    """Exception raised if CDN id not found for a CDN repo
-
-            Attributes:
-                message -- explanation of the error
-            """
-
-    def __init__(self, cdn_name):
-        self.message = f"CDN ID not found for CDN `{cdn_name}`"
-        super().__init__(self.message)
-
-
-class ProductIdNotFound(ArtBotExceptions):
-    """Exception raised if Product id not found for a product variant
-
-            Attributes:
-                message -- explanation of the error
-            """
-
-    def __init__(self, variant_id):
-        self.message = f"Product ID not found for variant `{variant_id}`"
-        super().__init__(self.message)
-
-
-class DeliveryRepoUrlNotFound(ArtBotExceptions):
-    """Exception raised if delivery repo not found on Pyxis.
-
-            Attributes:
-                message -- explanation of the error
-            """
-
-    def __init__(self, variant_id):
-        self.message = f"Couldn't find delivery repo link on Pyxis"
-        super().__init__(self.message)
-
-
-class DeliveryRepoIDNotFound(ArtBotExceptions):
-    """Exception raised if delivery repo ID not found on Pyxis.
-
-            Attributes:
-                message -- explanation of the error
-            """
-
-    def __init__(self, name):
-        self.message = f"Couldn't find delivery repo ID on Pyxis for {name}"
-        super().__init__(self.message)
-
-
-class GithubFromDistgitNotFound(ArtBotExceptions):
-    """Exception raised if Github repo could not be found from the distgit name
-
-            Attributes:
-                message -- explanation of the error
-            """
-
-    def __init__(self, distgit_name, version):
-        self.message = f"Couldn't find GitHub repo from distgit `{distgit_name}` and version `{version}`"
-        super().__init__(self.message)
-
-
-# Other exceptions
-class KojiClientError(Exception):
-    """Exception raised when we cannot connect to brew.
-
-        Attributes:
-            message -- explanation of the error
-        """
-
-    def __init__(self):
-        self.message = "Failed to connect to Brew."
-        super().__init__(self.message)
-
-
-class KerberosAuthenticationError(Exception):
-    """Exception raised for Authentication error if keytab or ticket is missing
-
-    Attributes:
-        message -- explanation of the error
-    """
-
-    def __init__(self):
-        self.message = "Kerberos authentication failed."
-        super().__init__(self.message)
 
 
 # Methods
@@ -179,7 +14,7 @@ def request_with_kerberos(url):
     response = requests.get(url, auth=kerberos_auth)
 
     if response.status_code == 401:
-        raise KerberosAuthenticationError()
+        raise exceptions.KerberosAuthenticationError("")
 
     return response
 
@@ -191,7 +26,8 @@ def distgit_to_brew(distgit_name, version):
     response = requests.get(url)
 
     if response.status_code != 200:
-        raise DistgitNotFound(distgit_name, url)  # If yml file does not exist
+        raise exceptions.DistgitNotFound(
+            f"image dist-git {distgit_name} definition was not found at {url}")  # If yml file does not exist
 
     yml_file = yaml.safe_load(response.content)
     try:
@@ -221,7 +57,7 @@ def brew_to_cdn(brew_name, variant_name):
         repos.append(item['relationships']['cdn_repo']['name'])
 
     if not repos:
-        raise CdnFromBrewNotFound(brew_name, variant_name)
+        raise exceptions.CdnFromBrewNotFound(f"CDN was not found for brew `{brew_name}` and variant `{variant_name}`")
     return repos
 
 
@@ -230,7 +66,7 @@ def get_cdn_repo_details(cdn_name):
     response = request_with_kerberos(url)
 
     if response.status_code == 404:
-        raise CdnNotFound(cdn_name)
+        raise exceptions.CdnNotFound(f"CDN was not found for CDN name {cdn_name}")
 
     return response.json()
 
@@ -241,7 +77,7 @@ def cdn_to_comet(cdn_name):
     try:
         return response['data']['attributes']['external_name']
     except Exception:
-        raise DeliveryRepoNotFound(cdn_name)
+        raise exceptions.DeliveryRepoNotFound(f"Delivery Repo not found for CDN `{cdn_name}`")
 
 
 def get_cdn_repo_id(cdn_name):
@@ -250,7 +86,7 @@ def get_cdn_repo_id(cdn_name):
     try:
         return response['data']['id']
     except Exception:
-        raise CdnIdNotFound(cdn_name)
+        raise exceptions.CdnIdNotFound(f"CDN ID not found for CDN `{cdn_name}`")
 
 
 def distgit_is_available(distgit_repo_name):
@@ -268,12 +104,12 @@ def get_brew_id(brew_name):
     try:
         koji_api = util.koji_client_session()
     except Exception:
-        raise KojiClientError
+        raise exceptions.KojiClientError("Failed to connect to Brew.")
 
     try:
         brew_id = koji_api.getPackageID(brew_name, strict=True)
     except Exception:
-        raise BrewIdNotFound(brew_name)
+        raise exceptions.BrewIdNotFound(f"Brew ID not found for brew package `{brew_name}`. Check API call.")
 
     return brew_id
 
@@ -286,7 +122,7 @@ def get_variant_id(cdn_name, variant_name):
             if data['name'] == variant_name:
                 return data['id']
     except Exception:
-        raise VariantIdNotFound(cdn_name, variant_name)
+        raise exceptions.VariantIdNotFound(f"Variant ID not found for CDN `{cdn_name}` and variant `{variant_name}`")
 
 
 def get_product_id(variant_id):
@@ -296,7 +132,7 @@ def get_product_id(variant_id):
     try:
         return response.json()['data']['attributes']['relationships']['product_version']['id']
     except Exception:
-        raise ProductIdNotFound(variant_id)
+        raise exceptions.ProductIdNotFound(f"Product ID not found for variant `{variant_id}`")
 
 
 def get_delivery_repo_id(name):
@@ -304,12 +140,12 @@ def get_delivery_repo_id(name):
     response = request_with_kerberos(url)
 
     if response.status_code == 404:
-        raise DeliveryRepoUrlNotFound
+        raise exceptions.DeliveryRepoUrlNotFound(f"Couldn't find delivery repo link on Pyxis")
 
     try:
         repo_id = response.json()['data'][0]['_id']
     except Exception:
-        raise DeliveryRepoIDNotFound(name)
+        raise exceptions.DeliveryRepoIDNotFound(f"Couldn't find delivery repo ID on Pyxis for {name}")
 
     return repo_id
 
@@ -341,7 +177,8 @@ def get_github_from_distgit(distgit_name, version):
     try:
         return data[distgit_name].split('/')[-1]
     except Exception:
-        raise GithubFromDistgitNotFound(distgit_name, version)
+        raise exceptions.GithubFromDistgitNotFound(
+            f"Couldn't find GitHub repo from distgit `{distgit_name}` and version `{version}`")
 
 
 def pipeline_from_distgit(so, distgit_repo_name, version):
@@ -392,19 +229,19 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
                 delivery_repo_name = cdn_to_comet(cdn_repo_name)
                 delivery_repo_id = get_delivery_repo_id(delivery_repo_name)
                 payload += f"Delivery (Comet) repo: <https://comet.engineering.redhat.com/containers/repositories/{delivery_repo_id}|*{delivery_repo_name}*>\n\n"
-        except ArtBotExceptions as e:
+        except exceptions.ArtBotExceptions as e:
             payload += "\n"
-            payload += e.message
+            payload += f"{e}"
             so.say(payload)
-            so.monitoring_say(f"ERROR: {e.message}")
+            so.monitoring_say(f"ERROR: {e}")
             return
-        except KerberosAuthenticationError as e:
-            so.say(e.message + " Contact the ART Team")
-            so.monitoring_say(f"ERROR: {e.message} Check keytab.")
+        except exceptions.KerberosAuthenticationError as e:
+            so.say(f"{e}. Contact the ART Team")
+            so.monitoring_say(f"ERROR: {e} Check keytab.")
             return
-        except KojiClientError as e:
-            so.say(e.message)
-            so.monitoring_say(f"ERROR: {e.message}")
+        except exceptions.KojiClientError as e:
+            so.say(e)
+            so.monitoring_say(f"ERROR: {e}")
         except Exception as e:
             so.say("Unknown error. Contact the ART team.")
             so.monitoring_say(f"ERROR: Unclassified: {e}")
