@@ -54,7 +54,7 @@ _*Advisory details:*_
 
 _*ART Pipeline details:*_
 * What is the image pipeline for distgit `distgit_repo_name`
-* What is the image pipeline for distgit `distgit_repo_name` with version `major.minor`
+* What is the image pipeline for distgit `distgit_repo_name` in `major.minor`
 
 _*ART config:*_
 * What images build in `major.minor`?
