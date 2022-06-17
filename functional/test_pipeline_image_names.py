@@ -1,7 +1,7 @@
 import pytest
-from unittest.mock import Mock
 from artbotlib.pipeline_image_names import distgit_to_brew, brew_to_cdn, cdn_to_comet, distgit_is_available, \
-    DistgitNotFound, CdnFromBrewNotFound, DeliveryRepoNotFound, get_brew_id, CdnNotFound, BrewIdNotFound
+    DistgitNotFound, CdnFromBrewNotFound, DeliveryRepoNotFound, get_brew_id, CdnNotFound, BrewIdNotFound, \
+    get_image_stream_tag, get_delivery_repo_id
 
 
 def test_distgit_to_brew_1():
@@ -75,3 +75,24 @@ def test_get_brew_id2():
     with pytest.raises(Exception) as e:
         get_brew_id("openshift-enterprise-console-container-booyah")
     assert e.type == BrewIdNotFound
+
+
+def test_get_delivery_repo_id():
+    actual = get_delivery_repo_id("openshift4/ose-cli")
+    expected = "5cd9ba3f5a13467289f4d51d"
+
+    assert actual == expected
+
+
+def test_check_for_payload1():
+    actual = get_image_stream_tag("ose-metallb", "4.10")
+    expected = None
+
+    assert actual == expected
+
+
+def test_check_for_payload2():
+    actual = get_image_stream_tag("openshift-enterprise-console", "4.10")
+    expected = "console"
+
+    assert actual == expected

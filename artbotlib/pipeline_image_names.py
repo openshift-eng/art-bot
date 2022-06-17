@@ -1,6 +1,6 @@
 import requests
 import yaml
-from requests_kerberos import HTTPKerberosAuth, REQUIRED
+from requests_kerberos import HTTPKerberosAuth, OPTIONAL
 from . import util
 
 
@@ -109,6 +109,30 @@ class ProductIdNotFound(ArtBotExceptions):
         super().__init__(self.message)
 
 
+class DeliveryRepoUrlNotFound(ArtBotExceptions):
+    """Exception raised if delivery repo not found on Pyxis.
+
+            Attributes:
+                message -- explanation of the error
+            """
+
+    def __init__(self, variant_id):
+        self.message = f"Couldn't find delivery repo link on Pyxis"
+        super().__init__(self.message)
+
+
+class DeliveryRepoIDNotFound(ArtBotExceptions):
+    """Exception raised if delivery repo ID not found on Pyxis.
+
+            Attributes:
+                message -- explanation of the error
+            """
+
+    def __init__(self, name):
+        self.message = f"Couldn't find delivery repo ID on Pyxis for {name}"
+        super().__init__(self.message)
+
+
 # Other exceptions
 class KojiClientError(Exception):
     """Exception raised when we cannot connect to brew.
@@ -137,7 +161,7 @@ class KerberosAuthenticationError(Exception):
 # Methods
 def request_with_kerberos(url):
     # Kerberos authentication
-    kerberos_auth = HTTPKerberosAuth(mutual_authentication=REQUIRED, sanitize_mutual_error_response=False)
+    kerberos_auth = HTTPKerberosAuth(mutual_authentication=OPTIONAL)
 
     # Sending the kerberos ticket along with the request
     response = requests.get(url, auth=kerberos_auth)
@@ -164,6 +188,19 @@ def distgit_to_brew(distgit_name, version):
         return brew_name
 
     return component_name
+
+
+def get_image_stream_tag(distgit_name, version):
+    url = f"https://raw.githubusercontent.com/openshift/ocp-build-data/openshift-{version}/images/{distgit_name}.yml"
+    response = requests.get(url)
+
+    yml_file = yaml.safe_load(response.content)
+    if yml_file['for_payload']:
+        tag = yml_file['name'].split("/")[1]
+        if "ose" in tag:
+            return tag[4:]
+        else:
+            return tag
 
 
 def brew_to_cdn(brew_name, variant_name):
@@ -253,6 +290,21 @@ def get_product_id(variant_id):
         raise ProductIdNotFound(variant_id)
 
 
+def get_delivery_repo_id(name):
+    url = f"https://pyxis.engineering.redhat.com/v1/repositories?filter=repository=={name}"
+    response = request_with_kerberos(url)
+
+    if response.status_code == 404:
+        raise DeliveryRepoUrlNotFound
+
+    try:
+        repo_id = response.json()['data'][0]['_id']
+    except Exception:
+        raise DeliveryRepoIDNotFound(name)
+
+    return repo_id
+
+
 def pipeline_from_distgit(so, distgit_repo_name, version):
     """
     List the Brew package name, CDN repo name and CDN repo details by getting the distgit name as input.
@@ -270,7 +322,9 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
 
     if distgit_is_available(distgit_repo_name):  # Check if the given distgit repo actually exists
         payload += f"Distgit Repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
-
+        tag = get_image_stream_tag(distgit_repo_name, version)
+        if tag:
+            payload += f"Image stream tag: *{tag}* \n"
         try:
             brew_package_name = distgit_to_brew(distgit_repo_name, version)
             brew_id = get_brew_id(brew_package_name)
@@ -282,14 +336,14 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
                 payload += "\n *Found more than one Brew to CDN mappings:*\n\n"
 
             for cdn_repo_name in cdn_repo_names:
-
                 cdn_repo_id = get_cdn_repo_id(cdn_repo_name)
                 variant_id = get_variant_id(cdn_repo_name, variant)
                 product_id = get_product_id(variant_id)
                 payload += f"CDN repo: <https://errata.devel.redhat.com/product_versions/{product_id}/cdn_repos/{cdn_repo_id}|*{cdn_repo_name}*>\n"
 
                 delivery_repo_name = cdn_to_comet(cdn_repo_name)
-                payload += f"Delivery (Comet) repo: *{delivery_repo_name}*\n\n"
+                delivery_repo_id = get_delivery_repo_id(delivery_repo_name)
+                payload += f"Delivery (Comet) repo: <https://comet.engineering.redhat.com/containers/repositories/{delivery_repo_id}|*{delivery_repo_name}*>\n\n"
         except ArtBotExceptions as e:
             payload += "\n"
             payload += e.message
