@@ -133,6 +133,18 @@ class DeliveryRepoIDNotFound(ArtBotExceptions):
         super().__init__(self.message)
 
 
+class GithubFromDistgitNotFound(ArtBotExceptions):
+    """Exception raised if Github repo could not be found from the distgit name
+
+            Attributes:
+                message -- explanation of the error
+            """
+
+    def __init__(self, distgit_name, version):
+        self.message = f"Couldn't find GitHub repo from distgit `{distgit_name}` and version `{version}`"
+        super().__init__(self.message)
+
+
 # Other exceptions
 class KojiClientError(Exception):
     """Exception raised when we cannot connect to brew.
@@ -305,6 +317,43 @@ def get_delivery_repo_id(name):
     return repo_id
 
 
+def github_distgit_mappings(version):
+    output = util.cmd_gather("doozer -g openshift-" + version + " images:print --short '{name}: {upstream_public}'")
+    data = output[1].split("\n")
+    dict_data = {}
+    for line in data:
+        array = line.split(": ")
+        if array != ['']:
+            dict_data[array[1]] = array[0]
+    return dict_data
+
+
+def distgit_github_mappings(version):
+    output = util.cmd_gather("doozer -g openshift-" + version + " images:print --short '{name}: {upstream_public}'")
+    data = output[1].split("\n")
+    dict_data = {}
+    for line in data:
+        array = line.split(": ")
+        if array != ['']:
+            dict_data[array[0]] = array[1]
+    return dict_data
+
+
+@util.cached
+def get_github_from_distgit(distgit_name, version):
+    data = distgit_github_mappings(version)
+    try:
+        return data[distgit_name].split('/')[-1]
+    except Exception:
+        raise GithubFromDistgitNotFound(distgit_name, version)
+
+
+def get_distgit_from_github(git_repo, version):
+    data = github_distgit_mappings(version)
+    return data[git_repo]
+    # TODO: For next iteration
+
+
 def pipeline_from_distgit(so, distgit_repo_name, version):
     """
     List the Brew package name, CDN repo name and CDN repo details by getting the distgit name as input.
@@ -321,6 +370,10 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
     payload = ""
 
     if distgit_is_available(distgit_repo_name):  # Check if the given distgit repo actually exists
+        github_repo = get_github_from_distgit(distgit_repo_name, version)
+        payload += f"Upstream GitHub repository: <https://github.com/openshift/{github_repo}|*openshift/{github_repo}*>\n"
+        payload += f"Downstream GitHub repository: <https://github.com/openshift-priv/{github_repo}|*openshift-priv/{github_repo}*>\n"
+
         payload += f"Distgit Repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
         tag = get_image_stream_tag(distgit_repo_name, version)
         if tag:
