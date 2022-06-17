@@ -315,7 +315,7 @@ def get_delivery_repo_id(name):
 
 
 def github_distgit_mappings(version):
-    output = util.cmd_gather("doozer -g openshift-" + version + " images:print --short '{name}: {upstream_public}'")
+    output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{name}}: {{upstream_public}}'")
     data = output[1].split("\n")
     dict_data = {}
     for line in data:
