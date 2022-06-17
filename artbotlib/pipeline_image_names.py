@@ -179,7 +179,7 @@ def request_with_kerberos(url):
     response = requests.get(url, auth=kerberos_auth)
 
     if response.status_code == 401:
-        raise KerberosAuthenticationError
+        raise KerberosAuthenticationError()
 
     return response
 
