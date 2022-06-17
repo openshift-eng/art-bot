@@ -327,9 +327,8 @@ def github_distgit_mappings(version):
 
 def distgit_github_mappings(version):
     output = util.cmd_gather("doozer -g openshift-" + version + " images:print --short '{name}: {upstream_public}'")
-    data = output[1].split("\n")
     dict_data = {}
-    for line in data:
+    for line in output[1].splitlines():
         array = line.split(": ")
         if len(array) == 2:
             dict_data[array[0]] = array[1]
