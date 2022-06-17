@@ -209,10 +209,7 @@ def get_image_stream_tag(distgit_name, version):
     yml_file = yaml.safe_load(response.content)
     if yml_file.get('for_payload', False):
         tag = yml_file['name'].split("/")[1]
-        if "ose" in tag:
-            return tag[4:]
-        else:
-            return tag
+        return tag[4:] if tag.startswith("ose-") else tag
 
 
 def brew_to_cdn(brew_name, variant_name):
