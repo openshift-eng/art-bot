@@ -372,16 +372,17 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
     if distgit_is_available(distgit_repo_name):  # Check if the given distgit repo actually exists
         github_repo = get_github_from_distgit(distgit_repo_name, version)
         payload += f"Upstream GitHub repository: <https://github.com/openshift/{github_repo}|*openshift/{github_repo}*>\n"
-        payload += f"Downstream GitHub repository: <https://github.com/openshift-priv/{github_repo}|*openshift-priv/{github_repo}*>\n"
+        payload += f"Private GitHub repository: <https://github.com/openshift-priv/{github_repo}|*openshift-priv/{github_repo}*>\n"
 
-        payload += f"Distgit Repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
-        tag = get_image_stream_tag(distgit_repo_name, version)
-        if tag:
-            payload += f"Image stream tag: *{tag}* \n"
+        payload += f"Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
         try:
             brew_package_name = distgit_to_brew(distgit_repo_name, version)
             brew_id = get_brew_id(brew_package_name)
-            payload += f"Brew package: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_package_name}*>\n"
+            payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_package_name}*>\n"
+            tag = get_image_stream_tag(distgit_repo_name, version)
+            if tag:
+                payload += f"Payload tag: *{tag}* \n"
+
 
             variant = f"8Base-RHOSE-{version}"
             cdn_repo_names = brew_to_cdn(brew_package_name, variant)
