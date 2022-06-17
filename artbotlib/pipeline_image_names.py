@@ -213,7 +213,7 @@ def get_image_stream_tag(distgit_name, version):
 
 
 def brew_to_cdn(brew_name, variant_name):
-    url = f"https://errata.devel.redhat.com/api/v1/cdn_repo_package_tags?page[number]=1&filter[package_name]={brew_name}&filter[variant_name]={variant_name}"
+    url = f"https://errata.devel.redhat.com/api/v1/cdn_repo_package_tags?filter[package_name]={brew_name}&filter[variant_name]={variant_name}"
     response = request_with_kerberos(url)
 
     repos = []
@@ -314,19 +314,20 @@ def get_delivery_repo_id(name):
     return repo_id
 
 
+@util.cached
 def github_distgit_mappings(version):
     output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{name}}: {{upstream_public}}'")
-    data = output[1].split("\n")
     dict_data = {}
-    for line in data:
+    for line in output[1].splitlines():
         array = line.split(": ")
-        if array != ['']:
+        if len(array) == 2:
             dict_data[array[1]] = array[0]
     return dict_data
 
 
+@util.cached
 def distgit_github_mappings(version):
-    output = util.cmd_gather("doozer -g openshift-" + version + " images:print --short '{name}: {upstream_public}'")
+    output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{name}}: {{upstream_public}}'")
     dict_data = {}
     for line in output[1].splitlines():
         array = line.split(": ")
@@ -335,19 +336,12 @@ def distgit_github_mappings(version):
     return dict_data
 
 
-@util.cached
 def get_github_from_distgit(distgit_name, version):
     data = distgit_github_mappings(version)
     try:
         return data[distgit_name].split('/')[-1]
     except Exception:
         raise GithubFromDistgitNotFound(distgit_name, version)
-
-
-def get_distgit_from_github(git_repo, version):
-    data = github_distgit_mappings(version)
-    return data[git_repo]
-    # TODO: For next iteration
 
 
 def pipeline_from_distgit(so, distgit_repo_name, version):
@@ -358,27 +352,31 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
     :distgit_repo_name: Name of the distgit repo we get as input
     :version: OS version
     """
-    so.say("Fetching data. Please wait...")
-
     if not version:
         version = "4.10"  # Default version set to 4.10, if unspecified
 
     payload = ""
 
-    if distgit_is_available(distgit_repo_name):  # Check if the given distgit repo actually exists
-        github_repo = get_github_from_distgit(distgit_repo_name, version)
-        payload += f"Upstream GitHub repository: <https://github.com/openshift/{github_repo}|*openshift/{github_repo}*>\n"
-        payload += f"Private GitHub repository: <https://github.com/openshift-priv/{github_repo}|*openshift-priv/{github_repo}*>\n"
-
-        payload += f"Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
+    if not distgit_is_available(distgit_repo_name):  # Check if the given distgit repo actually exists
+        # If incorrect distgit name provided, no need to proceed.
+        payload += f"No distgit repo with name *{distgit_repo_name}* exists."
+        so.say(payload)
+        return
+    else:
+        so.say("Fetching data. Please wait...")
         try:
+            github_repo = get_github_from_distgit(distgit_repo_name, version)
+            payload += f"Upstream GitHub repository: <https://github.com/openshift/{github_repo}|*openshift/{github_repo}*>\n"
+            payload += f"Private GitHub repository: <https://github.com/openshift-priv/{github_repo}|*openshift-priv/{github_repo}*>\n"
+
+            payload += f"Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
+
             brew_package_name = distgit_to_brew(distgit_repo_name, version)
             brew_id = get_brew_id(brew_package_name)
             payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_package_name}*>\n"
             tag = get_image_stream_tag(distgit_repo_name, version)
             if tag:
                 payload += f"Payload tag: *{tag}* \n"
-
 
             variant = f"8Base-RHOSE-{version}"
             cdn_repo_names = brew_to_cdn(brew_package_name, variant)
@@ -410,10 +408,4 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
         except Exception as e:
             so.say("Unknown error. Contact the ART team.")
             so.monitoring_say(f"ERROR: Unclassified: {e}")
-
-    else:
-        # If incorrect distgit name provided, no need to proceed.
-        payload += f"No distgit repo with name *{distgit_repo_name}* exists."
-        so.monitoring_say(f"No distgit repo with name *{distgit_repo_name}* exists.")
-
     so.say(payload)
