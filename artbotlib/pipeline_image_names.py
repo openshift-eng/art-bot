@@ -331,7 +331,7 @@ def distgit_github_mappings(version):
     dict_data = {}
     for line in data:
         array = line.split(": ")
-        if array != ['']:
+        if len(array) == 2:
             dict_data[array[0]] = array[1]
     return dict_data
 
