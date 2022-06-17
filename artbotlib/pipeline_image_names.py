@@ -207,7 +207,7 @@ def get_image_stream_tag(distgit_name, version):
     response = requests.get(url)
 
     yml_file = yaml.safe_load(response.content)
-    if yml_file['for_payload']:
+    if yml_file.get('for_payload', False):
         tag = yml_file['name'].split("/")[1]
         if "ose" in tag:
             return tag[4:]
