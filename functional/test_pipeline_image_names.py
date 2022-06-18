@@ -1,5 +1,5 @@
 import pytest
-from artbotlib.pipeline_image_names import distgit_to_brew, brew_to_cdn, cdn_to_comet, distgit_is_available, \
+from artbotlib.pipeline_image_names import distgit_to_brew, brew_to_cdn, cdn_to_delivery, distgit_is_available, \
     get_image_stream_tag, get_delivery_repo_id, get_brew_id
 from artbotlib import exceptions
 
@@ -38,7 +38,7 @@ def test_brew_to_cdn2():
 
 
 def test_cdn_to_comet1():
-    actual = cdn_to_comet("redhat-openshift4-ose-console")
+    actual = cdn_to_delivery("redhat-openshift4-ose-console")
     expected = "openshift4/ose-console"
 
     assert actual == expected
@@ -46,7 +46,7 @@ def test_cdn_to_comet1():
 
 def test_cdn_to_comet2():
     with pytest.raises(Exception) as e:
-        cdn_to_comet("redhat-openshift4-ose-consoleeee")
+        cdn_to_delivery("redhat-openshift4-ose-consoleeee")
     assert e.type == exceptions.DeliveryRepoNotFound or e.type == exceptions.CdnNotFound
 
 

@@ -1,200 +1,84 @@
-import requests
-import yaml
-from requests_kerberos import HTTPKerberosAuth, OPTIONAL
 from artbotlib import exceptions
-from . import util
+from artbotlib import pipeline_image_util
 
 
-# Methods
-def request_with_kerberos(url):
-    # Kerberos authentication
-    kerberos_auth = HTTPKerberosAuth(mutual_authentication=OPTIONAL)
-
-    # Sending the kerberos ticket along with the request
-    response = requests.get(url, auth=kerberos_auth)
-
-    if response.status_code == 401:
-        raise exceptions.KerberosAuthenticationError("")
-
-    return response
-
-
-def distgit_to_brew(distgit_name, version):
-    brew_name = f"{distgit_name}-container"
-
-    url = f"https://raw.githubusercontent.com/openshift/ocp-build-data/openshift-{version}/images/{distgit_name}.yml"
-    response = requests.get(url)
-
-    if response.status_code != 200:
-        raise exceptions.DistgitNotFound(
-            f"image dist-git {distgit_name} definition was not found at {url}")  # If yml file does not exist
-
-    yml_file = yaml.safe_load(response.content)
-    try:
-        component_name = yml_file['distgit']['component']
-    except KeyError:
-        return brew_name
-
-    return component_name
-
-
-def get_image_stream_tag(distgit_name, version):
-    url = f"https://raw.githubusercontent.com/openshift/ocp-build-data/openshift-{version}/images/{distgit_name}.yml"
-    response = requests.get(url)
-
-    yml_file = yaml.safe_load(response.content)
-    if yml_file.get('for_payload', False):
-        tag = yml_file['name'].split("/")[1]
-        return tag[4:] if tag.startswith("ose-") else tag
-
-
-def brew_to_cdn(brew_name, variant_name):
-    url = f"https://errata.devel.redhat.com/api/v1/cdn_repo_package_tags?filter[package_name]={brew_name}&filter[variant_name]={variant_name}"
-    response = request_with_kerberos(url)
-
-    repos = []
-    for item in response.json()['data']:
-        repos.append(item['relationships']['cdn_repo']['name'])
-
-    if not repos:
-        raise exceptions.CdnFromBrewNotFound(f"CDN was not found for brew `{brew_name}` and variant `{variant_name}`")
-    return repos
-
-
-def get_cdn_repo_details(cdn_name):
-    url = f"https://errata.devel.redhat.com/api/v1/cdn_repos/{cdn_name}"
-    response = request_with_kerberos(url)
-
-    if response.status_code == 404:
-        raise exceptions.CdnNotFound(f"CDN was not found for CDN name {cdn_name}")
-
-    return response.json()
-
-
-def cdn_to_comet(cdn_name):
-    response = get_cdn_repo_details(cdn_name)
-
-    try:
-        return response['data']['attributes']['external_name']
-    except Exception:
-        raise exceptions.DeliveryRepoNotFound(f"Delivery Repo not found for CDN `{cdn_name}`")
-
-
-def get_cdn_repo_id(cdn_name):
-    response = get_cdn_repo_details(cdn_name)
-
-    try:
-        return response['data']['id']
-    except Exception:
-        raise exceptions.CdnIdNotFound(f"CDN ID not found for CDN `{cdn_name}`")
-
-
-def distgit_is_available(distgit_repo_name):
-    response = requests.head(f"https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}")
-    return response.status_code == 200
-
-
-def get_brew_id(brew_name):
+# Driver functions
+def pipeline_from_github(so, github_repo, version, distgit_repo_name):
     """
-    Get the brew id for the given brew name.
+    Function to list the GitHub repo, Brew package name, CDN repo name and delivery repo by getting the GitHub repo name as input.
+
+    GitHub -> Distgit -> Brew -> CDN -> Delivery
 
     :so: SlackOutput object for reporting results.
-    :brew_name: The name of the brew package
+    :github_repo: Name of the GitHub repo we get as input
+    :version: OCP version
     """
-    try:
-        koji_api = util.koji_client_session()
-    except Exception:
-        raise exceptions.KojiClientError("Failed to connect to Brew.")
+    if not version:
+        version = "4.10"  # Default version set to 4.10, if unspecified
+    variant = f"8Base-RHOSE-{version}"
 
-    try:
-        brew_id = koji_api.getPackageID(brew_name, strict=True)
-    except Exception:
-        raise exceptions.BrewIdNotFound(f"Brew ID not found for brew package `{brew_name}`. Check API call.")
+    payload = ""
 
-    return brew_id
+    if not pipeline_image_util.github_repo_is_available(github_repo):  # Check if the given GitHub repo actually exists
+        # If incorrect GitHub name provided, no need to proceed.
+        payload += f"No GitHub repo with name *{github_repo}* exists."
+        so.say(payload)
+        return
+    else:
+        so.say("Fetching data. Please wait...")
 
+        # GitHub
+        payload += f"Upstream GitHub repository: <https://github.com/openshift/{github_repo}|*openshift/{github_repo}*>\n"
+        payload += f"Private GitHub repository: <https://github.com/openshift-priv/{github_repo}|*openshift-priv/{github_repo}*>\n"
+        try:
+            # GitHub -> Distgit
+            if not distgit_repo_name:
+                distgit_repo_name = pipeline_image_util.github_to_distgit(github_repo, version)
+            payload += f"Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
 
-def get_variant_id(cdn_name, variant_name):
-    response = get_cdn_repo_details(cdn_name)
-
-    try:
-        for data in response['data']['relationships']['variants']:
-            if data['name'] == variant_name:
-                return data['id']
-    except Exception:
-        raise exceptions.VariantIdNotFound(f"Variant ID not found for CDN `{cdn_name}` and variant `{variant_name}`")
-
-
-def get_product_id(variant_id):
-    url = f"https://errata.devel.redhat.com/api/v1/variants/{variant_id}"
-    response = request_with_kerberos(url)
-
-    try:
-        return response.json()['data']['attributes']['relationships']['product_version']['id']
-    except Exception:
-        raise exceptions.ProductIdNotFound(f"Product ID not found for variant `{variant_id}`")
-
-
-def get_delivery_repo_id(name):
-    url = f"https://pyxis.engineering.redhat.com/v1/repositories?filter=repository=={name}"
-    response = request_with_kerberos(url)
-
-    if response.status_code == 404:
-        raise exceptions.DeliveryRepoUrlNotFound(f"Couldn't find delivery repo link on Pyxis")
-
-    try:
-        repo_id = response.json()['data'][0]['_id']
-    except Exception:
-        raise exceptions.DeliveryRepoIDNotFound(f"Couldn't find delivery repo ID on Pyxis for {name}")
-
-    return repo_id
-
-
-@util.cached
-def github_distgit_mappings(version):
-    output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{name}}: {{upstream_public}}'")
-    dict_data = {}
-    for line in output[1].splitlines():
-        array = line.split(": ")
-        if len(array) == 2:
-            dict_data[array[1]] = array[0]
-    return dict_data
-
-
-@util.cached
-def distgit_github_mappings(version):
-    output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{name}}: {{upstream_public}}'")
-    dict_data = {}
-    for line in output[1].splitlines():
-        array = line.split(": ")
-        if len(array) == 2:
-            dict_data[array[0]] = array[1]
-    return dict_data
-
-
-def get_github_from_distgit(distgit_name, version):
-    data = distgit_github_mappings(version)
-    try:
-        return data[distgit_name].split('/')[-1]
-    except Exception:
-        raise exceptions.GithubFromDistgitNotFound(
-            f"Couldn't find GitHub repo from distgit `{distgit_name}` and version `{version}`")
+            # Distgit -> Delivery
+            payload += pipeline_image_util.distgit_to_delivery(distgit_repo_name, version, variant)
+        except exceptions.ArtBotExceptions as e:
+            payload += "\n"
+            payload += f"{e}"
+            so.say(payload)
+            so.monitoring_say(f"ERROR: {e}")
+            return
+        except exceptions.InternalServicesExceptions as e:
+            so.say(f"{e}. Contact the ART Team")
+            so.monitoring_say(f"ERROR: {e}")
+            return
+        except exceptions.ManyDistgitsForGithub as e:
+            intro = f"More than one dist-git was found for the github repo `{github_repo}`. Which one did you mean?"
+            so.snippet(intro=intro, payload=e)
+            so.say(f"Please retry using the command, with version optional:\n \
+_what is the image pipeline for github *{github_repo}* and distgit `dist-git-name` (in version `major.minor`)_")
+            return
+        except Exception as e:
+            so.say("Unknown error. Contact the ART team.")
+            so.monitoring_say(f"ERROR: Unclassified: {e}")
+            return
+    so.say(payload)
 
 
 def pipeline_from_distgit(so, distgit_repo_name, version):
     """
-    List the Brew package name, CDN repo name and CDN repo details by getting the distgit name as input.
+    Function to list the GitHub repo, Brew package name, CDN repo name and delivery repo by getting the distgit name as input.
+
+    GitHub <- Distgit -> Brew -> CDN -> Delivery
 
     :so: SlackOutput object for reporting results.
     :distgit_repo_name: Name of the distgit repo we get as input
-    :version: OS version
+    :version: OCP version
     """
     if not version:
         version = "4.10"  # Default version set to 4.10, if unspecified
+    variant = f"8Base-RHOSE-{version}"
 
     payload = ""
 
-    if not distgit_is_available(distgit_repo_name):  # Check if the given distgit repo actually exists
+    if not pipeline_image_util.distgit_is_available(
+            distgit_repo_name):  # Check if the given distgit repo actually exists
         # If incorrect distgit name provided, no need to proceed.
         payload += f"No distgit repo with name *{distgit_repo_name}* exists."
         so.say(payload)
@@ -202,46 +86,179 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
     else:
         so.say("Fetching data. Please wait...")
         try:
-            github_repo = get_github_from_distgit(distgit_repo_name, version)
+            # Distgit -> GitHub
+            github_repo = pipeline_image_util.distgit_to_github(distgit_repo_name, version)
             payload += f"Upstream GitHub repository: <https://github.com/openshift/{github_repo}|*openshift/{github_repo}*>\n"
             payload += f"Private GitHub repository: <https://github.com/openshift-priv/{github_repo}|*openshift-priv/{github_repo}*>\n"
 
+            # Distgit
             payload += f"Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
 
-            brew_package_name = distgit_to_brew(distgit_repo_name, version)
-            brew_id = get_brew_id(brew_package_name)
-            payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_package_name}*>\n"
-            tag = get_image_stream_tag(distgit_repo_name, version)
-            if tag:
-                payload += f"Payload tag: *{tag}* \n"
-
-            variant = f"8Base-RHOSE-{version}"
-            cdn_repo_names = brew_to_cdn(brew_package_name, variant)
-            if len(cdn_repo_names) > 1:
-                payload += "\n *Found more than one Brew to CDN mappings:*\n\n"
-
-            for cdn_repo_name in cdn_repo_names:
-                cdn_repo_id = get_cdn_repo_id(cdn_repo_name)
-                variant_id = get_variant_id(cdn_repo_name, variant)
-                product_id = get_product_id(variant_id)
-                payload += f"CDN repo: <https://errata.devel.redhat.com/product_versions/{product_id}/cdn_repos/{cdn_repo_id}|*{cdn_repo_name}*>\n"
-
-                delivery_repo_name = cdn_to_comet(cdn_repo_name)
-                delivery_repo_id = get_delivery_repo_id(delivery_repo_name)
-                payload += f"Delivery (Comet) repo: <https://comet.engineering.redhat.com/containers/repositories/{delivery_repo_id}|*{delivery_repo_name}*>\n\n"
+            # Distgit -> Delivery
+            payload += pipeline_image_util.distgit_to_delivery(distgit_repo_name, version, variant)
         except exceptions.ArtBotExceptions as e:
             payload += "\n"
             payload += f"{e}"
             so.say(payload)
             so.monitoring_say(f"ERROR: {e}")
             return
-        except exceptions.KerberosAuthenticationError as e:
+        except exceptions.InternalServicesExceptions as e:
             so.say(f"{e}. Contact the ART Team")
-            so.monitoring_say(f"ERROR: {e} Check keytab.")
-            return
-        except exceptions.KojiClientError as e:
-            so.say(e)
             so.monitoring_say(f"ERROR: {e}")
+            return
+        except Exception as e:
+            so.say("Unknown error. Contact the ART team.")
+            so.monitoring_say(f"ERROR: Unclassified: {e}")
+    so.say(payload)
+
+
+def pipeline_from_brew(so, brew_name, version):
+    """
+    Function to list the GitHub repo, Brew package name, CDN repo name and delivery repo by getting the brew name as input.
+
+    GitHub <- Distgit <- Brew -> CDN -> Delivery
+
+    :so: SlackOutput object for reporting results.
+    :brew_name: Name of the brew repo we get as input
+    :version: OCP version
+    """
+    if not version:
+        version = "4.10"  # Default version set to 4.10, if unspecified
+    variant = f"8Base-RHOSE-{version}"
+
+    payload = ""
+
+    if not pipeline_image_util.brew_is_available(brew_name):  # Check if the given brew repo actually exists
+        # If incorrect brew name provided, no need to proceed.
+        payload += f"No brew repo with name *{brew_name}* exists."
+        so.say(payload)
+        return
+    else:
+        so.say("Fetching data. Please wait...")
+        try:
+            # Brew -> GitHub
+            payload += pipeline_image_util.brew_to_github(brew_name, version)
+
+            # Brew
+            brew_id = pipeline_image_util.get_brew_id(brew_name)
+            payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_name}*>\n"
+
+            # # Brew -> Delivery
+            payload += pipeline_image_util.brew_to_delivery(brew_name, variant)
+
+        except exceptions.ArtBotExceptions as e:
+            payload += "\n"
+            payload += f"{e}"
+            so.say(payload)
+            so.monitoring_say(f"ERROR: {e}")
+            return
+        except exceptions.InternalServicesExceptions as e:
+            so.say(f"{e}. Contact the ART Team")
+            so.monitoring_say(f"ERROR: {e}")
+            return
+        except Exception as e:
+            so.say("Unknown error. Contact the ART team.")
+            so.monitoring_say(f"ERROR: Unclassified: {e}")
+    so.say(payload)
+
+
+def pipeline_from_cdn(so, cdn_repo_name, version):
+    """
+    Function to list the GitHub repo, Brew package name, CDN repo name and delivery repo by getting the CDN name as input.
+
+    GitHub <- Distgit <- Brew <- CDN -> Delivery
+
+    :so: SlackOutput object for reporting results.
+    :cdn_repo_name: Name of the CDN repo we get as input
+    :version: OCP version
+    """
+    if not version:
+        version = "4.10"  # Default version set to 4.10, if unspecified
+    variant = f"8Base-RHOSE-{version}"
+
+    payload = ""
+
+    if not pipeline_image_util.cdn_is_available(cdn_repo_name):  # Check if the given brew repo actually exists
+        # If incorrect brew name provided, no need to proceed.
+        payload += f"No CDN repo with name *{cdn_repo_name}* exists."
+        so.say(payload)
+        return
+    else:
+        so.say("Fetching data. Please wait...")
+        try:
+            # CDN -> GitHub
+            payload += pipeline_image_util.cdn_to_github(cdn_repo_name, version)
+
+            # CDN
+            payload += pipeline_image_util.get_cdn_payload(cdn_repo_name, variant)
+
+            # CDN -> Delivery
+            payload += pipeline_image_util.cdn_to_delivery_payload(cdn_repo_name)
+        except exceptions.ArtBotExceptions as e:
+            payload += "\n"
+            payload += f"{e}"
+            so.say(payload)
+            so.monitoring_say(f"ERROR: {e}")
+            return
+        except exceptions.InternalServicesExceptions as e:
+            so.say(f"{e}. Contact the ART Team")
+            so.monitoring_say(f"ERROR: {e}")
+            return
+        except Exception as e:
+            so.say("Unknown error. Contact the ART team.")
+            so.monitoring_say(f"ERROR: Unclassified: {e}")
+    so.say(payload)
+
+
+def pipeline_from_delivery(so, delivery_repo_name, version):
+    """
+    Function to list the GitHub repo, Brew package name, CDN repo name and delivery repo by getting the delivery repo name as input.
+
+    GitHub <- Distgit <- Brew <- CDN <- Delivery
+
+    :so: SlackOutput object for reporting results.
+    :delivery_repo_name: Name of the delivery repo we get as input
+    :version: OCP version
+    """
+    if not version:
+        version = "4.10"  # Default version set to 4.10, if unspecified
+    variant = f"8Base-RHOSE-{version}"
+
+    payload = ""
+
+    if not pipeline_image_util.delivery_repo_is_available(delivery_repo_name):  # Check if the given delivery repo actually exists
+        # If incorrect delivery repo name provided, no need to proceed.
+        payload += f"No delivery repo with name *{delivery_repo_name}* exists."
+        so.say(payload)
+        return
+    else:
+        so.say("Fetching data. Please wait...")
+        try:
+            # Brew
+            brew_name = pipeline_image_util.brew_from_delivery(delivery_repo_name)
+            brew_id = pipeline_image_util.get_brew_id(brew_name)
+            payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_name}*>\n"
+
+            # Brew -> GitHub
+            payload += pipeline_image_util.brew_to_github(brew_name, version)
+
+            # Brew -> CDN
+            cdn_repo_name = pipeline_image_util.brew_to_cdn_delivery(brew_name, variant, delivery_repo_name)
+            payload += pipeline_image_util.get_cdn_payload(cdn_repo_name, variant)
+
+            # Delivery
+            delivery_repo_id = pipeline_image_util.get_delivery_repo_id(delivery_repo_name)
+            payload += f"Delivery (Comet) repo: <https://comet.engineering.redhat.com/containers/repositories/{delivery_repo_id}|*{delivery_repo_name}*>\n\n"
+        except exceptions.ArtBotExceptions as e:
+            payload += "\n"
+            payload += f"{e}"
+            so.say(payload)
+            so.monitoring_say(f"ERROR: {e}")
+            return
+        except exceptions.InternalServicesExceptions as e:
+            so.say(f"{e}. Contact the ART Team")
+            so.monitoring_say(f"ERROR: {e}")
+            return
         except Exception as e:
             so.say("Unknown error. Contact the ART team.")
             so.monitoring_say(f"ERROR: Unclassified: {e}")

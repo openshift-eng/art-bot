@@ -55,16 +55,60 @@ class DeliveryRepoIDNotFound(ArtBotExceptions):
 
 
 class GithubFromDistgitNotFound(ArtBotExceptions):
-    """Exception raised if Github repo could not be found from the distgit name"""
+    """Exception raised if GitHub repo could not be found from the distgit name"""
     pass
 
 
+class DistgitFromGithubNotFound(ArtBotExceptions):
+    """Exception raised if Distgit repo could not be found from the GitHub repo name"""
+    pass
+
+
+class MultipleCdnToBrewMappings(ArtBotExceptions):
+    """Exception raised if more than one Brew packages are found for a CDN repo"""
+    pass
+
+
+class BrewNotFoundFromCdnApi(ArtBotExceptions):
+    """Exception raised when the json file returned from the CDN repos API does not have Brew packages listed"""
+    pass
+
+
+class BrewFromDeliveryNotFound(ArtBotExceptions):
+    """Exception raised when the brew name could not be retrieved from pyxis"""
+    pass
+
+
+class MultipleBrewFromDelivery(ArtBotExceptions):
+    """Exception raised if more than one delivery to brew mappings found"""
+    pass
+
+
+class BrewToCdnWithDeliveryNotFound(ArtBotExceptions):
+    """Exception raised when we cannot found the CDN repo name using the Brew name that we got using the Delivery Repo name"""
+    pass
+
+
+class DistgitFromBrewNotFound(ArtBotExceptions):
+    """Exception raised when we cannot find the distgit name from the given brew name"""
+
+
 # Other exceptions
-class KojiClientError(Exception):
+class InternalServicesExceptions(Exception):
+    """Super class for all exceptions while trying to access internal services"""
+    pass
+
+
+class KojiClientError(InternalServicesExceptions):
     """Exception raised when we cannot connect to brew."""
     pass
 
 
-class KerberosAuthenticationError(Exception):
+class KerberosAuthenticationError(InternalServicesExceptions):
     """Exception raised for Authentication error if keytab or ticket is missing
     """
+
+
+class ManyDistgitsForGithub(Exception):
+    """Exception raised if there are more than one distgit for a GitHub repo"""
+    pass

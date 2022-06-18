@@ -20,7 +20,7 @@ from artbotlib.util import cmd_assert, please_notify_art_team_of_error, lookup_c
 from artbotlib.formatting import extract_plain_text, repeat_in_chunks
 from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list, elliott
-from artbotlib.pipeline_image_names import pipeline_from_distgit
+from artbotlib.pipeline_image_names import pipeline_from_distgit, pipeline_from_github, pipeline_from_brew, pipeline_from_cdn, pipeline_from_delivery
 
 
 logger = logging.getLogger()
@@ -212,6 +212,10 @@ def respond(client: RTMClient, event: dict):
 
             # ART pipeline
             (r'^.*(image )?pipeline for distgit (?P<distgit_repo_name>\S*)( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_distgit),
+            (r'^.*(image )?pipeline for github (?P<github_repo>\S*)( and distgit (?P<distgit_repo_name>\S*))?( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_github),
+            (r'^.*(image )?pipeline for brew (?P<brew_name>\S*)( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_brew),
+            (r'^.*(image )?pipeline for cdn (?P<cdn_repo_name>\S*)( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_cdn),
+            (r'^.*(image )?pipeline for delivery (?P<delivery_repo_name>\S*)( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_delivery),
 
             # misc
             (r'^how can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
