@@ -3,7 +3,7 @@ from artbotlib import pipeline_image_util
 
 
 # Driver functions
-def pipeline_from_github(so, github_repo, version, distgit_repo_name):
+def pipeline_from_github(so, github_repo, version):
     """
     Function to list the GitHub repo, Brew package name, CDN repo name and delivery repo by getting the GitHub repo name as input.
 
@@ -32,12 +32,16 @@ def pipeline_from_github(so, github_repo, version, distgit_repo_name):
         payload += f"Private GitHub repository: <https://github.com/openshift-priv/{github_repo}|*openshift-priv/{github_repo}*>\n"
         try:
             # GitHub -> Distgit
-            if not distgit_repo_name:
-                distgit_repo_name = pipeline_image_util.github_to_distgit(github_repo, version)
-            payload += f"Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
+            distgit_repos = pipeline_image_util.github_to_distgit(github_repo, version)
+            if len(distgit_repos) > 1:
+                payload += f"\n*More than one dist-gits were found for the GitHub repo `{github_repo}`*\n\n"
+            for distgit_repo_name in distgit_repos:
+                payload += f"Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
 
-            # Distgit -> Delivery
-            payload += pipeline_image_util.distgit_to_delivery(distgit_repo_name, version, variant)
+                # Distgit -> Delivery
+                payload += pipeline_image_util.distgit_to_delivery(distgit_repo_name, version, variant)
+
+                payload += "\n"
         except exceptions.ArtBotExceptions as e:
             payload += "\n"
             payload += f"{e}"
@@ -237,10 +241,12 @@ def pipeline_from_delivery(so, delivery_repo_name, version):
             # Brew
             brew_name = pipeline_image_util.brew_from_delivery(delivery_repo_name)
             brew_id = pipeline_image_util.get_brew_id(brew_name)
-            payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_name}*>\n"
 
             # Brew -> GitHub
             payload += pipeline_image_util.brew_to_github(brew_name, version)
+
+            # To make the output consistent
+            payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_name}*>\n"
 
             # Brew -> CDN
             cdn_repo_name = pipeline_image_util.brew_to_cdn_delivery(brew_name, variant, delivery_repo_name)

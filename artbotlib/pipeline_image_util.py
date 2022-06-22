@@ -25,11 +25,7 @@ def github_to_distgit(github_name, version):
     if not distgits:
         raise exceptions.DistgitFromGithubNotFound(
             f"Couldn't find Distgit repo from GitHub `{github_name}` and version `{version}`")
-    if len(distgits) == 1:
-        return distgits[0]
-
-    payload = "\n".join(distgits)
-    raise exceptions.ManyDistgitsForGithub(payload)
+    return distgits
 
 
 # Distgit
@@ -112,7 +108,7 @@ def brew_to_github(brew_name, version):
     payload = ""
 
     # Distgit
-    distgit_repo_name = brew_to_distgit(brew_name)
+    distgit_repo_name = brew_to_distgit(brew_name, version)
 
     # Distgit -> GitHub
     github_repo = distgit_to_github(distgit_repo_name, version)
@@ -196,25 +192,34 @@ def brew_to_delivery(brew_package_name, variant):
     return payload
 
 
-def brew_to_distgit(brew_name):
+# @util.cached
+def doozer_brew_distgit(version):
+    output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{component}}: {{name}}'")
+    if "koji.GSSAPIAuthError" in output[2]:
+        raise exceptions.KerberosAuthenticationError("Kerberos authentication failed for doozer")
+
+    result = []
+    for line in output[1].splitlines():
+        array = line.split(": ")
+        result.append(array)
+
+    return result
+
+
+def brew_to_distgit(brew_name, version):
+    output = doozer_brew_distgit(version)
+
+    dict_data = {}
+    for line in output:
+        if len(line) == 2:
+            dict_data[line[0]] = line[1]
+
+    if not dict_data:
+        raise exceptions.NullDataReturned("No data from doozer command for brew-distigit mapping")
     try:
-        koji_api = util.koji_client_session()
+        return dict_data[brew_name]
     except Exception:
-        raise exceptions.KojiClientError("Failed to connect to Brew.")
-
-    brew_id = get_brew_id(brew_name)
-
-    today = date.today()
-    first = today.replace(day=1)
-    lastMonth = first - timedelta(days=1)
-
-    details = koji_api.listBuilds(packageID=brew_id, state=1, completeAfter=lastMonth.strftime("%m/%d/%y"))
-
-    match = re.search(r"git://pkgs.devel.redhat.com/containers/(.+)#.+", details[0]['source'])
-    if match:
-        return match.group(1)
-    elif not match or not details:
-        raise exceptions.DistgitFromBrewNotFound("Could not find distgit name from Brew name")
+        raise exceptions.BrewToDistgitMappingNotFound("Could not find brew-distgit mapping from ocp-build-data")
 
 
 # CDN stuff
@@ -425,38 +430,48 @@ def get_image_stream_tag(distgit_name, version):
         return tag[4:] if tag.startswith("ose-") else tag  # remove 'ose-' if present
 
 
-# @util.cached
+@util.cached
+def doozer_github_distgit(version):
+    output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{name}}: {{upstream_public}}'")
+    if "koji.GSSAPIAuthError" in output[2]:
+        raise exceptions.KerberosAuthenticationError("Kerberos authentication failed for doozer")
+
+    result = []
+    for line in output[1].splitlines():
+        array = line.split(": ")
+        result.append(array)
+
+    return result
+
+
 def github_distgit_mappings(version):
     """
     Function to get the GitHub to Distgit mappings present in a particular OCP version.
 
     :version: OCP version
     """
-    output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{name}}: {{upstream_public}}'")
+    output = doozer_github_distgit(version)
     dict_data = defaultdict(list)
-    for line in output[1].splitlines():
-        array = line.split(": ")
-        if len(array) == 2:
-            dict_data[array[1].split("/")[-1]].append(array[0])
+    for line in output:
+        if len(line) == 2:
+            dict_data[line[1].split("/")[-1]].append(line[0])
 
-    if not dict_data and "koji.GSSAPIAuthError" in output[2]:
-        raise exceptions.KerberosAuthenticationError("Kerberos authentication failed")
+    if not dict_data:
+        raise exceptions.NullDataReturned("No data from doozer command for github-distgit mapping")
     return dict_data
 
 
-# @util.cached
 def distgit_github_mappings(version):
     """
     Function to get the distgit to GitHub mappings present in a particular OCP version.
 
     :version: OCP version
     """
-    output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{name}}: {{upstream_public}}'")
+    output = doozer_github_distgit(version)
     dict_data = {}
-    for line in output[1].splitlines():
-        array = line.split(": ")
-        if len(array) == 2:
-            dict_data[array[0]] = array[1]
-    if not dict_data and "koji.GSSAPIAuthError" in output[2]:
-        raise exceptions.KerberosAuthenticationError("Kerberos authentication failed")
+    for line in output:
+        if len(line) == 2:
+            dict_data[line[0]] = line[1]
+    if not dict_data:
+        raise exceptions.NullDataReturned("No data from doozer command for distgit-distgit mapping")
     return dict_data

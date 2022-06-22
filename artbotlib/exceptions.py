@@ -93,6 +93,14 @@ class DistgitFromBrewNotFound(ArtBotExceptions):
     """Exception raised when we cannot find the distgit name from the given brew name"""
 
 
+class NullDataReturned(ArtBotExceptions):
+    """Exception raise when null data (empty dict, list etc.) is returned from any function, which is necessary for other functions"""
+
+
+class BrewToDistgitMappingNotFound(ArtBotExceptions):
+    """Exception raised when no mapping is found between brew and distgit from the yml file from ocp-build-data/images"""
+
+
 # Other exceptions
 class InternalServicesExceptions(Exception):
     """Super class for all exceptions while trying to access internal services"""
@@ -107,8 +115,3 @@ class KojiClientError(InternalServicesExceptions):
 class KerberosAuthenticationError(InternalServicesExceptions):
     """Exception raised for Authentication error if keytab or ticket is missing
     """
-
-
-class ManyDistgitsForGithub(Exception):
-    """Exception raised if there are more than one distgit for a GitHub repo"""
-    pass

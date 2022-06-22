@@ -212,7 +212,7 @@ def respond(client: RTMClient, event: dict):
 
             # ART pipeline
             (r'^.*(image )?pipeline for distgit (?P<distgit_repo_name>\S*)( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_distgit),
-            (r'^.*(image )?pipeline for github (?P<github_repo>\S*)( and distgit (?P<distgit_repo_name>\S*))?( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_github),
+            (r'^.*(image )?pipeline for github (?P<github_repo>\S*)( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_github),
             (r'^.*(image )?pipeline for brew (?P<brew_name>\S*)( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_brew),
             (r'^.*(image )?pipeline for cdn (?P<cdn_repo_name>\S*)( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_cdn),
             (r'^.*(image )?pipeline for delivery (?P<delivery_repo_name>\S*)( in (?P<version>\d+.\d+))?$', re.I, pipeline_from_delivery),
