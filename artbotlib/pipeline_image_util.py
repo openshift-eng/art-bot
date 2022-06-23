@@ -4,8 +4,6 @@ from requests_kerberos import HTTPKerberosAuth, OPTIONAL
 from collections import defaultdict
 from . import util
 from artbotlib import exceptions
-import re
-from datetime import date, timedelta
 
 
 # Functions for pipeline from GitHub
@@ -84,6 +82,16 @@ def distgit_to_delivery(distgit_repo_name, version, variant):
     brew_id = get_brew_id(brew_package_name)
     payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_package_name}*>\n"
 
+    # Bundle Builds
+    if require_bundle_build(distgit_repo_name, version):
+        bundle_component = get_bundle_override(distgit_repo_name, version)
+        if not bundle_component:
+            bundle_component = f"{'-'.join(brew_package_name.split('-')[:-1])}-metadata-component"
+        bundle_distgit = f"{distgit_repo_name}-bundle"
+
+        payload += f"Bundle Component: *{bundle_component}*\n"
+        payload += f"Bundle Distgit: *{bundle_distgit}*\n"
+
     # Brew -> Delivery
     payload += brew_to_delivery(brew_package_name, variant)
 
@@ -117,6 +125,16 @@ def brew_to_github(brew_name, version):
 
     # To keep the presented order same
     payload += f"Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
+
+    # Bundle Builds
+    if require_bundle_build(distgit_repo_name, version):
+        bundle_component = get_bundle_override(distgit_repo_name, version)
+        if not bundle_component:
+            bundle_component = f"{'-'.join(brew_name.split('-')[:-1])}-metadata-component"
+        bundle_distgit = f"{distgit_repo_name}-bundle"
+
+        payload += f"Bundle Component: *{bundle_component}*\n"
+        payload += f"Bundle Distgit: *{bundle_distgit}*\n"
 
     # Tag
     tag = get_image_stream_tag(distgit_repo_name, version)
@@ -192,7 +210,7 @@ def brew_to_delivery(brew_package_name, variant):
     return payload
 
 
-# @util.cached
+@util.cached
 def doozer_brew_distgit(version):
     output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{component}}: {{name}}'")
     if "koji.GSSAPIAuthError" in output[2]:
@@ -475,3 +493,34 @@ def distgit_github_mappings(version):
     if not dict_data:
         raise exceptions.NullDataReturned("No data from doozer command for distgit-distgit mapping")
     return dict_data
+
+
+def require_bundle_build(distgit_name, version):
+    url = f"https://raw.githubusercontent.com/openshift/ocp-build-data/openshift-{version}/images/{distgit_name}.yml"
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        raise exceptions.DistgitNotFound(
+            f"image dist-git {distgit_name} definition was not found at {url}")  # If yml file does not exist
+
+    yml_file = yaml.safe_load(response.content)
+    try:
+        _ = yml_file['update-csv']  # override default if component name specified in yml file
+        return True
+    except KeyError:
+        return False
+
+
+def get_bundle_override(distgit_name, version):
+    url = f"https://raw.githubusercontent.com/openshift/ocp-build-data/openshift-{version}/images/{distgit_name}.yml"
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        raise exceptions.DistgitNotFound(
+            f"image dist-git {distgit_name} definition was not found at {url}")  # If yml file does not exist
+
+    yml_file = yaml.safe_load(response.content)
+    try:
+        return yml_file['distgit']['bundle_component']
+    except KeyError:
+        return None

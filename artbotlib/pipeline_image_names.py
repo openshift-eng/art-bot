@@ -147,7 +147,7 @@ def pipeline_from_brew(so, brew_name, version):
             brew_id = pipeline_image_util.get_brew_id(brew_name)
             payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_name}*>\n"
 
-            # # Brew -> Delivery
+            # Brew -> Delivery
             payload += pipeline_image_util.brew_to_delivery(brew_name, variant)
 
         except exceptions.ArtBotExceptions as e:
