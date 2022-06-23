@@ -53,8 +53,11 @@ _*Advisory details:*_
 * Image list advisory `advisory_id`
 
 _*ART Pipeline details:*_
-* What is the image pipeline for distgit `distgit_repo_name`
-* What is the image pipeline for distgit `distgit_repo_name` in `major.minor`
+* What is the image pipeline for github `github_repo_name` in `major.minor`(optional)
+* What is the image pipeline for distgit `distgit_repo_name` in `major.minor`(optional)
+* What is the image pipeline for brew `brew_package_name` in `major.minor`(optional)
+* What is the image pipeline for cdn `cdn_repo_name` in `major.minor`(optional)
+* What is the image pipeline for delivery `delivery_repo` in `major.minor`(optional)
 
 _*ART config:*_
 * What images build in `major.minor`?
