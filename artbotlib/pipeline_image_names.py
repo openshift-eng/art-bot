@@ -52,12 +52,6 @@ def pipeline_from_github(so, github_repo, version):
             so.say(f"{e}. Contact the ART Team")
             so.monitoring_say(f"ERROR: {e}")
             return
-        except exceptions.ManyDistgitsForGithub as e:
-            intro = f"More than one dist-git was found for the github repo `{github_repo}`. Which one did you mean?"
-            so.snippet(intro=intro, payload=e)
-            so.say(f"Please retry using the command, with version optional:\n \
-_what is the image pipeline for github *{github_repo}* and distgit `dist-git-name` (in version `major.minor`)_")
-            return
         except Exception as e:
             so.say("Unknown error. Contact the ART team.")
             so.monitoring_say(f"ERROR: Unclassified: {e}")
