@@ -4,7 +4,7 @@ from requests_kerberos import HTTPKerberosAuth, OPTIONAL
 from collections import defaultdict
 from . import util
 from artbotlib import exceptions
-
+from typing import Union
 
 # Functions for pipeline from GitHub
 def github_repo_is_available(repo_name: str) -> bool:
@@ -604,7 +604,7 @@ def require_bundle_build(distgit_name: str, version: str) -> bool:
         return False
 
 
-def get_bundle_override(distgit_name: str, version: str) -> str | None:
+def get_bundle_override(distgit_name: str, version: str) -> Union[str, None]:
     """
     Check the yml file for an override for the bundle component name. Else return None
 
