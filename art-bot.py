@@ -204,7 +204,7 @@ def respond(client: RTMClient, event: dict):
                 'function': buildinfo_for_release
             },
             {
-                'regex': r'^%(wh)s (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$',
+                'regex': r'^%(wh)s (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$' % re_snippets,
                 'flag': re.I,
                 'function': brew_list.list_component_data_for_release_tag
             },

@@ -50,21 +50,21 @@ def specific_rpms_for_image(so, rpms, nvr):
 
 
 def list_component_data_for_release_tag(so, data_type, release_tag):
-    so.say('Let me look into that. It may take a minute...')
-
     data_type = data_type.lower()
     data_types = ('nvr', 'distgit', 'commit', 'catalog', 'image')
-
     if not data_type.startswith(data_types):
         so.say(f"Sorry, the type of information you want about each component needs to be one of: {data_types}")
         return
+
+    so.say('Let me look into that. It may take a minute...')
+
 
     if 'nightly-' in release_tag:
         repo_url = 'registry.svc.ci.openshift.org/ocp/release'
     else:
         repo_url = 'quay.io/openshift-release-dev/ocp-release'
 
-    image_url = f'{repo_url}:{release_tag}'
+    image_url = f'{repo_url}:{release_tag}-x86_64'
 
     print(f'Trying: {image_url}')
     rc, stdout, stderr = util.cmd_assert(so, f'oc adm release info -o=json --pullspecs {image_url}')
@@ -109,10 +109,6 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
             return
 
         payload += '\n'
-
-        if '?' in payload:
-            print(f'BAD INFO?')
-            pprint.pprint(release_component_image_info)
 
     so.snippet(payload=payload,
                intro=f'The release components map to {data_type} as follows:',
