@@ -128,7 +128,7 @@ def pipeline_from_brew(so, brew_name, version):
 
     if not pipeline_image_util.brew_is_available(brew_name):  # Check if the given brew repo actually exists
         # If incorrect brew name provided, no need to proceed.
-        payload += f"No brew repo with name *{brew_name}* exists."
+        payload += f"No brew package with name *{brew_name}* exists."
         so.say(payload)
         return
     else:

@@ -39,31 +39,21 @@ def greet_user(so):
 def show_help(so):
     so.say("""Here are questions I can answer...
 
+_*ART config:*_
+* What images build in `major.minor`?
+* What is the image pipeline for (github|distgit|package|cdn|image) `name` [in `major.minor`]?
+* What is the (brew-image|brew-component) for dist-git `name` [in `major.minor`]?
+
 _*ART releases:*_
 * Which build of `image_name` is in `release image name or pullspec`?
 * What (commits|catalogs|distgits|nvrs|images) are associated with `release-tag`?
+* Image list advisory `advisory_id`
 
 _*ART build info:*_
 * Where in `major.minor` (is|are) the `name1,name2,...` (RPM|package) used?
 * What rpms were used in the latest image builds for `major.minor`?
 * What rpms are in image `image-nvr`?
 * Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
-
-_*Advisory details:*_
-* Image list advisory `advisory_id`
-
-_*ART Pipeline details:*_
-* What is the image pipeline for github `github_repo_name` in `major.minor`(optional)
-* What is the image pipeline for distgit `distgit_repo_name` in `major.minor`(optional)
-* What is the image pipeline for brew `brew_package_name` in `major.minor`(optional)
-* What is the image pipeline for cdn `cdn_repo_name` in `major.minor`(optional)
-* What is the image pipeline for delivery `delivery_repo` in `major.minor`(optional)
-
-_*ART config:*_
-* What images build in `major.minor`?
-* What is the (brew-image|brew-component) for dist-git `name` in `major.minor`?
-* What is the (brew-image|brew-component) for dist-git `name`?
-  (assumes latest version)
 
 _*misc:*_
 * How can I get ART to build a new image?
@@ -272,7 +262,7 @@ def respond(client: RTMClient, event: dict):
                 'function': pipeline_from_distgit
             },
             {
-                'regex': r'^.*(image )?pipeline for brew (?P<brew_name>\S*)( in (?P<version>\d+.\d+))?$',
+                'regex': r'^.*(image )?pipeline for package (?P<brew_name>\S*)( in (?P<version>\d+.\d+))?$',
                 'flag': re.I,
                 'function': pipeline_from_brew
             },
@@ -282,7 +272,7 @@ def respond(client: RTMClient, event: dict):
                 'function': pipeline_from_cdn
             },
             {
-                'regex': r'^.*(image )?pipeline for delivery (?P<delivery_repo_name>\S*)( in (?P<version>\d+.\d+))?$',
+                'regex': r'^.*(image )?pipeline for image (?P<delivery_repo_name>\S*)( in (?P<version>\d+.\d+))?$',
                 'flag': re.I,
                 'function': pipeline_from_delivery
             }
