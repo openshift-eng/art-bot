@@ -252,27 +252,27 @@ def respond(client: RTMClient, event: dict):
 
             # ART pipeline
             {
-                'regex': r'^.*(image )?pipeline for github (?P<github_repo>\S*)( in (?P<version>\d+.\d+))?$',
+                'regex': r'^.*(image )?pipeline \s*for \s*github \s*(https://)*(github.com/)*(openshift/)*(?P<github_repo>[a-zA-Z0-9-]+)(/|\.git)?\s*( in \s*(?P<version>\d+.\d+))?\s*$',
                 'flag': re.I,
                 'function': pipeline_from_github
             },
             {
-                'regex': r'^.*(image )?pipeline for distgit (?P<distgit_repo_name>\S*)( in (?P<version>\d+.\d+))?$',
+                'regex': r'^.*(image )?pipeline \s*for \s*distgit \s*(containers\/){0,1}(?P<distgit_repo_name>[a-zA-Z0-9-]+)( \s*in \s*(?P<version>\d+.\d+))?\s*$',
                 'flag': re.I,
                 'function': pipeline_from_distgit
             },
             {
-                'regex': r'^.*(image )?pipeline for package (?P<brew_name>\S*)( in (?P<version>\d+.\d+))?$',
+                'regex': r'^.*(image )?pipeline \s*for \s*package \s*(?P<brew_name>\S*)( \s*in \s*(?P<version>\d+.\d+))?\s*$',
                 'flag': re.I,
                 'function': pipeline_from_brew
             },
             {
-                'regex': r'^.*(image )?pipeline for cdn (?P<cdn_repo_name>\S*)( in (?P<version>\d+.\d+))?$',
+                'regex': r'^.*(image )?pipeline \s*for \s*cdn \s*(?P<cdn_repo_name>\S*)( \s*in \s*(?P<version>\d+.\d+))?\s*$',
                 'flag': re.I,
                 'function': pipeline_from_cdn
             },
             {
-                'regex': r'^.*(image )?pipeline for image (?P<delivery_repo_name>\S*)( in (?P<version>\d+.\d+))?$',
+                'regex': r'^.*(image )?pipeline \s*for \s*image \s*(registry.redhat.io/)*(openshift4/)*(?P<delivery_repo_name>[a-zA-Z0-9-]+)\s*( \s*in \s*(?P<version>\d+.\d+))?\s*$',
                 'flag': re.I,
                 'function': pipeline_from_delivery
             }

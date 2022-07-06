@@ -10,7 +10,13 @@ def pipeline_from_github(so, github_repo, version):
     GitHub -> Distgit -> Brew -> CDN -> Delivery
 
     :so: SlackOutput object for reporting results.
-    :github_repo: Name of the GitHub repo we get as input
+    :github_repo: Name of the GitHub repo we get as input. Example formats:
+                                                            ironic-image
+                                                            openshift/ironic-image
+                                                            github.com/openshift/ironic-image
+                                                            https://github.com/openshift/ironic-image.git
+                                                            https://github.com/openshift/ironic-image/
+                                                            https://github.com/openshift/ironic-image
     :version: OCP version
     """
     if not version:
@@ -21,7 +27,8 @@ def pipeline_from_github(so, github_repo, version):
 
     if not pipeline_image_util.github_repo_is_available(github_repo):  # Check if the given GitHub repo actually exists
         # If incorrect GitHub name provided, no need to proceed.
-        payload += f"No GitHub repo with name *{github_repo}* exists."
+        payload += f"No GitHub repo with name *{github_repo}* exists. Try again.\n"
+        payload += "Example format: *what is the image pipeline for github `ironic-image`*"
         so.say(payload)
         return
     else:
@@ -78,7 +85,9 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
     if not pipeline_image_util.distgit_is_available(
             distgit_repo_name):  # Check if the given distgit repo actually exists
         # If incorrect distgit name provided, no need to proceed.
-        payload += f"No distgit repo with name *{distgit_repo_name}* exists."
+        payload += f"No distgit repo with name *{distgit_repo_name}* exists. Try again\n"
+        payload += "Example format: *what is the image pipeline for distgit `ironic`*"
+
         so.say(payload)
         return
     else:
@@ -128,7 +137,9 @@ def pipeline_from_brew(so, brew_name, version):
 
     if not pipeline_image_util.brew_is_available(brew_name):  # Check if the given brew repo actually exists
         # If incorrect brew name provided, no need to proceed.
-        payload += f"No brew package with name *{brew_name}* exists."
+        payload += f"No brew package with name *{brew_name}* exists. Try again\n"
+        payload += "Example format: *what is the image pipeline for package `ironic-container`*"
+
         so.say(payload)
         return
     else:
@@ -178,7 +189,9 @@ def pipeline_from_cdn(so, cdn_repo_name, version):
 
     if not pipeline_image_util.cdn_is_available(cdn_repo_name):  # Check if the given brew repo actually exists
         # If incorrect brew name provided, no need to proceed.
-        payload += f"No CDN repo with name *{cdn_repo_name}* exists."
+        payload += f"No CDN repo with name *{cdn_repo_name}* exists. Try again\n"
+        payload += "Example format: *what is the image pipeline for cdn `redhat-openshift4-ose-ironic-rhel8`*"
+
         so.say(payload)
         return
     else:
@@ -215,7 +228,10 @@ def pipeline_from_delivery(so, delivery_repo_name, version):
     GitHub <- Distgit <- Brew <- CDN <- Delivery
 
     :so: SlackOutput object for reporting results.
-    :delivery_repo_name: Name of the delivery repo we get as input
+    :delivery_repo_name: Name of the delivery repo we get as input. Example formats:
+                                                    registry.redhat.io/openshift4/ose-ironic-rhel8
+                                                    openshift4/ose-ironic-rhel8
+                                                    ose-ironic-rhel8
     :version: OCP version
     """
     if not version:
@@ -223,10 +239,13 @@ def pipeline_from_delivery(so, delivery_repo_name, version):
     variant = f"8Base-RHOSE-{version}"
 
     payload = ""
+    delivery_repo_name = f"openshift4/{delivery_repo_name}"
 
     if not pipeline_image_util.delivery_repo_is_available(delivery_repo_name):  # Check if the given delivery repo actually exists
         # If incorrect delivery repo name provided, no need to proceed.
-        payload += f"No delivery repo with name *{delivery_repo_name}* exists."
+        payload += f"No delivery repo with name *{delivery_repo_name}* exists. Try again\n"
+        payload += "Example format: *what is the image pipeline for image `openshift4/ose-ironic-rhel8`*"
+
         so.say(payload)
         return
     else:
