@@ -14,9 +14,9 @@ import threading
 import random
 
 import umb
-from artbotlib.buildinfo import buildinfo_for_release
+from artbotlib.buildinfo import buildinfo_for_release, kernel_info
 from artbotlib.translation import translate_names
-from artbotlib.util import cmd_assert, please_notify_art_team_of_error, lookup_channel
+from artbotlib.util import lookup_channel
 from artbotlib.formatting import extract_plain_text, repeat_in_chunks
 from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list, elliott
@@ -50,6 +50,7 @@ _*ART releases:*_
 * What (commits|catalogs|distgits|nvrs|images) are associated with `release-tag`?
 * Image list advisory `advisory_id`
 * Alert if `release_url` (stops being blue|fails|is rejected|is red|is accepted|is green)
+* What kernel is used in `release image name or pullspec`?
 
 _*ART build info:*_
 * Where in `major.minor` (is|are) the `name1,name2,...` (RPM|package) used?
@@ -189,10 +190,11 @@ def respond(client: RTMClient, event: dict):
             # 'flag': flag(s)
             # 'function': function (without parenthesis)
 
-            {'regex': r"^\W*(hi|hey|hello|howdy|what'?s? up|yo|welcome|greetings)\b",
-             'flag': re.I,
-             'function': greet_user
-             },
+            {
+                'regex': r"^\W*(hi|hey|hello|howdy|what'?s? up|yo|welcome|greetings)\b",
+                'flag': re.I,
+                'function': greet_user
+            },
             {
                 'regex': r'^help$',
                 'flag': re.I,
@@ -209,6 +211,11 @@ def respond(client: RTMClient, event: dict):
                 'regex': r'^%(wh)s (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$' % re_snippets,
                 'flag': re.I,
                 'function': brew_list.list_component_data_for_release_tag
+            },
+            {
+                'regex': r'^What kernel is used in (?P<release_img>[-.:/#\w]+)$',
+                'flag': re.I,
+                'function': kernel_info
             },
 
             # ART build info

@@ -1,7 +1,9 @@
 import json
 import re
+from typing import Tuple, Union
 
 from . import util
+
 
 def buildinfo_for_release(so, name, release_img):
 
@@ -11,23 +13,10 @@ def buildinfo_for_release(so, name, release_img):
         so.say("Sorry, no ART build info for a CI image.")
         return
 
-    release_img_pullspec = release_img
-    if ":" in release_img:
-        # assume it's a pullspec already; make sure it's a known domain
-        if not re.match(r"(quay.io|registry.ci.openshift.org)/", release_img):
-            so.say("Sorry, I can only look up pullspecs for quay.io or registry.ci.openshift.org")
-            return
-        release_img = re.sub(r".*/", "", release_img)
-    elif "nightly" in release_img:
-        suffix = "-s390x" if "s390x" in release_img else "-ppc64le" if "ppc64le" in release_img else "-arm64" if "arm64" in release_img else ""
-        release_img_pullspec = f"registry.ci.openshift.org/ocp{suffix}/release{suffix}:{release_img}"
-    else:
-        # assume public release name
-        release_img_pullspec = f"quay.io/openshift-release-dev/ocp-release:{release_img}"
-        if not re.search(r"-(s390x|ppc64le|x86_64)$", release_img_pullspec):
-            # assume x86_64 if not specified; TODO: handle older images released without -x86_64 in pullspec
-            release_img_pullspec = f"{release_img_pullspec}-x86_64"
-    release_img_text = f"<docker://{release_img_pullspec}|{release_img}>"
+    release_img_pullspec, release_img_text = get_img_pullspec(release_img)
+    if not release_img_pullspec:
+        so.say("Sorry, I can only look up pullspecs for quay.io or registry.ci.openshift.org")
+        return
 
     rc, stdout, stderr = util.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for {img_name}")
     if rc:
@@ -88,6 +77,27 @@ def buildinfo_for_release(so, name, release_img):
     return
 
 
+def get_img_pullspec(release_img: str) -> Union[Tuple[None, None], Tuple[str, str]]:
+    release_img_pullspec = release_img
+    if ":" in release_img:
+        # assume it's a pullspec already; make sure it's a known domain
+        if not re.match(r"(quay.io|registry.ci.openshift.org)/", release_img):
+            return None, None
+        release_img = re.sub(r".*/", "", release_img)
+    elif "nightly" in release_img:
+        suffix = "-s390x" if "s390x" in release_img else "-ppc64le" if "ppc64le" in release_img else "-arm64" if "arm64" in release_img else ""
+        release_img_pullspec = f"registry.ci.openshift.org/ocp{suffix}/release{suffix}:{release_img}"
+    else:
+        # assume public release name
+        release_img_pullspec = f"quay.io/openshift-release-dev/ocp-release:{release_img}"
+        if not re.search(r"-(s390x|ppc64le|x86_64)$", release_img_pullspec):
+            # assume x86_64 if not specified; TODO: handle older images released without -x86_64 in pullspec
+            release_img_pullspec = f"{release_img_pullspec}-x86_64"
+    release_img_text = f"<docker://{release_img_pullspec}|{release_img}>"
+
+    return release_img_pullspec, release_img_text
+
+
 def rhcos_build_urls(build_id, arch="x86_64"):
     """
     base url for a release stream in the release browser
@@ -122,3 +132,33 @@ def brew_build_url(nvr):
         return None
 
     return f"https://brewweb.engineering.redhat.com/brew/buildinfo?buildID={build['id']}"
+
+
+def kernel_info(so, release_img):
+    release_img_pullspec, release_img_text = get_img_pullspec(release_img)
+    if not release_img_pullspec:
+        so.say("Sorry, I can only look up pullspecs for quay.io or registry.ci.openshift.org")
+        return
+
+    rc, stdout, stderr = util.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for machine-os-content")
+    if rc:
+        so.say(f"Sorry, I wasn't able to query the release image pullspec {release_img_pullspec}.")
+        util.please_notify_art_team_of_error(so, stderr)
+        return
+
+    pullspec = stdout.strip()
+    rc, stdout, stderr = util.cmd_gather(f"oc image info {pullspec} -o json")
+    if rc:
+        so.say(f"Sorry, I wasn't able to query the component image pullspec {pullspec}.")
+        util.please_notify_art_team_of_error(so, stderr)
+        return
+
+    try:
+        labels = json.loads(stdout)['config']['config']['Labels']
+        kernel_version = labels['com.coreos.rpm.kernel']
+        kernel_rt_version = labels['com.coreos.rpm.kernel-rt-core']
+        so.say(f'Found `{kernel_version}`, `{kernel_rt_version}` in {release_img_text}')
+    except Exception as exc:
+        so.say(f"Sorry, JSON decode error raised while parsing image info")
+        util.please_notify_art_team_of_error(so, str(exc))
+        return
