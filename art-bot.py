@@ -20,7 +20,8 @@ from artbotlib.util import cmd_assert, please_notify_art_team_of_error, lookup_c
 from artbotlib.formatting import extract_plain_text, repeat_in_chunks
 from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list, elliott
-
+from artbotlib.pipeline_image_names import pipeline_from_distgit, pipeline_from_github, pipeline_from_brew, \
+    pipeline_from_cdn, pipeline_from_delivery
 
 logger = logging.getLogger()
 
@@ -38,21 +39,21 @@ def greet_user(so):
 def show_help(so):
     so.say("""Here are questions I can answer...
 
+_*ART config:*_
+* What images build in `major.minor`?
+* What is the image pipeline for (github|distgit|package|cdn|image) `name` [in `major.minor`]?
+* What is the (brew-image|brew-component) for dist-git `name` [in `major.minor`]?
+
 _*ART releases:*_
 * Which build of `image_name` is in `release image name or pullspec`?
 * What (commits|catalogs|distgits|nvrs|images) are associated with `release-tag`?
+* Image list advisory `advisory_id`
 
 _*ART build info:*_
 * Where in `major.minor` (is|are) the `name1,name2,...` (RPM|package) used?
 * What rpms were used in the latest image builds for `major.minor`?
 * What rpms are in image `image-nvr`?
 * Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
-
-_*ART config:*_
-* What images build in `major.minor`?
-* What is the (brew-image|brew-component) for dist-git `name` in `major.minor`?
-* What is the (brew-image|brew-component) for dist-git `name`?
-  (assumes latest version)
 
 _*misc:*_
 * How can I get ART to build a new image?
@@ -180,36 +181,108 @@ def respond(client: RTMClient, event: dict):
             nvr=r'(?P<nvr>[\w.-]+)',
             wh=r'(which|what)',
         )
+
         regex_maps = [
-            # regex, flag(s), func
-            (r"^\W*(hi|hey|hello|howdy|what'?s? up|yo|welcome|greetings)\b", re.I, greet_user),
-            (r'^help$', re.I, show_help),
+            # 'regex': regex string
+            # 'flag': flag(s)
+            # 'function': function (without parenthesis)
+
+            {'regex': r"^\W*(hi|hey|hello|howdy|what'?s? up|yo|welcome|greetings)\b",
+             'flag': re.I,
+             'function': greet_user
+             },
+            {
+                'regex': r'^help$',
+                'flag': re.I,
+                'function': show_help
+            },
 
             # ART releases:
-            (r'^%(wh)s build of %(name)s is in (?P<release_img>[-.:/#\w]+)$' % re_snippets, re.I, buildinfo_for_release),
-            (r'^%(wh)s (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$', re.I, brew_list.list_component_data_for_release_tag),
+            {
+                'regex': r'^%(wh)s build of %(name)s is in (?P<release_img>[-.:/#\w]+)$' % re_snippets,
+                'flag': re.I,
+                'function': buildinfo_for_release
+            },
+            {
+                'regex': r'^%(wh)s (?P<data_type>[\w.-]+) are associated with (?P<release_tag>[\w.-]+)$' % re_snippets,
+                'flag': re.I,
+                'function': brew_list.list_component_data_for_release_tag
+            },
 
             # ART build info
-            (r'^%(wh)s images build in %(major_minor)s$' % re_snippets, re.I, brew_list.list_images_in_major_minor),
-            (r'^%(wh)s rpms were used in the latest image builds for %(major_minor)s$' % re_snippets, re.I, brew_list.list_components_for_major_minor),
-            (r'^%(wh)s rpms are in image %(nvr)s$' % re_snippets, re.I, brew_list.list_components_for_image),
-            (r'^%(wh)s rpms? (?P<rpms>[-\w.,* ]+) (is|are) in image %(nvr)s$' % re_snippets, re.I, brew_list.specific_rpms_for_image),
+            {
+                'regex': r'^%(wh)s images build in %(major_minor)s$' % re_snippets,
+                'flag': re.I,
+                'function': brew_list.list_images_in_major_minor
+            },
+            {
+                'regex': r'^%(wh)s rpms were used in the latest image builds for %(major_minor)s$' % re_snippets,
+                'flag': re.I,
+                'function': brew_list.list_components_for_major_minor
+            },
+            {
+                'regex': r'^%(wh)s rpms are in image %(nvr)s$' % re_snippets,
+                'flag': re.I,
+                'function': brew_list.list_components_for_image
+            },
+            {
+                'regex': r'^%(wh)s rpms? (?P<rpms>[-\w.,* ]+) (is|are) in image %(nvr)s$' % re_snippets,
+                'flag': re.I,
+                'function': brew_list.specific_rpms_for_image
+            },
 
             # ART advisory info:
-            (r'^image list.*advisory (?P<advisory_id>\d+)$', re.I, elliott.image_list),
+            {
+                'regex': r'^image list.*advisory (?P<advisory_id>\d+)$',
+                'flag': re.I,
+                'function': elliott.image_list
+            },
 
             # ART config
-            (r'^where in %(major_minor)s (is|are) the %(names)s (?P<search_type>RPM|package)s? used$' % re_snippets, re.I, brew_list.list_uses_of_rpms),
-            (r'^what is the %(name_type2)s for %(name_type)s %(name)s(?: in %(major_minor)s)?$' % re_snippets, re.I, translate_names),
+            {
+                'regex': r'^where in %(major_minor)s (is|are) the %(names)s (?P<search_type>RPM|package)s? used$' % re_snippets,
+                'flag': re.I,
+                'function': brew_list.list_uses_of_rpms
+            },
+            {
+                'regex': r'^what is the %(name_type2)s for %(name_type)s %(name)s(?: in %(major_minor)s)?$' % re_snippets,
+                'flag': re.I,
+                'function': translate_names
+            },
 
-            # misc
-            (r'^how can I get ART to build a new image$', re.I, show_how_to_add_a_new_image),
-            (r'^chunks? ?((to|in) #?%(name)s)?:' % re_snippets, re.I, repeat_in_chunks),
+            # ART pipeline
+            {
+                'regex': r'^.*(image )?pipeline \s*for \s*github \s*(https://)*(github.com/)*(openshift/)*(?P<github_repo>[a-zA-Z0-9-]+)(/|\.git)?\s*( in \s*(?P<version>\d+.\d+))?\s*$',
+                'flag': re.I,
+                'function': pipeline_from_github
+            },
+            {
+                'regex': r'^.*(image )?pipeline \s*for \s*distgit \s*(containers\/){0,1}(?P<distgit_repo_name>[a-zA-Z0-9-]+)( \s*in \s*(?P<version>\d+.\d+))?\s*$',
+                'flag': re.I,
+                'function': pipeline_from_distgit
+            },
+            {
+                'regex': r'^.*(image )?pipeline \s*for \s*package \s*(?P<brew_name>\S*)( \s*in \s*(?P<version>\d+.\d+))?\s*$',
+                'flag': re.I,
+                'function': pipeline_from_brew
+            },
+            {
+                'regex': r'^.*(image )?pipeline \s*for \s*cdn \s*(?P<cdn_repo_name>\S*)( \s*in \s*(?P<version>\d+.\d+))?\s*$',
+                'flag': re.I,
+                'function': pipeline_from_cdn
+            },
+            {
+                'regex': r'^.*(image )?pipeline \s*for \s*image \s*(registry.redhat.io/)*(openshift4/)*(?P<delivery_repo_name>[a-zA-Z0-9-]+)\s*( \s*in \s*(?P<version>\d+.\d+))?\s*$',
+                'flag': re.I,
+                'function': pipeline_from_delivery
+            }
+
         ]
+
         for r in regex_maps:
-            m = re.match(r[0], plain_text, r[1])
+            m = re.match(r['regex'], plain_text, r['flag'])
             if m:
-                r[2](so, **m.groupdict())
+                r['function'](so, **m.groupdict())
 
         if not so.said_something:
             so.say("Sorry, I can't help with that yet. Ask 'help' to see what I can do.")

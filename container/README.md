@@ -98,7 +98,7 @@ podman run -it --rm \
     -v $OPENSHIFT/art-bot/:/workspaces/art-bot/:cached,z \
     -v $OPENSHIFT/doozer/:/workspaces/doozer/:cached,z \
     -v $OPENSHIFT/elliott/:/workspaces/elliott/:cached,z \
-        art-bot  # or artbot:dev
+        art-bot  # or art-bot:dev
 ```
 
 - The `uidmap` bit there maps container userspaces around so that the files
