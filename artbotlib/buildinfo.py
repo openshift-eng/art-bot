@@ -2,7 +2,7 @@ import json
 import re
 from typing import Tuple, Union
 
-from . import util
+from . import util, brew_list
 
 
 def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None], Tuple[str, str, str]]:
@@ -162,30 +162,37 @@ def brew_build_url(nvr):
 
 
 def kernel_info(so, release_img):
-    release_img_pullspec, release_img_text = get_img_pullspec(release_img)
-    if not release_img_pullspec:
-        so.say("Sorry, I can only look up pullspecs for quay.io or registry.ci.openshift.org")
-        return
+    """
+    Currently, kernel and kernel-rt RPMs are found in images:
+    - RHCOS
+    - driver-toolkit
+    - ironic-rhcos-downloader
+    """
 
-    rc, stdout, stderr = util.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for machine-os-content")
-    if rc:
-        so.say(f"Sorry, I wasn't able to query the release image pullspec {release_img_pullspec}.")
-        util.please_notify_art_team_of_error(so, stderr)
-        return
+    # Non-RHCOS kernel info
+    for image in ['driver-toolkit', 'ironic-machine-os-downloader']:
+        # Get image build for provided release image
+        build_info, pullspec, _ = get_image_info(so, image, release_img)
+        if not build_info:
+            continue
 
-    pullspec = stdout.strip()
-    rc, stdout, stderr = util.cmd_gather(f"oc image info {pullspec} -o json")
-    if rc:
-        so.say(f"Sorry, I wasn't able to query the component image pullspec {pullspec}.")
-        util.please_notify_art_team_of_error(so, stderr)
-        return
+        labels = build_info["config"]["config"]["Labels"]
+        name = labels["com.redhat.component"]
+        version = labels["version"]
+        release = labels["release"]
+        build_nvr = f"{name}-{version}-{release}"
 
-    try:
-        labels = json.loads(stdout)['config']['config']['Labels']
-        kernel_version = labels['com.coreos.rpm.kernel']
-        kernel_rt_version = labels['com.coreos.rpm.kernel-rt-core']
-        so.say(f'Found `{kernel_version}`, `{kernel_rt_version}` in {release_img_text}')
-    except Exception as exc:
-        so.say(f"Sorry, JSON decode error raised while parsing image info")
-        util.please_notify_art_team_of_error(so, str(exc))
-        return
+        # Get rpms version
+        matched = brew_list.list_specific_rpms_for_image(['kernel-core', 'kernel-rt'], build_nvr)
+        so.snippet(payload='\n'.join(sorted(matched)),
+                   intro=f'Kernel info for `{image}` {pullspec}:',
+                   filename=f'{image}-kernel.txt')
+
+    # RHCOS kernel info
+    build_info, pullspec, _ = get_image_info(so, 'machine-os-content', release_img)
+    labels = build_info['config']['config']['Labels']
+    kernel_version = labels['com.coreos.rpm.kernel']
+    kernel_rt_version = labels['com.coreos.rpm.kernel-rt-core']
+    so.snippet(payload='\n'.join([kernel_version, kernel_rt_version]),
+               intro=f'Kernel info for `rhcos` {pullspec}:',
+               filename=f'{image}-kernel.txt')
