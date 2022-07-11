@@ -31,8 +31,11 @@ y-s390x-2020-02-21-235937'}],
     text = ""
     for block in json_data["data"]["blocks"]:
         for section in [el for el in block["elements"] if el["type"] == "rich_text_section"]:
-            for element in [el for el in section["elements"] if "text" in el]:
-                text += element["text"]
+            for element in section["elements"]:
+                if "text" in element:
+                    text += element["text"]
+                elif "url" in element:
+                    text += element["url"]
 
     # reformat to homogenize miscellaneous confusing bits
     text = re.sub(r"\s+", " ", text).lstrip().rstrip(" ?").lower()
