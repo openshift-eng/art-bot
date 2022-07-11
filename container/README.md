@@ -35,7 +35,7 @@ The following demonstrates usage for a user `lmeyer` with uid/gid 3668 (as assig
 
 * To build, from the context of the top level of this repo:
 
-    $ podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668 -f container/Dockerfile -t art-bot . && podman tag art-bot:latest art-bot:base
+   `$ podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668 -f container/Dockerfile -t art-bot . && podman tag art-bot:latest art-bot:base`
 
   This will give you a container that runs as your own user ID, which simplies
   (somewhat) using the resources mounted in from your home directory.
@@ -43,11 +43,11 @@ The following demonstrates usage for a user `lmeyer` with uid/gid 3668 (as assig
 * The initial build includes a lot of slow installs that usually do not need to be repeated.
   To simply update art-bot and its deps, build on top of the initial build:
 
-    $ podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668 -f container/Dockerfile.latest -t art-bot .
+   `$ podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668 -f container/Dockerfile.latest -t art-bot .`
 
 * You can also build a dev container on top of this that has extra content for running tests:
 
-    $ podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668 -f container/Dockerfile.dev -t art-bot:dev .
+   `$ podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668 -f container/Dockerfile.dev -t art-bot:dev .`
 
 To simplify these steps, here is a script that takes a parameter to build these:
 
@@ -144,8 +144,6 @@ You'll need to address the bot by its dev name configured in settings.yaml to ge
 >
 > art-bot-dev:
 > Howdy, @sosiouxme
-
-Actually this is "broken" at the moment, regular @art-bot also responds :eyeroll:
 
 #### Testing
 
