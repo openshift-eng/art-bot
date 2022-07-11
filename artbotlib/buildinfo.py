@@ -5,48 +5,75 @@ from typing import Tuple, Union
 from . import util
 
 
-def buildinfo_for_release(so, name, release_img):
+def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None], Tuple[str, str, str]]:
+    """
+    Returns build info for image <name> in <release_img>. Notifies Slack in case of errors
 
-    img_name = "machine-os-content" if name == "rhcos" else name  # rhcos shortcut...
+    :param so: Slack outputter
+    :param name: image to check build info for
+    :param release_img: release image name or pullspec
+    :return: tuple of (build info json data, pullspec text, release image text)
+    """
 
     if ".ci." in re.sub(".*:", "", release_img):
         so.say("Sorry, no ART build info for a CI image.")
-        return
+        return None, None, None
 
+    # Get release image pullspec
     release_img_pullspec, release_img_text = get_img_pullspec(release_img)
     if not release_img_pullspec:
         so.say("Sorry, I can only look up pullspecs for quay.io or registry.ci.openshift.org")
-        return
+        return None, None, None
 
-    rc, stdout, stderr = util.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for {img_name}")
+    # Get image pullspec
+    rc, stdout, stderr = util.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for {name}")
     if rc:
         so.say(f"Sorry, I wasn't able to query the release image pullspec {release_img_pullspec}.")
         util.please_notify_art_team_of_error(so, stderr)
-        return
-
+        return None, None, None
     pullspec = stdout.strip()
+
+    # Get image info
     rc, stdout, stderr = util.cmd_gather(f"oc image info {pullspec} -o json")
     if rc:
         so.say(f"Sorry, I wasn't able to query the component image pullspec {pullspec}.")
         util.please_notify_art_team_of_error(so, stderr)
-        return
+        return None, None, None
 
-    pullspec_text = f"(<docker://{pullspec}|pullspec>)"
-
+    # Parse JSON response
     try:
         data = json.loads(stdout)
     except Exception as exc:
         so.say(f"Sorry, I wasn't able to decode the JSON info for pullspec {pullspec}.")
         util.please_notify_art_team_of_error(so, str(exc))
+        return None, None, None
+
+    return data, f"(<docker://{pullspec}|pullspec>)", release_img_text
+
+
+def buildinfo_for_release(so, name, release_img):
+    """
+    :param so: Slack outputter
+    :param name: image to check build info for, e.g. 'driver-toolkit'
+    :param release_img: release image name or pullspec e.g. '4.11.0-0.nightly-2022-07-08-182347',
+            'registry.ci.openshift.org/ocp/release:4.11.0-0.nightly-2022-07-11-080250', '4.10.22'
+    """
+
+    img_name = "machine-os-content" if name == "rhcos" else name  # rhcos shortcut...
+
+    build_info, pullspec_text, release_img_text = get_image_info(so, img_name, release_img)
+    if not build_info:
+        # Errors have already been notified: just do nothing
         return
 
+    # Parse image build info
     if img_name == "machine-os-content":
         # always a special case... not a brew build
         try:
-            rhcos_build = data["config"]["config"]["Labels"]["version"]
-            arch = data["config"]["architecture"]
-        except Exception as exc:
-            so.say(f"Sorry, I expected a 'version' label and architecture for pullspec {pullspec} but didn't see one. Weird huh?")
+            rhcos_build = build_info["config"]["config"]["Labels"]["version"]
+            arch = build_info["config"]["architecture"]
+        except KeyError:
+            so.say(f"Sorry, I expected a 'version' label and architecture for pullspec {pullspec_text} but didn't see one. Weird huh?")
             return
 
         contents_url, stream_url = rhcos_build_urls(rhcos_build, arch)
@@ -57,12 +84,12 @@ def buildinfo_for_release(so, name, release_img):
         return
 
     try:
-        labels = data["config"]["config"]["Labels"]
+        labels = build_info["config"]["config"]["Labels"]
         name = labels["com.redhat.component"]
         version = labels["version"]
         release = labels["release"]
-    except Exception as exc:
-        so.say(f"Sorry, one of the component, version, or release labels is missing for pullspec {pullspec}. Weird huh?")
+    except KeyError:
+        so.say(f"Sorry, one of the component, version, or release labels is missing for pullspec {pullspec_text}. Weird huh?")
         return
 
     nvr = f"{name}-{version}-{release}"
