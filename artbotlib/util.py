@@ -1,3 +1,6 @@
+import asyncio
+from typing import Union, Tuple, List
+
 import cachetools
 import datetime
 from fcntl import fcntl, F_GETFL, F_SETFL
@@ -62,6 +65,41 @@ def lookup_channel(web_client, name, only_private=False, only_public=False):
             break
 
     return channel
+
+
+async def cmd_gather_async(cmd: Union[List[str], str], check: bool = True, **kwargs) -> Tuple[int, str, str]:
+    """ Runs a command asynchronously and returns rc,stdout,stderr as a tuple
+    :param cmd: A shell command
+    :param check: If check is True and the exit code was non-zero, it raises a ChildProcessError
+    :param kwargs: Other arguments passing to asyncio.subprocess.create_subprocess_exec
+    :return: rc,stdout,stderr
+    """
+
+    print(f'Running async command: {cmd}')
+
+    if isinstance(cmd, str):
+        cmd_list = shlex.split(cmd)
+    else:
+        cmd_list = cmd
+
+    # capture stdout and stderr if they are not set in kwargs
+    if "stdout" not in kwargs:
+        kwargs["stdout"] = asyncio.subprocess.PIPE
+    if "stderr" not in kwargs:
+        kwargs["stderr"] = asyncio.subprocess.PIPE
+
+    # Execute command asynchronously
+    proc = await asyncio.subprocess.create_subprocess_exec(cmd_list[0], *cmd_list[1:], **kwargs)
+    stdout, stderr = await proc.communicate()
+    stdout = stdout.decode() if stdout else ""
+    stderr = stderr.decode() if stderr else ""
+    if proc.returncode != 0:
+        msg = f"Process {cmd_list!r} exited with code {proc.returncode}.\nstdout>>{stdout}<<\nstderr>>{stderr}<<\n"
+        if check:
+            raise ChildProcessError(msg)
+        else:
+            logger.warning(msg)
+    return proc.returncode, stdout, stderr
 
 
 def cmd_gather(cmd, set_env=None, cwd=None, realtime=False):

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 from typing import Tuple, Union
@@ -5,7 +6,7 @@ from typing import Tuple, Union
 from . import util, brew_list
 
 
-def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None], Tuple[str, str, str]]:
+async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None], Tuple[str, str, str]]:
     """
     Returns build info for image <name> in <release_img>. Notifies Slack in case of errors
 
@@ -14,6 +15,8 @@ def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None], Tupl
     :param release_img: release image name or pullspec
     :return: tuple of (build info json data, pullspec text, release image text)
     """
+
+    print(f'Getting image info for {name}')
 
     if ".ci." in re.sub(".*:", "", release_img):
         so.say("Sorry, no ART build info for a CI image.")
@@ -26,7 +29,7 @@ def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None], Tupl
         return None, None, None
 
     # Get image pullspec
-    rc, stdout, stderr = util.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for {name}")
+    rc, stdout, stderr = await util.cmd_gather_async(f"oc adm release info {release_img_pullspec} --image-for {name}")
     if rc:
         so.say(f"Sorry, I wasn't able to query the release image pullspec {release_img_pullspec}.")
         util.please_notify_art_team_of_error(so, stderr)
@@ -34,7 +37,7 @@ def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None], Tupl
     pullspec = stdout.strip()
 
     # Get image info
-    rc, stdout, stderr = util.cmd_gather(f"oc image info {pullspec} -o json")
+    rc, stdout, stderr = await util.cmd_gather_async(f"oc image info {pullspec} -o json")
     if rc:
         so.say(f"Sorry, I wasn't able to query the component image pullspec {pullspec}.")
         util.please_notify_art_team_of_error(so, stderr)
@@ -61,7 +64,9 @@ def buildinfo_for_release(so, name, release_img):
 
     img_name = "machine-os-content" if name == "rhcos" else name  # rhcos shortcut...
 
-    build_info, pullspec_text, release_img_text = get_image_info(so, img_name, release_img)
+    loop = asyncio.new_event_loop()
+
+    build_info, pullspec_text, release_img_text = loop.run_until_complete(get_image_info(so, img_name, release_img))
     if not build_info:
         # Errors have already been notified: just do nothing
         return
@@ -170,11 +175,11 @@ def kernel_info(so, release_img):
     """
 
     # Non-RHCOS kernel info
-    for image in ['driver-toolkit', 'ironic-machine-os-downloader']:
+    async def non_rhcos_kernel_info(image):
         # Get image build for provided release image
-        build_info, pullspec, _ = get_image_info(so, image, release_img)
+        build_info, pullspec, _ = await get_image_info(so, image, release_img)
         if not build_info:
-            continue
+            return
 
         labels = build_info["config"]["config"]["Labels"]
         name = labels["com.redhat.component"]
@@ -184,15 +189,40 @@ def kernel_info(so, release_img):
 
         # Get rpms version
         matched = brew_list.list_specific_rpms_for_image(['kernel-core', 'kernel-rt'], build_nvr)
-        so.snippet(payload='\n'.join(sorted(matched)),
-                   intro=f'Kernel info for `{image}` {pullspec}:',
-                   filename=f'{image}-kernel.txt')
+        return {
+            'name': image,
+            'rpms': list(matched),
+            'pullspec': pullspec
+        }
 
     # RHCOS kernel info
-    build_info, pullspec, _ = get_image_info(so, 'machine-os-content', release_img)
-    labels = build_info['config']['config']['Labels']
-    kernel_version = labels['com.coreos.rpm.kernel']
-    kernel_rt_version = labels['com.coreos.rpm.kernel-rt-core']
-    so.snippet(payload='\n'.join([kernel_version, kernel_rt_version]),
-               intro=f'Kernel info for `rhcos` {pullspec}:',
-               filename=f'{image}-kernel.txt')
+    async def rhcos_kernel_info():
+        build_info, pullspec, _ = await get_image_info(so, 'machine-os-content', release_img)
+        labels = build_info['config']['config']['Labels']
+        kernel_version = labels['com.coreos.rpm.kernel']
+        kernel_rt_version = labels['com.coreos.rpm.kernel-rt-core']
+        return {
+            'name': 'rhcos',
+            'rpms': [kernel_version, kernel_rt_version],
+            'pullspec': pullspec
+        }
+
+    loop = asyncio.new_event_loop()
+
+    async def gather_kernel_info():
+        tasks = [
+            asyncio.ensure_future(non_rhcos_kernel_info('driver-toolkit')),
+            asyncio.ensure_future(non_rhcos_kernel_info('ironic-machine-os-downloader')),
+            asyncio.ensure_future(rhcos_kernel_info())
+        ]
+        return await asyncio.gather(*tasks)
+
+    # Format output and send to Slack
+    res = loop.run_until_complete(gather_kernel_info())
+    output = []
+    for entry in res:
+        output.append(f'Kernel info for `{entry["name"]}` {entry["pullspec"]}:')
+        output.append('```')
+        output.extend(entry['rpms'])
+        output.append('```')
+    so.say('\n'.join(output))
