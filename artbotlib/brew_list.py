@@ -33,20 +33,25 @@ def list_components_for_image(so, nvr):
                filename='{}-rpms.txt'.format(nvr))
 
 
-def specific_rpms_for_image(so, rpms, nvr):
-    matchers = [rpm.strip() for rpm in rpms.split(",")]
+def list_specific_rpms_for_image(matchers, nvr) -> set:
+    print(f'Searching for {matchers} in {nvr}')
     matched = set()
     for rpma in brew_list_components(nvr):
         name, _, _ = rpma.rsplit("-", 2)
         if any(fnmatch.fnmatch(name, m) for m in matchers):
             matched.add(rpma)
+    return matched
 
+
+def specific_rpms_for_image(so, rpms, nvr):
+    matchers = [rpm.strip() for rpm in rpms.split(",")]
+    matched = list_specific_rpms_for_image(matchers, nvr)
     if not matched:
         so.say(f'Sorry, no rpms matching {matchers} were found in build {nvr}')
     else:
         so.snippet(payload='\n'.join(sorted(matched)),
-               intro=f'The following rpm(s) are used in {nvr}',
-               filename='{}-rpms.txt'.format(nvr))
+                   intro=f'The following rpm(s) are used in {nvr}',
+                   filename='{}-rpms.txt'.format(nvr))
 
 
 def list_component_data_for_release_tag(so, data_type, release_tag):
