@@ -49,6 +49,7 @@ _*ART releases:*_
 * Which build of `image_name` is in `release image name or pullspec`?
 * What (commits|catalogs|distgits|nvrs|images) are associated with `release-tag`?
 * Image list advisory `advisory_id`
+* Alert if `release_url` (stops being blue|fails|is rejected|is red|is accepted|is green)
 
 _*ART build info:*_
 * Where in `major.minor` (is|are) the `name1,name2,...` (RPM|package) used?
@@ -280,7 +281,7 @@ def respond(client: RTMClient, event: dict):
 
             # Others
             {
-                'regex': r'^Alert if https://(?P<release_browser>[\w]+).ocp.releases.ci.openshift.org(?P<nightly_url>[\w/.-]+) stops being blue$',
+                'regex': r'^Alert if https://(?P<release_browser>[\w]+).ocp.releases.ci.openshift.org(?P<release_url>[\w/.-]+) (stops being blue|fails|is rejected|is red|is accepted|is green)$',
                 'flag': re.I,
                 'function': nightly_color_status,
                 'user_id': True
