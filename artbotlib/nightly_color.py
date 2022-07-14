@@ -1,11 +1,10 @@
 import requests
-from bs4 import BeautifulSoup
 import time
 from typing import Union
 
 COLOR_MAPS = {
-    'text-danger': 'Red',
-    'text-success': 'Green'
+    'Accepted': 'Green',
+    'Rejected': 'Red'
 }
 
 
@@ -16,17 +15,11 @@ def get_nightly_color(nightly_url, release_browser) -> Union[str, None]:
     :param release_browser: release browser eg: ppc64le/arm64/s390x/amd64
     :return:
     """
-    url = f"https://{release_browser}.ocp.releases.ci.openshift.org"
-    response = requests.get(url)  # get the webpage
+    url = f"https://{release_browser}.ocp.releases.ci.openshift.org/api/v1{nightly_url}"
+    response = requests.get(url)  # query API to get the status
 
-    data = response.content.decode()
-    soup = BeautifulSoup(data, "html.parser")  # parse html
-    for content in soup.find_all("a"):
-        if content.attrs['href'] == nightly_url:
-            color = content.attrs['class']
-            if color:  # If color is empty, it means its blue
-                return color.pop()
-            return None
+    status = response.json()['phase']
+    return COLOR_MAPS.get(status, None)
 
 
 def nightly_color_status(so, user_id, nightly_url, release_browser) -> None:
@@ -41,7 +34,7 @@ def nightly_color_status(so, user_id, nightly_url, release_browser) -> None:
     try:
         color = get_nightly_color(nightly_url, release_browser)
         if color:  # if color is not blue return the current color and exit
-            so.say(f"<@{user_id}> Color of nightly is already `{COLOR_MAPS[color]}`")
+            so.say(f"<@{user_id}> Color of nightly is already `{color}`")
             return
 
         so.say(f"<@{user_id}> Ok, I'll respond here when tests have finished.")
@@ -56,7 +49,7 @@ def nightly_color_status(so, user_id, nightly_url, release_browser) -> None:
 
             color = get_nightly_color(nightly_url, release_browser)
             if color:
-                so.say(f"<@{user_id}> Color changed to `{COLOR_MAPS[color]}`")
+                so.say(f"<@{user_id}> Color of {release_browser} nightly {nightly_url.split('/')[-1]} changed to `{color}`!")
                 break
     except Exception as e:
         so.say(f"Unexpected Error: {e}")
