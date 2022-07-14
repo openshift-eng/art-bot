@@ -5,3 +5,5 @@ aiohttp>=3.7.3
 requests_kerberos
 PyYAML
 click==8.1.2
+beautifulsoup4
+requests
