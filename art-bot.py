@@ -281,7 +281,7 @@ def respond(client: RTMClient, event: dict):
 
             # Others
             {
-                'regex': r'^Alert if https://(?P<release_browser>[\w]+).ocp.releases.ci.openshift.org(?P<release_url>[\w/.-]+) (stops being blue|fails|is rejected|is red|is accepted|is green)$',
+                'regex': r'^Alert ?(if|when|on)? https://(?P<release_browser>[\w]+).ocp.releases.ci.openshift.org(?P<release_url>[\w/.-]+) ?(stops being blue|fails|is rejected|is red|is accepted|is green)?$',
                 'flag': re.I,
                 'function': nightly_color_status,
                 'user_id': True
