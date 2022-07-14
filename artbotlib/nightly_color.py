@@ -7,6 +7,9 @@ COLOR_MAPS = {
     'Rejected': 'Red'
 }
 
+TWELVE_HOURS = 60 * 60 * 12
+FIVE_MINUTES = 60 * 5
+
 
 def get_nightly_color(nightly_url, release_browser) -> Union[str, None]:
     """
@@ -41,11 +44,11 @@ def nightly_color_status(so, user_id, nightly_url, release_browser) -> None:
         start = time.time()
         while True:
             now = time.time()
-            if now - start > 43200:  # Timeout after 12 hrs.
+            if now - start > TWELVE_HOURS:  # Timeout after 12 hrs.
                 so.say(f"<@{user_id}> Color didn't change even after 12 hrs :(")
                 break
 
-            time.sleep(300)  # check every 5 minutes
+            time.sleep(FIVE_MINUTES)  # check every 5 minutes
 
             color = get_nightly_color(nightly_url, release_browser)
             if color:
