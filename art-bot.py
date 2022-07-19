@@ -22,6 +22,7 @@ from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list, elliott
 from artbotlib.pipeline_image_names import pipeline_from_distgit, pipeline_from_github, pipeline_from_brew, \
     pipeline_from_cdn, pipeline_from_delivery
+from artbotlib.nightly_color import nightly_color_status
 
 logger = logging.getLogger()
 
@@ -48,6 +49,7 @@ _*ART releases:*_
 * Which build of `image_name` is in `release image name or pullspec`?
 * What (commits|catalogs|distgits|nvrs|images) are associated with `release-tag`?
 * Image list advisory `advisory_id`
+* Alert if `release_url` (stops being blue|fails|is rejected|is red|is accepted|is green)
 
 _*ART build info:*_
 * Where in `major.minor` (is|are) the `name1,name2,...` (RPM|package) used?
@@ -275,14 +277,24 @@ def respond(client: RTMClient, event: dict):
                 'regex': r'^.*(image )?pipeline \s*for \s*image \s*(registry.redhat.io/)*(openshift4/)*(?P<delivery_repo_name>[a-zA-Z0-9-]+)\s*( \s*in \s*(?P<version>\d+.\d+))?\s*$',
                 'flag': re.I,
                 'function': pipeline_from_delivery
-            }
+            },
 
+            # Others
+            {
+                'regex': r'^Alert ?(if|when|on)? https://(?P<release_browser>[\w]+).ocp.releases.ci.openshift.org(?P<release_url>[\w/.-]+) ?(stops being blue|fails|is rejected|is red|is accepted|is green)?$',
+                'flag': re.I,
+                'function': nightly_color_status,
+                'user_id': True
+            }
         ]
 
         for r in regex_maps:
             m = re.match(r['regex'], plain_text, r['flag'])
             if m:
-                r['function'](so, **m.groupdict())
+                if r.get('user_id', False):  # if functions need to cc the user
+                    r['function'](so, user_id, **m.groupdict())
+                else:
+                    r['function'](so, **m.groupdict())
 
         if not so.said_something:
             so.say("Sorry, I can't help with that yet. Ask 'help' to see what I can do.")
@@ -353,7 +365,7 @@ def consumer_thread(client_id, topic, callback_handler, consumer, durable, user_
 
 @click.command()
 def run():
-
+    
     try:
         config_file = os.environ.get("ART_BOT_SETTINGS_YAML", f"{os.environ['HOME']}/.config/art-bot/settings.yaml")
         with open(config_file, 'r') as stream:
