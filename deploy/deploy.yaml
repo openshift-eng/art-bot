@@ -32,7 +32,7 @@ spec:
         - ./art-bot.py
         env:
         - name: KRB5CCNAME
-          value: /tmp/krb5cc/keytab
+          value: /tmp/krb5cc
         - name: HOME
           value: /home/dev
         imagePullPolicy: Always
@@ -46,7 +46,7 @@ spec:
         volumeMounts:
         - mountPath: /home/dev/.config/art-bot
           name: art-bot-config
-        - mountPath: /tmp/krb5cc
+        - mountPath: /tmp/keytab
           name: art-bot-keytab
         - mountPath: /home/dev/.docker
           name: art-bot-docker-config
