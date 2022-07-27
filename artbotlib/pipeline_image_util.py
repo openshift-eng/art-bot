@@ -241,7 +241,7 @@ def brew_to_delivery(brew_package_name: str, variant: str) -> str:
 
 @util.cached
 def doozer_brew_distgit(version: str) -> list:
-    output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{component}}: {{name}}'")
+    output = util.cmd_gather(f"doozer --disable-gssapi -g openshift-{version} images:print --short '{{component}}: {{name}}'")
     if "koji.GSSAPIAuthError" in output[2]:
         raise exceptions.KerberosAuthenticationError("Kerberos authentication failed for doozer")
 
@@ -537,7 +537,7 @@ def doozer_github_distgit(version: str) -> list:
 
     :version: OCP version
     """
-    output = util.cmd_gather(f"doozer -g openshift-{version} images:print --short '{{name}}: {{upstream_public}}'")
+    output = util.cmd_gather(f"doozer --disable-gssapi -g openshift-{version} images:print --short '{{name}}: {{upstream_public}}'")
     if "koji.GSSAPIAuthError" in output[2]:
         raise exceptions.KerberosAuthenticationError("Kerberos authentication failed for doozer")
 
