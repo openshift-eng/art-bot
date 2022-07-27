@@ -124,7 +124,7 @@ def latest_images_for_version(so, major_minor):
     so.say(f"Determining images for {major_minor} - this may take a few minutes...")
 
     try:
-        rc, stdout, stderr = util.cmd_assert(so, f"doozer --group openshift-{major_minor} images:print '{{component}}-{{version}}-{{release}}' --show-base --show-non-release --short")
+        rc, stdout, stderr = util.cmd_assert(so, f"doozer --disable-gssapi --group openshift-{major_minor} images:print '{{component}}-{{version}}-{{release}}' --show-base --show-non-release --short")
         if rc:
             raise Exception()
     except Exception:  # convert any exception into generic (cmd_assert already reports details to monitoring)
@@ -337,7 +337,7 @@ def _tags_for_version(major_minor):
 
 def list_images_in_major_minor(so, major, minor):
     major_minor = f'{major}.{minor}'
-    rc, stdout, stderr = util.cmd_assert(so, f'doozer --group openshift-{major_minor} images:print \'{{image_name_short}}\' --show-base --show-non-release --short')
+    rc, stdout, stderr = util.cmd_assert(so, f'doozer --disable-gssapi --group openshift-{major_minor} images:print \'{{image_name_short}}\' --show-base --show-non-release --short')
     if rc:
         util.please_notify_art_team_of_error(so, stderr)
     else:
