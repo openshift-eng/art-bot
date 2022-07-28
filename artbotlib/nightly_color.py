@@ -48,10 +48,10 @@ def get_failed_jobs(release_url, release_browser) -> str:
     """
     status = get_release_data(release_url, release_browser)
 
-    payload = "Jobs that failed:\n"
+    payload = "Jobs pending/failed:\n"
     jobs = status['results']['blockingJobs']
     for job in jobs:
-        if jobs[job]['state'].lower() == "failed":
+        if jobs[job]['state'].lower() != "succeeded":
             payload += f"<{jobs[job]['url']}|{job}>\n"
     return payload
 
