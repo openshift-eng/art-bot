@@ -500,7 +500,7 @@ def get_delivery_repo_id(name: str) -> str:
 
 
 # Methods
-@util.update_keytab
+@util.refresh_krb_auth
 def request_with_kerberos(url: str) -> requests.Response():
     # Kerberos authentication
     kerberos_auth = HTTPKerberosAuth(mutual_authentication=OPTIONAL)

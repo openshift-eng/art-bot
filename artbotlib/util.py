@@ -8,7 +8,7 @@ import shlex
 import subprocess
 from threading import RLock
 import time
-from artbotlib.kerberos import handle_kinit
+from artbotlib.kerberos import do_kinit
 import functools
 
 logger = logging.getLogger()
@@ -212,10 +212,10 @@ def cached_ttl(func):
     return wrapper
 
 
-def update_keytab(func):
+def refresh_krb_auth(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        handle_kinit()
+        do_kinit()
         func_ret = func(*args, **kwargs)
         return func_ret
     return wrapper

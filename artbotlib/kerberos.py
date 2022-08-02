@@ -1,13 +1,9 @@
-import os
-import time
 import subprocess
 
 
-def update_last_kinit_env_var():
+def do_kinit():
     """
-    This function performs kinit as and when required.
-    The function expects .aws directory in the project base directory.
-    The .aws directory should have a keytab file by name redhat.keytab.
+    Function performs kinit with the already mounted keytab
     :return: None
     """
 
@@ -16,22 +12,5 @@ def update_last_kinit_env_var():
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, error = kinit_request.communicate()
     if error:
-        print(error)
-    os.environ["LAST_KINIT_TIME"] = str(int(time.time()))
+        print(f"Kerberos error: {error}")
 
-
-def handle_kinit():
-    """
-    This function tests whether kinit is required. The current policy is to do kinit after
-    every hour.
-    :return: None
-    """
-
-    if "LAST_KINIT_TIME" not in os.environ:
-        update_last_kinit_env_var()
-
-    last_update = os.environ["LAST_KINIT_TIME"]
-    time_now = int(time.time())
-
-    if time_now - int(last_update) >= 3600:
-        update_last_kinit_env_var()
