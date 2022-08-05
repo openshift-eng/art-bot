@@ -178,9 +178,6 @@ def kernel_info(so, release_img):
     async def non_rhcos_kernel_info(image):
         # Get image build for provided release image
         build_info, pullspec, _ = await get_image_info(so, image, release_img)
-        if not build_info:
-            return
-
         labels = build_info["config"]["config"]["Labels"]
         name = labels["com.redhat.component"]
         version = labels["version"]
@@ -207,6 +204,7 @@ def kernel_info(so, release_img):
             'pullspec': pullspec
         }
 
+    so.say(f'Gathering image info for `{release_img}`...')
     loop = asyncio.new_event_loop()
 
     async def gather_kernel_info():
@@ -215,14 +213,20 @@ def kernel_info(so, release_img):
             asyncio.ensure_future(non_rhcos_kernel_info('ironic-machine-os-downloader')),
             asyncio.ensure_future(rhcos_kernel_info())
         ]
-        return await asyncio.gather(*tasks)
+        return await asyncio.gather(*tasks, return_exceptions=True)
 
     # Format output and send to Slack
     res = loop.run_until_complete(gather_kernel_info())
     output = []
     for entry in res:
+        if isinstance(entry, ChildProcessError):
+            so.say(f"Sorry, I wasn't able to query the release image `{release_img}`.")
+            util.please_notify_art_team_of_error(so, str(entry))
+            return
+
         output.append(f'Kernel info for `{entry["name"]}` {entry["pullspec"]}:')
         output.append('```')
         output.extend(entry['rpms'])
         output.append('```')
+
     so.say('\n'.join(output))
