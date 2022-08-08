@@ -188,7 +188,6 @@ def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
         so.say("Failed to connect to brew; cannot look up components.")
         return
 
-    # determine lowercase list of rpms to search for (case insensitive)
     if search_type.lower() == "rpm":
         rpms_search = set(name_list)
     else:
@@ -199,7 +198,7 @@ def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
             so.say(f"Failed looking up packages in brew. Do tags exist for {major_minor}?")
             return
         if not rpms_for_package:
-            so.say(f"Could not find any package(s) named {name_list} in brew.")
+            so.say(f"Could not find any package(s) named {name_list} in brew. Package name(s) need to be exact (case sensitive)")
             return
         if len(name_list) > len(rpms_for_package):
             missing = [name for name in name_list if name not in rpms_for_package]
