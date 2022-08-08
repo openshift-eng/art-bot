@@ -190,7 +190,7 @@ def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
 
     # determine lowercase list of rpms to search for (case insensitive)
     if search_type.lower() == "rpm":
-        rpms_search = set(name.lower() for name in name_list)
+        rpms_search = set(name_list)
     else:
         try:
             rpms_for_package = _find_rpms_in_packages(koji_api, name_list, major_minor)
