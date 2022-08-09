@@ -3,6 +3,8 @@ import json
 import re
 import urllib.request
 
+import koji
+
 from . import util
 
 RHCOS_BASE_URL = "https://releases-rhcos-art.cloud.privileged.psi.redhat.com/storage/releases"
@@ -45,7 +47,16 @@ def list_specific_rpms_for_image(matchers, nvr) -> set:
 
 def specific_rpms_for_image(so, rpms, nvr):
     matchers = [rpm.strip() for rpm in rpms.split(",")]
-    matched = list_specific_rpms_for_image(matchers, nvr)
+    try:
+        matched = list_specific_rpms_for_image(matchers, nvr)
+    except koji.GenericError as e:
+        msg = [
+            str(e),
+            'Make sure a valid brew build name is provided'
+        ]
+        so.say('\n'.join(msg))
+        return
+
     if not matched:
         so.say(f'Sorry, no rpms matching {matchers} were found in build {nvr}')
     else:
