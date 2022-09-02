@@ -43,6 +43,8 @@ class SlackOutput:
         pprint.pprint(r)
 
     def monitoring_say(self, text, **msg_opts):
+        if not self.monitoring_channel_id:
+            return
         try:
             msg = dict(
                 channel=self.monitoring_channel_id,
@@ -56,6 +58,8 @@ class SlackOutput:
             traceback.print_exc()
 
     def monitoring_snippet(self, payload, intro=None, filename=None, filetype=None):
+        if not self.monitoring_channel_id:
+            return
         try:
             print("Called with monitoring payload: {}".format(payload))
             r = self.web_client.files_upload(
