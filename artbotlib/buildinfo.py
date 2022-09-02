@@ -29,10 +29,12 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
         return None, None, None
 
     # Get image pullspec
-    rc, stdout, stderr = await util.cmd_gather_async(f"oc adm release info {release_img_pullspec} --image-for {name}")
+    rc, stdout, stderr = await util.cmd_gather_async(
+        f"oc adm release info {release_img_pullspec} --image-for {name}",
+        check=False
+    )
     if rc:
         so.say(f"Sorry, I wasn't able to query the release image pullspec {release_img_pullspec}.")
-        util.please_notify_art_team_of_error(so, stderr)
         return None, None, None
     pullspec = stdout.strip()
 
@@ -221,7 +223,6 @@ def kernel_info(so, release_img):
     for entry in res:
         if isinstance(entry, ChildProcessError):
             so.say(f"Sorry, I wasn't able to query the release image `{release_img}`.")
-            util.please_notify_art_team_of_error(so, str(entry))
             return
 
         output.append(f'Kernel info for `{entry["name"]}` {entry["pullspec"]}:')
