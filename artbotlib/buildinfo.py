@@ -139,11 +139,7 @@ def rhcos_build_urls(build_id, arch="x86_64"):
     """
 
     minor_version = re.match("4([0-9]+)[.]", build_id)  # 4<minor>.8#.###
-    if re.match("410[.]", build_id):   # initial scheme for 4.1.0
-        minor_version = "4.1"
-    elif re.match("42[s.]", build_id):  # 42.81.### or 42s390x.81.###
-        minor_version = "4.2"
-    elif minor_version:
+    if minor_version:
         minor_version = f"4.{minor_version.group(1)}"
     else:   # don't want to assume we know what this will look like later
         return (None, None)
