@@ -137,23 +137,19 @@ def rhcos_build_urls(build_id, arch="x86_64"):
     base url for a release stream in the release browser
     @param build_id  the RHCOS build id string (e.g. "46.82.202009222340-0")
     @param arch      architecture we are interested in (e.g. "s390x")
-    @return e.g.: https://releases-rhcos-art.cloud.privileged.psi.redhat.com/?stream=releases/rhcos-4.6&release=46.82.202009222340-0#46.82.202009222340-0
+    @return e.g.: https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/?stream=releases/rhcos-4.6&release=46.82.202009222340-0#46.82.202009222340-0
     """
 
     minor_version = re.match("4([0-9]+)[.]", build_id)  # 4<minor>.8#.###
-    if re.match("410[.]", build_id):   # initial scheme for 4.1.0
-        minor_version = "4.1"
-    elif re.match("42[s.]", build_id):  # 42.81.### or 42s390x.81.###
-        minor_version = "4.2"
-    elif minor_version:
+    if minor_version:
         minor_version = f"4.{minor_version.group(1)}"
     else:   # don't want to assume we know what this will look like later
         return (None, None)
 
     suffix = "" if arch in ["x86_64", "amd64"] else f"-{arch}"
 
-    contents = f"https://releases-rhcos-art.cloud.privileged.psi.redhat.com/contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
-    stream = f"https://releases-rhcos-art.cloud.privileged.psi.redhat.com/?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}#{build_id}"
+    contents = f"https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
+    stream = f"https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}#{build_id}"
     return contents, stream
 
 
