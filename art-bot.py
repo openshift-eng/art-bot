@@ -78,11 +78,12 @@ def on_load(client: RTMClient, event: dict):
     try:
         bot_config["self"] = {"id": r.data["user_id"], "name": r.data["user"]}
         if "monitoring_channel" not in bot_config:
-            raise Exception("No monitoring_channel configured.")
-        found = lookup_channel(web_client, bot_config["monitoring_channel"], only_private=True)
-        if not found:
-            raise Exception(f"Invalid monitoring channel configured: {bot_config['monitoring_channel']}")
-        bot_config["monitoring_channel_id"] = found["id"]
+            print("Warning: no monitoring_channel configured.")
+        else:
+            found = lookup_channel(web_client, bot_config["monitoring_channel"], only_private=True)
+            if not found:
+                raise Exception(f"Invalid monitoring channel configured: {bot_config['monitoring_channel']}")
+            bot_config["monitoring_channel_id"] = found["id"]
 
         bot_config.setdefault("friendly_channels", [])
         bot_config["friendly_channel_ids"] = []
@@ -168,7 +169,7 @@ def respond(client: RTMClient, event: dict):
             web_client=web_client,
             event=event,
             target_channel_id=target_channel_id,
-            monitoring_channel_id=bot_config["monitoring_channel_id"],
+            monitoring_channel_id=bot_config.get("monitoring_channel_id", None),
             thread_ts=thread_ts,
             alt_username=alt_username,
         )
