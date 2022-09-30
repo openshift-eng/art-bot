@@ -2,13 +2,13 @@ import flexmock
 import pytest
 from unittest.mock import patch, MagicMock
 
-from artbotlib import brew_list
+from artbotlib import brew_list, constants
 
 
 @pytest.mark.parametrize("params, expected",
     [
-        [("4.5",), f"{brew_list.RHCOS_BASE_URL}/rhcos-4.5"],
-        [("4.5", "s390x"), f"{brew_list.RHCOS_BASE_URL}/rhcos-4.5-s390x"],
+        [("4.5",), f"{constants.RHCOS_BASE_URL}/rhcos-4.5"],
+        [("4.5", "s390x"), f"{constants.RHCOS_BASE_URL}/rhcos-4.5-s390x"],
     ]
 )
 def test_rhcos_release_url(params, expected):
@@ -17,9 +17,9 @@ def test_rhcos_release_url(params, expected):
 
 @pytest.mark.parametrize("params, expected",
     [
-        [("4.2", "spam"), f"{brew_list.RHCOS_BASE_URL}/rhcos-4.2/spam"],
-        [("4.5", "eggs"), f"{brew_list.RHCOS_BASE_URL}/rhcos-4.5/eggs/x86_64"],
-        [("4.5", "bacon", "s390x"), f"{brew_list.RHCOS_BASE_URL}/rhcos-4.5-s390x/bacon/s390x"],
+        [("4.2", "spam"), f"{constants.RHCOS_BASE_URL}/rhcos-4.2/spam"],
+        [("4.5", "eggs"), f"{constants.RHCOS_BASE_URL}/rhcos-4.5/eggs/x86_64"],
+        [("4.5", "bacon", "s390x"), f"{constants.RHCOS_BASE_URL}/rhcos-4.5-s390x/bacon/s390x"],
     ]
 )
 def test_rhcos_build_url(params, expected):

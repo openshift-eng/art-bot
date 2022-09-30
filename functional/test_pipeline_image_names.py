@@ -1,5 +1,5 @@
 import pytest
-from artbotlib import exceptions
+from artbotlib import exceptions, constants
 from artbotlib import pipeline_image_util as img_util
 
 
@@ -82,11 +82,11 @@ def test_distgit_to_brew_3():
 
 def test_distgit_delivery():
     actual = img_util.distgit_to_delivery("clusterresourceoverride-operator", "4.10", "8Base-RHOSE-4.10")
-    expected = """Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID=73711|*ose-clusterresourceoverride-operator-container*>
+    expected = f"""Production brew builds: <{constants.BREW_URL}/packageinfo?packageID=73711|*ose-clusterresourceoverride-operator-container*>
 Bundle Component: *ose-clusterresourceoverride-operator-metadata-component*
 Bundle Distgit: *clusterresourceoverride-operator-bundle*
-CDN repo: <https://errata.devel.redhat.com/product_versions/1625/cdn_repos/12950|*redhat-openshift4-ose-clusterresourceoverride-rhel8-operator*>
-Delivery (Comet) repo: <https://comet.engineering.redhat.com/containers/repositories/5f6d2a2049dbe0cdd0373f29|*openshift4/ose-clusterresourceoverride-rhel8-operator*>\n\n"""
+CDN repo: <{constants.ERRATA_TOOL_URL}/product_versions/1625/cdn_repos/12950|*redhat-openshift4-ose-clusterresourceoverride-rhel8-operator*>
+Delivery (Comet) repo: <{constants.COMET_URL}/5f6d2a2049dbe0cdd0373f29|*openshift4/ose-clusterresourceoverride-rhel8-operator*>\n\n"""
 
     assert actual == expected
 
@@ -107,9 +107,9 @@ def test_brew_is_available2():
 
 def test_brew_to_github():
     actual = img_util.brew_to_github("ose-clusterresourceoverride-operator-container", "4.10")
-    expected = """Upstream GitHub repository: <https://github.com/openshift/cluster-resource-override-admission-operator|*openshift/cluster-resource-override-admission-operator*>
+    expected = f"""Upstream GitHub repository: <https://github.com/openshift/cluster-resource-override-admission-operator|*openshift/cluster-resource-override-admission-operator*>
 Private GitHub repository: <https://github.com/openshift-priv/cluster-resource-override-admission-operator|*openshift-priv/cluster-resource-override-admission-operator*>
-Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/clusterresourceoverride-operator|*clusterresourceoverride-operator*>
+Production dist-git repo: <{constants.CGIT_URL}/containers/clusterresourceoverride-operator|*clusterresourceoverride-operator*>
 Bundle Component: *ose-clusterresourceoverride-operator-metadata-component*
 Bundle Distgit: *clusterresourceoverride-operator-bundle*\n"""
 
@@ -144,8 +144,8 @@ def test_brew_to_cdn2():
 
 def test_brew_to_delivery():
     actual = img_util.brew_to_delivery("ose-clusterresourceoverride-operator-container", "8Base-RHOSE-4.10")
-    expected = """CDN repo: <https://errata.devel.redhat.com/product_versions/1625/cdn_repos/12950|*redhat-openshift4-ose-clusterresourceoverride-rhel8-operator*>
-Delivery (Comet) repo: <https://comet.engineering.redhat.com/containers/repositories/5f6d2a2049dbe0cdd0373f29|*openshift4/ose-clusterresourceoverride-rhel8-operator*>\n\n"""
+    expected = f"""CDN repo: <{constants.ERRATA_TOOL_URL}/product_versions/1625/cdn_repos/12950|*redhat-openshift4-ose-clusterresourceoverride-rhel8-operator*>
+Delivery (Comet) repo: <{constants.COMET_URL}/5f6d2a2049dbe0cdd0373f29|*openshift4/ose-clusterresourceoverride-rhel8-operator*>\n\n"""
 
     assert actual == expected
 
@@ -229,10 +229,10 @@ def test_get_product_id():
 
 def test_cdn_to_github():
     actual = img_util.cdn_to_github("redhat-openshift4-ose-cli-alt-rhel8", "4.10")
-    expected = """Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID=79953|*openshift-enterprise-cli-alt-container*>
+    expected = f"""Production brew builds: <{constants.BREW_URL}/packageinfo?packageID=79953|*openshift-enterprise-cli-alt-container*>
 Upstream GitHub repository: <https://github.com/openshift/oc|*openshift/oc*>
 Private GitHub repository: <https://github.com/openshift-priv/oc|*openshift-priv/oc*>
-Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/openshift-enterprise-cli-alt|*openshift-enterprise-cli-alt*>
+Production dist-git repo: <{constants.CGIT_URL}/containers/openshift-enterprise-cli-alt|*openshift-enterprise-cli-alt*>
 Payload tag: *cli-alt* 
 """
     assert actual == expected

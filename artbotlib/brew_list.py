@@ -6,8 +6,7 @@ import urllib.request
 import koji
 
 from . import util
-
-RHCOS_BASE_URL = "https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/storage/releases"
+from .constants import RHCOS_BASE_URL
 
 
 @util.cached
@@ -340,7 +339,7 @@ def _rhcos_build_url(major_minor, build_id, arch="x86_64"):
 
 def _rhcos_release_url(major_minor, arch="x86_64"):
     arch_suffix = "" if arch == "x86_64" else f"-{arch}"
-    return f"{RHCOS_BASE_URL}/rhcos-{major_minor}{arch_suffix}"
+    return f"{RHCOS_BASE_URL}/storage/releases/rhcos-{major_minor}{arch_suffix}"
 
 
 def _tags_for_version(major_minor):

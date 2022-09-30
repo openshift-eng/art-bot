@@ -1,4 +1,4 @@
-from artbotlib import exceptions
+from artbotlib import exceptions, constants
 from artbotlib import pipeline_image_util
 
 
@@ -43,7 +43,7 @@ def pipeline_from_github(so, github_repo, version):
             if len(distgit_repos) > 1:
                 payload += f"\n*More than one dist-gits were found for the GitHub repo `{github_repo}`*\n\n"
             for distgit_repo_name in distgit_repos:
-                payload += f"Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
+                payload += f"Production dist-git repo: <{constants.CGIT_URL}/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
 
                 # Distgit -> Delivery
                 payload += pipeline_image_util.distgit_to_delivery(distgit_repo_name, version, variant)
@@ -99,7 +99,7 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
             payload += f"Private GitHub repository: <https://github.com/openshift-priv/{github_repo}|*openshift-priv/{github_repo}*>\n"
 
             # Distgit
-            payload += f"Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
+            payload += f"Production dist-git repo: <{constants.CGIT_URL}/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
 
             # Distgit -> Delivery
             payload += pipeline_image_util.distgit_to_delivery(distgit_repo_name, version, variant)
@@ -150,7 +150,7 @@ def pipeline_from_brew(so, brew_name, version):
 
             # Brew
             brew_id = pipeline_image_util.get_brew_id(brew_name)
-            payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_name}*>\n"
+            payload += f"Production brew builds: <{constants.BREW_URL}/packageinfo?packageID={brew_id}|*{brew_name}*>\n"
 
             # Brew -> Delivery
             payload += pipeline_image_util.brew_to_delivery(brew_name, variant)
@@ -259,7 +259,7 @@ def pipeline_from_delivery(so, delivery_repo_name, version):
             payload += pipeline_image_util.brew_to_github(brew_name, version)
 
             # To make the output consistent
-            payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_name}*>\n"
+            payload += f"Production brew builds: <{constants.BREW_URL}/packageinfo?packageID={brew_id}|*{brew_name}*>\n"
 
             # Brew -> CDN
             cdn_repo_name = pipeline_image_util.brew_to_cdn_delivery(brew_name, variant, delivery_repo_name)
@@ -267,7 +267,7 @@ def pipeline_from_delivery(so, delivery_repo_name, version):
 
             # Delivery
             delivery_repo_id = pipeline_image_util.get_delivery_repo_id(delivery_repo_name)
-            payload += f"Delivery (Comet) repo: <https://comet.engineering.redhat.com/containers/repositories/{delivery_repo_id}|*{delivery_repo_name}*>\n\n"
+            payload += f"Delivery (Comet) repo: <{constants.COMET_URL}/{delivery_repo_id}|*{delivery_repo_name}*>\n\n"
         except exceptions.ArtBotExceptions as e:
             payload += "\n"
             payload += f"{e}"

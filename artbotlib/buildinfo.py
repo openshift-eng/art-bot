@@ -3,7 +3,7 @@ import json
 import re
 from typing import Tuple, Union
 
-from . import util, brew_list
+from . import util, brew_list, constants
 
 
 async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None], Tuple[str, str, str]]:
@@ -148,8 +148,8 @@ def rhcos_build_urls(build_id, arch="x86_64"):
 
     suffix = "" if arch in ["x86_64", "amd64"] else f"-{arch}"
 
-    contents = f"https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
-    stream = f"https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}#{build_id}"
+    contents = f"{constants.RHCOS_BASE_URL}/contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
+    stream = f"{constants.RHCOS_BASE_URL}/?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}#{build_id}"
     return contents, stream
 
 
@@ -161,7 +161,7 @@ def brew_build_url(nvr):
         print(f"error searching for image {nvr} components in brew: {e}")
         return None
 
-    return f"https://brewweb.engineering.redhat.com/brew/buildinfo?buildID={build['id']}"
+    return f"{constants.BREW_URL}/buildinfo?buildID={build['id']}"
 
 
 def kernel_info(so, release_img):
