@@ -14,7 +14,7 @@ import threading
 import random
 
 import umb
-from artbotlib.buildinfo import buildinfo_for_release, kernel_info
+from artbotlib.buildinfo import buildinfo_for_release, kernel_info, alert_on_build_complete
 from artbotlib.translation import translate_names
 from artbotlib.util import lookup_channel
 from artbotlib.formatting import extract_plain_text, repeat_in_chunks
@@ -239,6 +239,12 @@ def respond(client: RTMClient, event: dict):
                 'regex': r'^%(wh)s rpms? (?P<rpms>[-\w.,* ]+) (is|are) in image %(nvr)s$' % re_snippets,
                 'flag': re.I,
                 'function': brew_list.specific_rpms_for_image
+            },
+            {
+                'regex': r'^alert ?(if|when|on)? build (?P<build_id>\d+) completes$',
+                'flag': re.I,
+                'function': alert_on_build_complete,
+                'user_id': True
             },
 
             # ART advisory info:

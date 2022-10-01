@@ -2,8 +2,19 @@ import asyncio
 import json
 import re
 from typing import Tuple, Union
+import time
+from enum import Enum
+
+import koji
 
 from . import util, brew_list, constants
+
+
+class BuildState(Enum):
+    BUILDING = 0
+    COMPLETE = 1
+    FAILED = 3
+    CANCELED = 4
 
 
 async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None], Tuple[str, str, str]]:
@@ -227,3 +238,49 @@ def kernel_info(so, release_img):
         output.append('```')
 
     so.say('\n'.join(output))
+
+
+def alert_on_build_complete(so, user_id, build_id):
+    so.say(f'Ok <@{user_id}>, I\'ll respond here when the build completes')
+    start = time.time()
+
+    while True:
+        # Timeout after 12 hrs
+        if time.time() - start > constants.TWELVE_HOURS:
+            so.say(f'Build {build_id} did not complete in 12 hours, giving up...')
+            return
+
+        # Retrieve build info
+        try:
+            build = util.koji_client_session().getBuild(int(build_id), strict=True)
+            state = BuildState(build['state'])
+            print(f'Build {build_id} has state {state.name}')
+
+        except ValueError:
+            # Failed to convert the build state to a valid BuildState enum
+            print(f'Unexpected status {build.state} for build {build_id}')
+            so.say(f'Build {build_id} has unhandled status {state.name}. '
+                   f'Check {constants.BREW_URL}/buildinfo?buildID={build_id} for details')
+            return
+
+        except koji.GenericError:
+            # No such build
+            message = f"Build {build_id} does not exist"
+            so.say(message)
+            return
+
+        except Exception as e:
+            # What else can happen?
+            message = f"error getting information for build {build_id}: {e}"
+            so.say(message)
+            return
+
+        # Check build state
+        if state == BuildState.BUILDING:
+            time.sleep(constants.FIVE_MINUTES)
+
+        else:
+            # state in [BuildState.COMPLETE, BuildState.FAILED, BuildState.CANCELED]:
+            so.say(f'Build {build_id} completed with status {state.name}. '
+                   f'Check {constants.BREW_URL}/buildinfo?buildID={build_id} for details')
+            return
