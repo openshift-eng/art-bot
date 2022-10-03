@@ -241,7 +241,7 @@ def respond(client: RTMClient, event: dict):
                 'function': brew_list.specific_rpms_for_image
             },
             {
-                'regex': r'^alert ?(if|when|on)? build (?P<build_id>\d+) completes$',
+                'regex': r'^alert ?(if|when|on)? build (?P<build_id>\d+|https\://brewweb.engineering.redhat.com/brew/buildinfo\?buildID=\d+) completes$',
                 'flag': re.I,
                 'function': alert_on_build_complete,
                 'user_id': True

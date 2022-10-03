@@ -8,6 +8,7 @@ from enum import Enum
 import koji
 
 from . import util, brew_list, constants
+from .constants import BREW_URL
 
 
 class BuildState(Enum):
@@ -244,6 +245,13 @@ def alert_on_build_complete(so, user_id, build_id):
     so.say(f'Ok <@{user_id}>, I\'ll respond here when the build completes')
     start = time.time()
 
+    try:
+        # Has the build passed in by ID?
+        build_id = int(build_id)
+    except ValueError:\
+        # No, by URL
+        build_id = int(build_id.split('=')[-1])
+
     while True:
         # Timeout after 12 hrs
         if time.time() - start > constants.TWELVE_HOURS:
@@ -252,7 +260,7 @@ def alert_on_build_complete(so, user_id, build_id):
 
         # Retrieve build info
         try:
-            build = util.koji_client_session().getBuild(int(build_id), strict=True)
+            build = util.koji_client_session().getBuild(build_id, strict=True)
             state = BuildState(build['state'])
             print(f'Build {build_id} has state {state.name}')
 
