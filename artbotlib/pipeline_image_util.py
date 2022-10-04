@@ -2,9 +2,10 @@ import requests
 import yaml
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
 from collections import defaultdict
-from . import util
+from . import util, constants
 from artbotlib import exceptions
 from typing import Union
+
 
 # Functions for pipeline from GitHub
 def github_repo_is_available(repo_name: str) -> bool:
@@ -39,7 +40,7 @@ def distgit_is_available(distgit_repo_name: str) -> bool:
 
     :distgit_repo_name: The name of the distgit repo.
     """
-    response = requests.head(f"https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}")
+    response = requests.head(f"{constants.CGIT_URL}/containers/{distgit_repo_name}")
     return response.status_code == 200
 
 
@@ -99,7 +100,7 @@ def distgit_to_delivery(distgit_repo_name: str, version: str, variant: str) -> s
     # Distgit -> Brew
     brew_package_name = distgit_to_brew(distgit_repo_name, version)
     brew_id = get_brew_id(brew_package_name)
-    payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_package_name}*>\n"
+    payload += f"Production brew builds: <{constants.BREW_URL}/packageinfo?packageID={brew_id}|*{brew_package_name}*>\n"
 
     # Bundle Builds
     if require_bundle_build(distgit_repo_name, version):
@@ -148,7 +149,7 @@ def brew_to_github(brew_name: str, version: str) -> str:
     payload += f"Private GitHub repository: <https://github.com/openshift-priv/{github_repo}|*openshift-priv/{github_repo}*>\n"
 
     # To keep the presented order same
-    payload += f"Production dist-git repo: <https://pkgs.devel.redhat.com/cgit/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
+    payload += f"Production dist-git repo: <{constants.CGIT_URL}/containers/{distgit_repo_name}|*{distgit_repo_name}*>\n"
 
     # Bundle Builds
     if require_bundle_build(distgit_repo_name, version):
@@ -195,7 +196,7 @@ def brew_to_cdn(brew_name: str, variant_name: str) -> list:
     :brew_name: Brew package name
     :variant_name: The name of the product variant eg: 8Base-RHOSE-4.10
     """
-    url = f"https://errata.devel.redhat.com/api/v1/cdn_repo_package_tags?filter[package_name]={brew_name}"
+    url = f"{constants.ERRATA_TOOL_URL}/api/v1/cdn_repo_package_tags?filter[package_name]={brew_name}"
     response = request_with_kerberos(url)
 
     repos = []
@@ -295,7 +296,7 @@ def get_cdn_repo_details(cdn_name: str) -> dict:
 
     :cdn_name: The name of the CDN repo
     """
-    url = f"https://errata.devel.redhat.com/api/v1/cdn_repos/{cdn_name}"
+    url = f"{constants.ERRATA_TOOL_URL}/api/v1/cdn_repos/{cdn_name}"
     response = request_with_kerberos(url)
 
     if response.status_code == 404:
@@ -372,7 +373,7 @@ def get_product_id(variant_id: int) -> int:
 
     :variant_id: Product variant ID
     """
-    url = f"https://errata.devel.redhat.com/api/v1/variants/{variant_id}"
+    url = f"{constants.ERRATA_TOOL_URL}/api/v1/variants/{variant_id}"
     response = request_with_kerberos(url)
 
     try:
@@ -393,7 +394,7 @@ def cdn_to_github(cdn_name: str, version: str) -> str:
     # Brew
     brew_name = cdn_to_brew(cdn_name)
     brew_id = get_brew_id(brew_name)
-    payload += f"Production brew builds: <https://brewweb.engineering.redhat.com/brew/packageinfo?packageID={brew_id}|*{brew_name}*>\n"
+    payload += f"Production brew builds: <{constants.BREW_URL}/packageinfo?packageID={brew_id}|*{brew_name}*>\n"
 
     # Brew -> GitHub
     payload += brew_to_github(brew_name, version)
@@ -412,7 +413,7 @@ def get_cdn_payload(cdn_repo_name: str, variant: str) -> str:
     variant_id = get_variant_id(cdn_repo_name, variant)
     product_id = get_product_id(variant_id)
 
-    return f"CDN repo: <https://errata.devel.redhat.com/product_versions/{product_id}/cdn_repos/{cdn_repo_id}|*{cdn_repo_name}*>\n"
+    return f"CDN repo: <{constants.ERRATA_TOOL_URL}/product_versions/{product_id}/cdn_repos/{cdn_repo_id}|*{cdn_repo_name}*>\n"
 
 
 def cdn_to_delivery_payload(cdn_repo_name: str):
@@ -423,7 +424,7 @@ def cdn_to_delivery_payload(cdn_repo_name: str):
     """
     delivery_repo_name = cdn_to_delivery(cdn_repo_name)
     delivery_repo_id = get_delivery_repo_id(delivery_repo_name)
-    return f"Delivery (Comet) repo: <https://comet.engineering.redhat.com/containers/repositories/{delivery_repo_id}|*{delivery_repo_name}*>\n\n"
+    return f"Delivery (Comet) repo: <{constants.COMET_URL}/{delivery_repo_id}|*{delivery_repo_name}*>\n\n"
 
 
 # Delivery stuff

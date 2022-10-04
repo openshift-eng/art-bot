@@ -2,8 +2,20 @@ import asyncio
 import json
 import re
 from typing import Tuple, Union
+import time
+from enum import Enum
 
-from . import util, brew_list
+import koji
+
+from . import util, brew_list, constants
+from .constants import BREW_URL
+
+
+class BuildState(Enum):
+    BUILDING = 0
+    COMPLETE = 1
+    FAILED = 3
+    CANCELED = 4
 
 
 async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None], Tuple[str, str, str]]:
@@ -148,8 +160,8 @@ def rhcos_build_urls(build_id, arch="x86_64"):
 
     suffix = "" if arch in ["x86_64", "amd64"] else f"-{arch}"
 
-    contents = f"https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
-    stream = f"https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}#{build_id}"
+    contents = f"{constants.RHCOS_BASE_URL}/contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
+    stream = f"{constants.RHCOS_BASE_URL}/?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}#{build_id}"
     return contents, stream
 
 
@@ -161,7 +173,7 @@ def brew_build_url(nvr):
         print(f"error searching for image {nvr} components in brew: {e}")
         return None
 
-    return f"https://brewweb.engineering.redhat.com/brew/buildinfo?buildID={build['id']}"
+    return f"{constants.BREW_URL}/buildinfo?buildID={build['id']}"
 
 
 def kernel_info(so, release_img):
@@ -227,3 +239,56 @@ def kernel_info(so, release_img):
         output.append('```')
 
     so.say('\n'.join(output))
+
+
+def alert_on_build_complete(so, user_id, build_id):
+    so.say(f'Ok <@{user_id}>, I\'ll respond here when the build completes')
+    start = time.time()
+
+    try:
+        # Has the build passed in by ID?
+        build_id = int(build_id)
+    except ValueError:\
+        # No, by URL
+        build_id = int(build_id.split('=')[-1])
+
+    while True:
+        # Timeout after 12 hrs
+        if time.time() - start > constants.TWELVE_HOURS:
+            so.say(f'Build {build_id} did not complete in 12 hours, giving up...')
+            return
+
+        # Retrieve build info
+        try:
+            build = util.koji_client_session().getBuild(build_id, strict=True)
+            state = BuildState(build['state'])
+            print(f'Build {build_id} has state {state.name}')
+
+        except ValueError:
+            # Failed to convert the build state to a valid BuildState enum
+            print(f'Unexpected status {build.state} for build {build_id}')
+            so.say(f'Build {build_id} has unhandled status {state.name}. '
+                   f'Check {constants.BREW_URL}/buildinfo?buildID={build_id} for details')
+            return
+
+        except koji.GenericError:
+            # No such build
+            message = f"Build {build_id} does not exist"
+            so.say(message)
+            return
+
+        except Exception as e:
+            # What else can happen?
+            message = f"error getting information for build {build_id}: {e}"
+            so.say(message)
+            return
+
+        # Check build state
+        if state == BuildState.BUILDING:
+            time.sleep(constants.FIVE_MINUTES)
+
+        else:
+            # state in [BuildState.COMPLETE, BuildState.FAILED, BuildState.CANCELED]:
+            so.say(f'Build {build_id} completed with status {state.name}. '
+                   f'Check {constants.BREW_URL}/buildinfo?buildID={build_id} for details')
+            return

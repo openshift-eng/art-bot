@@ -3,13 +3,7 @@ import time
 from typing import Union
 import json
 
-COLOR_MAPS = {
-    'Accepted': 'Green',
-    'Rejected': 'Red'
-}
-
-TWELVE_HOURS = 60 * 60 * 12
-FIVE_MINUTES = 60 * 5
+from artbotlib.constants import COLOR_MAPS, TWELVE_HOURS, FIVE_MINUTES
 
 
 def get_release_data(release_url, release_browser) -> json:
