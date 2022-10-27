@@ -202,7 +202,7 @@ class PrInfo:
 
             if commit_id in commits:
                 self.logger.info(f'PR {self.pr_url} has been included in release {release["name"]}')
-                earliest = release['name']
+                earliest = release
             else:
                 self.logger.info(f'PR {self.pr_url} has NOT been included in release {release["name"]}')
                 break
@@ -210,7 +210,7 @@ class PrInfo:
         return earliest
 
     async def run(self):
-        msg = f'Gathering info for PR {self.pr_url}...'
+        msg = f'Gathering info for PR...'
         self.so.say(msg)
         self.logger.info(msg)
 
@@ -227,14 +227,16 @@ class PrInfo:
             earliest_nightly, earliest_release = await asyncio.gather(*tasks, return_exceptions=True)
 
             if earliest_nightly:
-                self.so.say(f'PR {self.pr_url} has been included starting from `{earliest_nightly}`')
+                self.so.say(f'<{self.pr_url}|PR> has been included starting from '
+                            f'<{earliest_nightly["downloadURL"]}|{earliest_nightly["name"]}>')
             else:
-                self.so.say(f'PR {self.pr_url} has not been found in any `{self.version}` nightly')
+                self.so.say(f'<{self.pr_url}|PR> has not been found in any `{self.version}` nightly')
 
             if earliest_release:
-                self.so.say(f'PR {self.pr_url} has been included starting from `{earliest_release}`')
+                self.so.say(f'<{self.pr_url}|PR> has been included starting from '
+                            f'<{earliest_release["downloadURL"]}|{earliest_release["name"]}>')
             else:
-                self.so.say(f'PR {self.pr_url} has not been found in any `{self.version}` release')
+                self.so.say(f'<{self.pr_url}|PR> has not been found in any `{self.version}` release')
 
         else:
             self.so.say(f'Couldn\'t get image stream tag for `{self.repo_name}` in `{self.version}`: '
