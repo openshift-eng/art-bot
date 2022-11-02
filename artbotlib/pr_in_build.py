@@ -10,7 +10,6 @@ import requests
 
 from artbotlib import util, pipeline_image_util
 from artbotlib.exceptions import NullDataReturned
-from artbotlib.util import log_config
 
 API = f"{os.environ['ART_DASH_SERVER_ROUTE']}/api/v1"
 RELEASESTREAM_ENDPOINT_TEMPLATE = Template('https://${arch}.ocp.releases.ci.openshift.org/api/v1/releasestream')
@@ -23,7 +22,7 @@ VALID_ARCHES = [
 
 
 class PrInfo:
-    def __init__(self, so, repo_name, pr_id, version, arch):
+    def __init__(self, so, repo_name, pr_id, version, arch, component):
         self.logger = logging.getLogger(__class__.__name__)
         self.so = so
         self.repo_name = repo_name
@@ -31,31 +30,53 @@ class PrInfo:
         self.pr_url = f'https://github.com/openshift/{repo_name}/pull/{pr_id}'
 
         self.version = version
-        self.arch = arch
+        self.arch = arch if arch else 'amd64'
+        self.component = component
+
         self.merge_commit = None
+        self.distgit = None
         self.imagestream_tag = None
+
+    def get_distgit(self):
+        try:
+            mappings = pipeline_image_util.github_distgit_mappings(self.version)
+        except NullDataReturned as e:
+            self.logger.warning('Exception raised while getting github/distgit mappings: %s', e)
+            self.so.say(f'Could not retrieve distgit name for {self.repo_name}')
+            util.please_notify_art_team_of_error(self.so, e)
+            return None
+
+        repo_mappings = mappings[self.repo_name]
+        if not repo_mappings:
+            self.logger.warning(f'No distgit mapping for repo {self.repo_name}')
+            self.so.say(f'Unable to find the distgit repo associated with `{self.repo_name}`: '
+                        f'please check the query and try again')
+            return None
+
+        # Multiple components build from the same upstream
+        if len(repo_mappings) > 1:
+            # The user must explicitly provide the component name
+            if not self.component:
+                self.so.say(f'Multiple components build from `{self.repo_name}`: '
+                            f'please specify the one you\'re interested in and try again')
+                return None
+
+            # Does the component exist?
+            if self.component not in repo_mappings:
+                self.so.say(f'No distgit named `{self.component}` has been found: '
+                            f'please check the query and try again')
+                return None
+            return self.component
+
+        # No ambiguity: return the one and only mapped distgit
+        return repo_mappings[0]
 
     def get_imagestream_tag(self):
         """
         Return the component image name in the payload
         """
 
-        try:
-            mappings = pipeline_image_util.github_distgit_mappings(self.version)
-        except NullDataReturned as e:
-            self.logger.warning('Exception raised while getting github/distgit mappings: %s', e)
-            return None
-
-        if len(mappings[self.repo_name]) > 1:
-            raise NotImplementedError('TODO handle multiple components from same repo')  # TODO
-
-        try:
-            distgit_name = mappings[self.repo_name][0]
-        except IndexError:
-            self.logger.warning(f'No distgit mapping for repo {self.repo_name}')
-            return None
-
-        imagestream_tag = pipeline_image_util.get_image_stream_tag(distgit_name, self.version)
+        imagestream_tag = pipeline_image_util.get_image_stream_tag(self.distgit, self.version)
         if not imagestream_tag:
             self.so.say(f'Image for `{self.repo_name}` is not part of the payload: will not check into nightlies')
         return imagestream_tag
@@ -175,7 +196,9 @@ class PrInfo:
         """
 
         response = requests.get(f"https://api.github.com/repos/openshift/{self.repo_name}/pulls/{self.pr_id}")
-        return response.json().get("merge_commit_sha")
+        sha = response.json().get("merge_commit_sha")
+        self.logger.debug('Found merge commit SHA: %s', sha)
+        return sha
 
     async def check_nightly_or_releases(self, releases: Iterable) -> str:
         """
@@ -210,14 +233,27 @@ class PrInfo:
         return earliest
 
     async def run(self):
-        msg = f'Gathering info for PR...'
+        # Check arch
+        if self.arch not in VALID_ARCHES:
+            so.say(f'`{self.arch}` is not a valid architecture: '
+                   f'please select one in one in {VALID_ARCHES} and try again')
+            return
+
+        # Check distgit
+        self.distgit = self.get_distgit()
+        self.logger.warning('Found distgit: %s', self.distgit)
+        if not self.distgit:
+            # Reason has already been told to the user...
+            return
+
+        msg = f'Gathering PR info...'
         self.so.say(msg)
         self.logger.info(msg)
 
         # Get merge commit associated to the PPR
         self.merge_commit = self.pr_merge_commit()
 
-        # TODO
+        # Check into nightlies and releases
         self.imagestream_tag = self.get_imagestream_tag()
         if self.imagestream_tag:
             tasks = [
@@ -243,11 +279,5 @@ class PrInfo:
                         f'will not look into nightlies nor releases...')
 
 
-def pr_info(so, repo, pr_id, major, minor, arch):
-    # Check requested arch
-    arch = arch if arch else 'amd64'
-    if arch not in VALID_ARCHES:
-        so.say(f'`{arch}` is not a valid architecture: please check and try again')
-        return
-
-    asyncio.new_event_loop().run_until_complete(PrInfo(so, repo, pr_id, f'{major}.{minor}', arch).run())
+def pr_info(so, repo, pr_id, major, minor, arch, component):
+    asyncio.new_event_loop().run_until_complete(PrInfo(so, repo, pr_id, f'{major}.{minor}', arch, component).run())

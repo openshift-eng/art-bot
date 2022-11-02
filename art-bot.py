@@ -58,7 +58,7 @@ _*ART build info:*_
 * What rpms were used in the latest image builds for `major.minor`?
 * What rpms are in image `image-nvr`?
 * Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
-* pr info for `GitHub PR URL` in `major.minor` [for `arch`]
+* pr info `GitHub PR URL` [component <name>] in `major.minor` [for `arch`]
 
 _*misc:*_
 * How can I get ART to build a new image?
@@ -319,7 +319,7 @@ def respond(client: RTMClient, event: dict):
 
         map_command_to_regex(so, plain_text, user_id)
             {
-                'regex': r'^pr info for \s*(https://)*(github.com/)*(openshift/)*(?P<repo>[a-zA-Z0-9-]+)*(/pull/)*(?P<pr_id>\d+) in %(major_minor)s(?: for (?P<arch>[a-zA-Z0-9-]+))?$' % re_snippets,
+                'regex': r'^pr info \s*(https://)*(github.com/)*(openshift/)*(?P<repo>[a-zA-Z0-9-]+)*(/pull/)*(?P<pr_id>\d+)(?: component (?P<component>[a-zA-Z0-9-]+))? in %(major_minor)s(?: for arch (?P<arch>[a-zA-Z0-9-]+))?$' % re_snippets,
                 'flag': re.I,
                 'function': pr_info
             },
