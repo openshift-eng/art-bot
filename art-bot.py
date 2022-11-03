@@ -58,7 +58,7 @@ _*ART build info:*_
 * What rpms were used in the latest image builds for `major.minor`?
 * What rpms are in image `image-nvr`?
 * Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
-* pr info `GitHub PR URL` [component <name>] in `major.minor` [for `arch`]
+* pr info `GitHub PR URL` [component `name`] in `major.minor` [for `arch`]
 
 _*misc:*_
 * How can I get ART to build a new image?
