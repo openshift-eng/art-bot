@@ -319,7 +319,7 @@ def respond(client: RTMClient, event: dict):
 
         map_command_to_regex(so, plain_text, user_id)
             {
-                'regex': r'^pr info \s*(https://)*(github.com/)*(openshift/)*(?P<repo>[a-zA-Z0-9-]+)*(/pull/)*(?P<pr_id>\d+)(?: component (?P<component>[a-zA-Z0-9-]+))? in %(major_minor)s(?: for arch (?P<arch>[a-zA-Z0-9-]+))?$' % re_snippets,
+                'regex': r'^pr info \s*(https://)*(github.com/)*(openshift/)*(?P<repo>[a-zA-Z0-9-]+)(/pull/)(?P<pr_id>\d+)(?: component (?P<component>[a-zA-Z0-9-]+))? in %(major_minor)s(?: for arch (?P<arch>[a-zA-Z0-9-]+))?$' % re_snippets,
                 'flag': re.I,
                 'function': pr_info
             },
