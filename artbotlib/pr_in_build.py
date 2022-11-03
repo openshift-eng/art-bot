@@ -235,13 +235,14 @@ class PrInfo:
     async def run(self):
         # Check arch
         if self.arch not in VALID_ARCHES:
-            so.say(f'`{self.arch}` is not a valid architecture: '
-                   f'please select one in one in {VALID_ARCHES} and try again')
+            self.so.say(f'`{self.arch}` is not a valid architecture: '
+                        f'please select one in one in {VALID_ARCHES} and try again')
             return
+        self.logger.info('Using arch %s', self.arch)
 
         # Check distgit
         self.distgit = self.get_distgit()
-        self.logger.warning('Found distgit: %s', self.distgit)
+        self.logger.info('Found distgit: %s', self.distgit)
         if not self.distgit:
             # Reason has already been told to the user...
             return
