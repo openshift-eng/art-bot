@@ -154,7 +154,12 @@ class PrInfo:
         }
         """
 
-        response = requests.get(f"https://api.github.com/repos/openshift/{self.repo_name}/branches")
+        url = f'https://api.github.com/repos/openshift/{self.repo_name}/branches'
+        response = requests.get(url)
+        if response.status_code != 200:
+            msg = f'Request to {url} returned with status code {response.status_code}'
+            self.logger.warning(msg)
+            raise RuntimeError(msg)
         return response.json()
 
     def get_branch_ref(self) -> str:
@@ -207,6 +212,7 @@ class PrInfo:
         """
 
         self.logger.info(f'Searching for {self.pr_url} into nightlies/releases...')
+
         commits = self.get_commits_after(self.merge_commit)
         self.logger.debug(f'Found commits after {self.merge_commit}: {commits}')
 
@@ -261,7 +267,13 @@ class PrInfo:
                 asyncio.ensure_future(self.check_nightly_or_releases(self.get_nightlies())),
                 asyncio.ensure_future(self.check_nightly_or_releases(self.get_releases()))
             ]
-            earliest_nightly, earliest_release = await asyncio.gather(*tasks, return_exceptions=True)
+
+            try:
+                earliest_nightly, earliest_release = await asyncio.gather(*tasks, return_exceptions=False)
+            except Exception as e:
+                self.so.say(f'Sorry, an error was raised during the handling of the request: {e}'
+                            f'Please try again')
+                return
 
             if earliest_nightly:
                 self.so.say(f'<{self.pr_url}|PR> has been included starting from '
