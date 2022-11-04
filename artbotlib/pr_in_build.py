@@ -217,16 +217,17 @@ class PrInfo:
         }
         url = f"{API}/builds/"
         response = requests.get(url, params=params)
-        return response.json()
+        if response.status_code == 200:
+            return response.json()
 
     def build_from_commit(self, task_state):
         """
         Function to get all the build ids associated with a list of commits
         """
         for commit in self.commits:
-            response = self.get_builds_from_db(commit, task_state)
-            if response["count"] > 0:
-                builds = response["results"]
+            response_data = self.get_builds_from_db(commit, task_state)
+            if response_data and response_data["count"] > 0:
+                builds = response_data["results"]
                 build_ids = [x["build_0_id"] for x in builds]
                 return sorted(build_ids)
 
