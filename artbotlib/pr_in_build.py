@@ -36,6 +36,7 @@ class PrInfo:
         self.merge_commit = None
         self.distgit = None
         self.imagestream_tag = None
+        self.commits = None
 
     def get_distgit(self):
         try:
@@ -205,6 +206,53 @@ class PrInfo:
         self.logger.debug('Found merge commit SHA: %s', sha)
         return sha
 
+    def get_builds_from_db(self, commit, task_state):
+        """
+        Function to find the build using commit, from API, which queries the database.
+        """
+        params = {
+            "group": f"openshift-{self.version}",
+            "label_io_openshift_build_commit_id": commit,
+            "brew_task_state": task_state
+        }
+        url = f"{API}/builds/"
+        response = requests.get(url, params=params)
+        return response.json()
+
+    def build_from_commit(self, task_state):
+        """
+        Function to get all the build ids associated with a list of commits
+        """
+        for commit in self.commits:
+            response = self.get_builds_from_db(commit, task_state)
+            if response["count"] > 0:
+                builds = response["results"]
+                build_ids = [x["build_0_id"] for x in builds]
+                return sorted(build_ids)
+
+    def find_builds(self):
+        """
+        Find successful or failed builds for the PR/merge commit. If none, report back to the user that the build
+        hasn't started yet.
+        """
+        successful_builds = self.build_from_commit("success")
+        if successful_builds:
+            self.logger.info("Found successful builds for given PR")
+            first_success = successful_builds[0]
+            self.so.say(
+                f"First successful build: <https://brewweb.engineering.redhat.com/brew/buildinfo?buildID={first_success}|{first_success}>. All consecutive builds will include this PR.")
+        else:
+            self.logger.info("No successful builds found given PR")
+            failed_builds = self.build_from_commit("failure")
+            if failed_builds:
+                first_failure = failed_builds[0]
+                self.logger.info(f"First failed build: {first_failure}")
+                self.so.say(
+                    f"No successful build found. First failed build: <https://brewweb.engineering.redhat.com/brew/buildinfo?buildID={first_failure}|{first_failure}>")
+            else:
+                self.logger.info(f"No builds have run yet.")
+                self.so.say("No builds have started yet for the PR. Check again later.")
+
     async def check_nightly_or_releases(self, releases: Iterable) -> str:
         """
         Check if the PR has made it into a nightly or release.
@@ -212,9 +260,6 @@ class PrInfo:
         """
 
         self.logger.info(f'Searching for {self.pr_url} into nightlies/releases...')
-
-        commits = self.get_commits_after(self.merge_commit)
-        self.logger.debug(f'Found commits after {self.merge_commit}: {commits}')
 
         earliest = None
         for release in releases:
@@ -229,7 +274,7 @@ class PrInfo:
             labels = json.loads(stdout)['config']['config']['Labels']
             commit_id = labels['io.openshift.build.commit.id']
 
-            if commit_id in commits:
+            if commit_id in self.commits:
                 self.logger.info(f'PR {self.pr_url} has been included in release {release["name"]}')
                 earliest = release
             else:
@@ -259,6 +304,12 @@ class PrInfo:
 
         # Get merge commit associated to the PPR
         self.merge_commit = self.pr_merge_commit()
+        # Get the commits that we need to check
+        self.commits = self.get_commits_after(self.merge_commit)
+        self.logger.debug(f'Found commits after {self.merge_commit}: {self.commits}')
+
+        # Check if a build is associated for the merge commit
+        self.find_builds()
 
         # Check into nightlies and releases
         self.imagestream_tag = self.get_imagestream_tag()
