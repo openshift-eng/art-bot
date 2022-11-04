@@ -1,5 +1,6 @@
 import pprint
 import traceback
+import os
 
 
 class SlackOutput:
@@ -14,18 +15,24 @@ class SlackOutput:
         self.said_something = False
 
     def say(self, text, **msg_opts):
-        print(f"Responding back through: {self.target_channel_id}")
-        self.said_something = True
-        msg = dict(
-            channel=self.target_channel_id,
-            text=text,
-            thread_ts=self.thread_ts,
-            **self.username_opts,
-        )
-        msg.update(msg_opts)
-        response = self.web_client.chat_postMessage(**msg)
-        print(f"response ok: {response.get('ok')}\n")
-        pprint.pprint(f"ok: {response.get('message')}")
+        if os.environ.get("RUN_ENV") == 'production':
+            print(f"Responding back through: {self.target_channel_id}")
+            self.said_something = True
+            msg = dict(
+                channel=self.target_channel_id,
+                text=text,
+                thread_ts=self.thread_ts,
+                **self.username_opts,
+            )
+            msg.update(msg_opts)
+            response = self.web_client.chat_postMessage(**msg)
+            print(f"response ok: {response.get('ok')}\n")
+            pprint.pprint(f"ok: {response.get('message')}")
+        else:
+            print("so.say:")
+            print("---")
+            print(text)
+            print("---")
 
     def snippet(self, payload, intro=None, filename=None, filetype=None):
         self.said_something = True
@@ -43,19 +50,25 @@ class SlackOutput:
         pprint.pprint(r)
 
     def monitoring_say(self, text, **msg_opts):
-        if not self.monitoring_channel_id:
-            return
-        try:
-            msg = dict(
-                channel=self.monitoring_channel_id,
-                text=text,
-                **self.username_opts,
-            )
-            msg.update(msg_opts)
-            self.web_client.chat_postMessage(**msg)
-        except:
-            print("Error sending information to monitoring channel")
-            traceback.print_exc()
+        if os.environ.get("RUN_ENV") == 'production':
+            if not self.monitoring_channel_id:
+                return
+            try:
+                msg = dict(
+                    channel=self.monitoring_channel_id,
+                    text=text,
+                    **self.username_opts,
+                )
+                msg.update(msg_opts)
+                self.web_client.chat_postMessage(**msg)
+            except Exception:
+                print("Error sending information to monitoring channel")
+                traceback.print_exc()
+        else:
+            print("so.monitoring_say:")
+            print("---")
+            print(text)
+            print("---")
 
     def monitoring_snippet(self, payload, intro=None, filename=None, filetype=None):
         if not self.monitoring_channel_id:
@@ -76,7 +89,9 @@ class SlackOutput:
             traceback.print_exc()
 
     def from_user_mention(self):
-        return f"<@{self.from_user_id()}>"
+        if os.environ.get("RUN_ENV") == 'production':
+            return f"<@{self.from_user_id()}>"
+        return "@developer"
 
     def from_user_id(self):
         return self.event.get("user", None)
