@@ -15,8 +15,9 @@ import random
 
 import umb
 from artbotlib.buildinfo import buildinfo_for_release, kernel_info, alert_on_build_complete
+from artbotlib.pr_in_build import pr_info
 from artbotlib.translation import translate_names
-from artbotlib.util import lookup_channel
+from artbotlib.util import lookup_channel, log_config
 from artbotlib.formatting import extract_plain_text, repeat_in_chunks
 from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list, elliott
@@ -57,6 +58,7 @@ _*ART build info:*_
 * What rpms were used in the latest image builds for `major.minor`?
 * What rpms are in image `image-nvr`?
 * Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
+* pr info `GitHub PR URL` [component `name`] in `major.minor` [for `arch`]
 
 _*misc:*_
 * How can I get ART to build a new image?
@@ -246,6 +248,11 @@ def respond(client: RTMClient, event: dict):
                 'function': alert_on_build_complete,
                 'user_id': True
             },
+            {
+                'regex': r'^pr info \s*(https://)*(github.com/)*(openshift/)*(?P<repo>[a-zA-Z0-9-]+)(/pull/)(?P<pr_id>\d+)(?: component (?P<component>[a-zA-Z0-9-]+))? in %(major_minor)s(?: for arch (?P<arch>[a-zA-Z0-9-]+))?$' % re_snippets,
+                'flag': re.I,
+                'function': pr_info
+            },
 
             # ART advisory info:
             {
@@ -377,8 +384,9 @@ def consumer_thread(client_id, topic, callback_handler, consumer, durable, user_
         traceback.print_exc()
 
 
+@click.option('--debug', default=False, is_flag=True, help='Show debug output on console.')
 @click.command()
-def run():
+def run(debug):
     
     try:
         config_file = os.environ.get("ART_BOT_SETTINGS_YAML", f"{os.environ['HOME']}/.config/art-bot/settings.yaml")
@@ -402,7 +410,7 @@ def run():
         print(f"Error: {exc}\nYou must provide a slack API token in your config. You can find this in bitwarden.")
         exit(1)
 
-    logging.basicConfig()
+    log_config(debug)
     logging.getLogger('activemq').setLevel(logging.DEBUG)
 
     rtm_client = RTMClient(token=bot_config['slack_api_token'])

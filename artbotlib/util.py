@@ -14,7 +14,7 @@ import time
 from artbotlib.kerberos import do_kinit
 import functools
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def please_notify_art_team_of_error(so, payload):
@@ -77,7 +77,7 @@ async def cmd_gather_async(cmd: Union[List[str], str], check: bool = True, **kwa
     :return: rc,stdout,stderr
     """
 
-    print(f'Running async command: {cmd}')
+    logger.info(f'Running async command: {cmd}')
 
     if isinstance(cmd, str):
         cmd_list = shlex.split(cmd)
@@ -257,3 +257,13 @@ def refresh_krb_auth(func):
         func_ret = func(*args, **kwargs)
         return func_ret
     return wrapper
+
+
+def log_config(debug: bool = False):
+    default_formatter = logging.Formatter('%(name)s %(asctime)s %(levelname)s %(message)s')
+    default_handler = logging.StreamHandler()
+    default_handler.setFormatter(default_formatter)
+    logging.basicConfig(
+        handlers=[default_handler],
+        level=logging.DEBUG if debug else logging.INFO
+    )
