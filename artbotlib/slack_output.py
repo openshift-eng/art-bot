@@ -15,7 +15,7 @@ class SlackOutput:
         self.said_something = False
 
     def say(self, text, **msg_opts):
-        if os.environ.get("RUN_ENV") == 'production':
+        if os.environ.get("RUN_ENV") == "production":
             print(f"Responding back through: {self.target_channel_id}")
             self.said_something = True
             msg = dict(
@@ -50,7 +50,7 @@ class SlackOutput:
         pprint.pprint(r)
 
     def monitoring_say(self, text, **msg_opts):
-        if os.environ.get("RUN_ENV") == 'production':
+        if os.environ.get("RUN_ENV") == "production":
             if not self.monitoring_channel_id:
                 return
             try:
@@ -89,7 +89,7 @@ class SlackOutput:
             traceback.print_exc()
 
     def from_user_mention(self):
-        if os.environ.get("RUN_ENV") == 'production':
+        if os.environ.get("RUN_ENV") == "production":
             return f"<@{self.from_user_id()}>"
         return "@developer"
 
