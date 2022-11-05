@@ -6,7 +6,7 @@ def do_kinit():
     Function performs kinit with the already mounted keytab
     :return: None
     """
-    if os.environ.get("RUN_ENV") == 'production':
+    if os.environ.get("RUN_ENV") == "production":
         keytab_file = "/tmp/keytab/keytab"
         kinit_request = subprocess.Popen(["kinit", "-kt", keytab_file, "ocp-build/buildvm.openshift.eng.bos.redhat.com@IPA.REDHAT.COM"],
                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)

@@ -243,7 +243,7 @@ def map_command_to_regex(so, plain_text, user_id):
                 r["function"](so, user_id, **m.groupdict())
             else:
                 r["function"](so, **m.groupdict())
-    if os.environ.get("RUN_ENV") == "production" and not matched_regex:
+    if os.environ.get("RUN_ENV") != "production" and not matched_regex:
         print(f"'{plain_text}' did not match any regexes.\n")
 
 def respond(client: RTMClient, event: dict):
