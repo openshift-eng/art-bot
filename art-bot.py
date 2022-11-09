@@ -18,7 +18,7 @@ from artbotlib.buildinfo import buildinfo_for_release, kernel_info, alert_on_bui
 from artbotlib.translation import translate_names
 from artbotlib.util import lookup_channel
 from artbotlib.formatting import extract_plain_text, repeat_in_chunks
-from artbotlib.slack_output import SlackOutput
+from artbotlib.slack_output import SlackOutput, SlackDeveloperOutput
 from artbotlib import brew_list, elliott
 from artbotlib.pipeline_image_names import pipeline_from_distgit, pipeline_from_github, pipeline_from_brew, \
     pipeline_from_cdn, pipeline_from_delivery
@@ -441,23 +441,14 @@ def run():
 
 
 if __name__ == "__main__":
-    if os.environ.get("RUN_ENV") == "production":
-        run()
-    else:
-        so = SlackOutput(
-            web_client=None,
-            event=None,
-            target_channel_id=None,
-            monitoring_channel_id=None,
-            thread_ts=None,
-            alt_username=None,
-        )
+    if os.environ.get("RUN_ENV") != "production":
+        so = SlackDeveloperOutput()
         print("Welcome to the developer interface for Art-Bot.\n")
-
         while True:
             command = input("Enter your command ('exit' to break): ")
             if command.lower() == "exit":
                 print("Exiting...")
                 break
-
             map_command_to_regex(so, command, None)
+    else:
+        run()
