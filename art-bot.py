@@ -441,7 +441,9 @@ def run():
 
 
 if __name__ == "__main__":
-    if os.environ.get("RUN_ENV") != "production":
+    if os.environ.get("RUN_ENV") == "production":
+        run()
+    else:
         so = SlackDeveloperOutput()
         print("Welcome to the developer interface for Art-Bot.\n")
         while True:
@@ -450,5 +452,3 @@ if __name__ == "__main__":
                 print("Exiting...")
                 break
             map_command_to_regex(so, command, None)
-    else:
-        run()
