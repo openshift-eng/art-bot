@@ -18,7 +18,7 @@ from artbotlib.buildinfo import buildinfo_for_release, kernel_info, alert_on_bui
 from artbotlib.translation import translate_names
 from artbotlib.util import lookup_channel
 from artbotlib.formatting import extract_plain_text, repeat_in_chunks
-from artbotlib.slack_output import SlackOutput, SlackDeveloperOutput
+from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list, elliott
 from artbotlib.pipeline_image_names import pipeline_from_distgit, pipeline_from_github, pipeline_from_brew, \
     pipeline_from_cdn, pipeline_from_delivery
