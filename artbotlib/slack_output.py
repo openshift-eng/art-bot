@@ -28,7 +28,6 @@ class SlackOutput:
         print(f"response ok: {response.get('ok')}\n")
         pprint.pprint(f"ok: {response.get('message')}")
 
-
     def snippet(self, payload, intro=None, filename=None, filetype=None):
         self.said_something = True
         print(f"Called with payload: {payload}")
@@ -58,7 +57,6 @@ class SlackOutput:
         except Exception:
             print("Error sending information to monitoring channel")
             traceback.print_exc()
-
 
     def monitoring_snippet(self, payload, intro=None, filename=None, filetype=None):
         if not self.monitoring_channel_id:
@@ -93,6 +91,7 @@ def print_payload(text):
     print(text)
     print("---")
 
+
 def print_snippet_payload(payload, intro, filename, filetype):
     print("---")
     print("payload:")
@@ -110,12 +109,13 @@ def print_snippet_payload(payload, intro, filename, filetype):
 
 
 class SlackDeveloperOutput(SlackOutput):
-    def __init__(self, web_client=None, event=None, target_channel_id=None, monitoring_channel_id=None, thread_ts=None, alt_username=None):
+    def __init__(self, web_client=None, event=None, target_channel_id=None, monitoring_channel_id=None, thread_ts=None,
+                 alt_username=None):
         super().__init__(web_client, event, target_channel_id, monitoring_channel_id, thread_ts, alt_username)
+
     def say(self, text, **msg_opts):
         print("so.say:")
         print_payload(text)
-
 
     def monitoring_say(self, text, **msg_opts):
         print("so.monitoring_say:")
