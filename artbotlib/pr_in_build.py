@@ -10,6 +10,7 @@ import requests
 
 from artbotlib import util, pipeline_image_util
 from artbotlib.exceptions import NullDataReturned
+from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT
 
 API = f"{os.environ['ART_DASH_SERVER_ROUTE']}/api/v1"
 RELEASESTREAM_ENDPOINT_TEMPLATE = Template('https://${arch}.ocp.releases.ci.openshift.org/api/v1/releasestream')
@@ -155,7 +156,7 @@ class PrInfo:
         }
         """
 
-        url = f'https://api.github.com/repos/openshift/{self.repo_name}/branches'
+        url = f'{GITHUB_API_OPENSHIFT}/{self.repo_name}/branches'
         response = requests.get(url)
         if response.status_code != 200:
             msg = f'Request to {url} returned with status code {response.status_code}'
@@ -178,7 +179,7 @@ class PrInfo:
         Return the timestamp associated with a commit: e.g. "2022-10-21T19:48:29Z"
         """
 
-        response = requests.get(f"https://api.github.com/repos/openshift/{self.repo_name}/commits/{commit}")
+        response = requests.get(f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits/{commit}")
         return response.json()['commit']['committer']['date']
 
     def get_commits_after(self, commit) -> list:
@@ -189,7 +190,7 @@ class PrInfo:
         branch_ref = self.get_branch_ref()
         datetime = self.get_commit_time(commit)
         response = requests.get(
-            f"https://api.github.com/repos/openshift/{self.repo_name}/commits?sha={branch_ref}&since={datetime}")
+            f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits?sha={branch_ref}&since={datetime}")
 
         result = []
         for data in response.json():
@@ -201,7 +202,7 @@ class PrInfo:
         Return the merge commit SHA associated with a PR
         """
 
-        response = requests.get(f"https://api.github.com/repos/openshift/{self.repo_name}/pulls/{self.pr_id}")
+        response = requests.get(f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/pulls/{self.pr_id}")
         sha = response.json().get("merge_commit_sha")
         self.logger.debug('Found merge commit SHA: %s', sha)
         return sha
@@ -236,23 +237,25 @@ class PrInfo:
         Find successful or failed builds for the PR/merge commit. If none, report back to the user that the build
         hasn't started yet.
         """
-        successful_builds = self.build_from_commit("success")
+        successful_builds = self.build_from_commit(BREW_TASK_STATES["Success"])
         if successful_builds:
             self.logger.info("Found successful builds for given PR")
             first_success = successful_builds[0]
             self.so.say(
-                f"First successful build: <https://brewweb.engineering.redhat.com/brew/buildinfo?buildID={first_success}|{first_success}>. All consecutive builds will include this PR.")
-        else:
-            self.logger.info("No successful builds found given PR")
-            failed_builds = self.build_from_commit("failure")
-            if failed_builds:
-                first_failure = failed_builds[0]
-                self.logger.info(f"First failed build: {first_failure}")
-                self.so.say(
-                    f"No successful build found. First failed build: <https://brewweb.engineering.redhat.com/brew/buildinfo?buildID={first_failure}|{first_failure}>")
-            else:
-                self.logger.info(f"No builds have run yet.")
-                self.so.say("No builds have started yet for the PR. Check again later.")
+                f"First successful build: <{BREW_URL}/buildinfo?buildID={first_success}|{first_success}>. All consecutive builds will include this PR.")
+            return
+
+        self.logger.info("No successful builds found given PR")
+        failed_builds = self.build_from_commit(BREW_TASK_STATES["Failure"])
+        if failed_builds:
+            first_failure = failed_builds[0]
+            self.logger.info(f"First failed build: {first_failure}")
+            self.so.say(
+                f"No successful build found. First failed build: <{BREW_URL}/buildinfo?buildID={first_failure}|{first_failure}>")
+            return
+
+        self.logger.info(f"No builds have run yet.")
+        self.so.say("No builds have started yet for the PR. Check again later.")
 
     async def check_nightly_or_releases(self, releases: Iterable) -> str:
         """
@@ -319,7 +322,6 @@ class PrInfo:
                 asyncio.ensure_future(self.check_nightly_or_releases(self.get_nightlies())),
                 asyncio.ensure_future(self.check_nightly_or_releases(self.get_releases()))
             ]
-
             try:
                 earliest_nightly, earliest_release = await asyncio.gather(*tasks, return_exceptions=False)
             except Exception as e:
