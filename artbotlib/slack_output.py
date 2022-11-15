@@ -1,5 +1,6 @@
 import pprint
 import traceback
+import os
 
 
 class SlackOutput:
@@ -53,7 +54,7 @@ class SlackOutput:
             )
             msg.update(msg_opts)
             self.web_client.chat_postMessage(**msg)
-        except:
+        except Exception:
             print("Error sending information to monitoring channel")
             traceback.print_exc()
 
@@ -83,3 +84,56 @@ class SlackOutput:
 
     def from_channel(self):
         return self.event.get("channel", None)
+
+
+def print_payload(text):
+    print("---")
+    print(text)
+    print("---")
+
+
+def print_snippet_payload(payload, intro, filename, filetype):
+    print("---")
+    print("payload:")
+    print(payload)
+    if intro:
+        print("intro:")
+        print(intro)
+    if filename:
+        print("filename:")
+        print(filetype)
+    if filetype:
+        print("filetype:")
+        print(filetype)
+    print("---")
+
+
+class SlackDeveloperOutput(SlackOutput):
+    def __init__(self, web_client=None, event=None, target_channel_id=None, monitoring_channel_id=None, thread_ts=None,
+                 alt_username=None):
+        super().__init__(web_client, event, target_channel_id, monitoring_channel_id, thread_ts, alt_username)
+
+    def say(self, text, **msg_opts):
+        print("so.say:")
+        print_payload(text)
+
+    def monitoring_say(self, text, **msg_opts):
+        print("so.monitoring_say:")
+        print_payload(text)
+
+    def snippet(self, payload, intro=None, filename=None, filetype=None):
+        print("so.snippet:")
+        print_snippet_payload(payload, intro, filename, filetype)
+
+    def monitoring_snippet(self, payload, intro=None, filename=None, filetype=None):
+        print("so.monitoring_snippet:")
+        print_snippet_payload(payload, intro, filename, filetype)
+
+    def from_user_mention(self):
+        return "@developer"
+
+    def from_user_id(self):
+        return "@developer"
+
+    def from_channel(self):
+        return "developer_channel"
