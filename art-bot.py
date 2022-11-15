@@ -357,7 +357,7 @@ def run():
         print(f"Error: {exc}\nYou must provide a slack APP token in your config. You can find this in bitwarden.")
         exit(1)
 
-    handler = SocketModeHandler(app, bot_config["slack_app_token"])
+    handler = SocketModeHandler(app, bot_config["slack_app_token_file"])
     handler.start()
 
 
