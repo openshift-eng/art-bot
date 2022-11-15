@@ -11,7 +11,7 @@ class SlackOutput:
         self.target_channel_id = target_channel_id
         self.monitoring_channel_id = monitoring_channel_id
         self.thread_ts = thread_ts
-        self.username_opts = dict(as_user=False, username=alt_username, icon_emoji=":hammer_and_wrench:") if alt_username else dict()
+        self.username_opts = dict(username=alt_username, icon_emoji=":hammer_and_wrench:") if alt_username else dict()
         self.said_something = False
 
     def say(self, text, **msg_opts):

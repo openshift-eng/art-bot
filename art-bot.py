@@ -10,26 +10,52 @@ import logging
 import yaml
 from multiprocessing.pool import ThreadPool
 import traceback
-import threading
 import random
-
-import umb
 from artbotlib.buildinfo import buildinfo_for_release, kernel_info, alert_on_build_complete
 from artbotlib.translation import translate_names
 from artbotlib.util import lookup_channel
-from artbotlib.formatting import extract_plain_text, repeat_in_chunks
+from artbotlib.formatting import extract_plain_text
 from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list, elliott
 from artbotlib.pipeline_image_names import pipeline_from_distgit, pipeline_from_github, pipeline_from_brew, \
     pipeline_from_cdn, pipeline_from_delivery
 from artbotlib.nightly_color import nightly_color_status
+from slack_bolt.adapter.socket_mode import SocketModeHandler
+from slack_bolt import App
 
 logger = logging.getLogger()
 
+bot_config = {}
 
-# Do we have something that is not grade A?
-# What will the grades be by <date>
-# listen to the UMB and publish events to slack #release-x.y
+
+def abs_path_home(filename):
+    # if not absolute, relative to home dir
+    return filename if filename.startswith("/") else f"{os.environ['HOME']}/{filename}"
+
+
+config_file = None
+try:
+    config_file = os.environ.get("ART_BOT_SETTINGS_YAML", f"{os.environ['HOME']}/.config/art-bot/settings.yaml")
+    with open(config_file, 'r') as stream:
+        bot_config.update(yaml.safe_load(stream))
+
+    with open(abs_path_home(bot_config["slack_api_token_file"]), "r") as stream:
+        bot_config["slack_api_token"] = stream.read().strip()
+except yaml.YAMLError as e:
+    print(f"Error reading yaml in file {config_file}: {e}")
+    exit(1)
+except KeyError as e:
+    print(f"Error: {e}\nYou must provide a slack API token in your config. You can find this in bitwarden.")
+    exit(1)
+except Exception as e:
+    print(f"Error loading art-bot config file {config_file}: {e}")
+    exit(1)
+
+# Since 'slack_api_token' is needed and @app.event is a header,
+# we're loading the settings.yml file outside a function
+app = App(token=bot_config["slack_api_token"])
+
+pool = ThreadPool(20)
 
 
 def greet_user(so):
@@ -65,15 +91,12 @@ _*misc:*_
 
 
 def show_how_to_add_a_new_image(so):
-    so.say('You can find documentation for that process here: https://mojo.redhat.com/docs/DOC-1179058#jive_content_id_Getting_Started')
+    so.say(
+        'You can find documentation for that process here: https://mojo.redhat.com/docs/DOC-1179058#jive_content_id_Getting_Started')
 
 
-bot_config = {}
-
-
-def on_load(client: RTMClient, event: dict):
-    pprint.pprint(event)
-    web_client = client.web_client
+def handle_message(client, event):
+    web_client = client
     r = web_client.auth_test()
     try:
         bot_config["self"] = {"id": r.data["user_id"], "name": r.data["user"]}
@@ -95,15 +118,10 @@ def on_load(client: RTMClient, event: dict):
 
         bot_config.setdefault("username", bot_config["self"]["name"])
 
-    except Exception as exc:
-        print(f"Error with the contents of your settings file:\n{exc}")
+    except Exception as e:
+        print(f"Error with the contents of your settings file:\n{e}")
         exit(1)
 
-
-pool = ThreadPool(20)
-
-
-def incoming_message(client: RTMClient, event: dict):
     pool.apply_async(respond, (client, event))
 
 
@@ -246,17 +264,14 @@ def map_command_to_regex(so, plain_text, user_id):
     if os.environ.get("RUN_ENV") != "production" and not matched_regex:
         print(f"'{plain_text}' did not match any regexes.\n")
 
-def respond(client: RTMClient, event: dict):
+
+def respond(client, event):
     try:
         data = event
-        web_client = client.web_client
+        web_client = client
 
         print('\n----------------- DATA -----------------\n')
         pprint.pprint(data)
-
-        if 'user' not in data:
-            # This message was not from a user; probably the bot hearing itself or another bot
-            return
 
         # Channel we were contacted from.
         from_channel = data['channel']
@@ -278,31 +293,18 @@ def respond(client: RTMClient, event: dict):
             # in these channels we allow the bot to respond directly instead of DM'ing user back
             target_channel_id = from_channel
 
-        # If we changing channels, we cannot target the initial message to create a thread
+        # If we're changing channels, we cannot target the initial message to create a thread
         if target_channel_id != from_channel:
             thread_ts = None
 
         alt_username = None
-        am_i_DMed = from_channel == direct_message_channel_id
         if bot_config["self"]["name"] != bot_config["username"]:
             alt_username = bot_config["username"]
-            # alternate user must be mentioned specifically, even in a DM, else msg is left to default bot user to handle
-            am_i_mentioned = f'@{bot_config["username"]}' in data['text']
-            am_i_DMed = am_i_DMed and am_i_mentioned
-            plain_text = extract_plain_text({"data": data}, alt_username)
-        else:
-            am_i_mentioned = f'<@{bot_config["self"]["id"]}>' in data['text']
-            plain_text = extract_plain_text({"data": data})
-            if plain_text.startswith("@"):
-                return  # assume it's for an alternate name
 
-        print(f'Gating {from_channel} {am_i_DMed} {am_i_mentioned}')
+        plain_text = extract_plain_text({"data": data}, alt_username)
 
+        print(f'Gating {from_channel}')
         print(f'Query was: {plain_text}')
-
-        # We only want to respond if in a DM channel or we are mentioned specifically in another channel
-        if not am_i_DMed and not am_i_mentioned:
-            return
 
         so = SlackOutput(
             web_client=web_client,
@@ -327,117 +329,36 @@ def respond(client: RTMClient, event: dict):
         raise
 
 
-def consumer_start(topic, callback_handler, durable=False, user_data=None):
-    """
-    Create a consumer for a topic on the UMB.
-    :param topic: The name of the topic (e.g. eng.clair.scan). The VirtualTopic name will be constructed for you.
-    :param callback_handler: The method to invoke when a message is received. The method should accept
-                                (message, user_data)  and return True when the consumer thread should terminate.
-                                If False is returned, the callback will continue to be invoked as messages arrive.
-    :param durable: Whether the subscription should be durable
-    :param user_data: Anything you want passed to the callback when a message is delivered
-    :return: The Thread created to run the consumer.
-    """
-    config = bot_config["umb"]
-    consumer = umb.get_consumer(
-        env=config["env"],
-        client_cert_path=config["client_cert_file"],
-        client_key_path=config["client_key_file"],
-        ca_chain_path=config["ca_certs_file"],
-    )
-    t = threading.Thread(target=consumer_thread, args=(bot_config["umb"]["client_id"], topic, callback_handler, consumer, durable, user_data))
-    t.start()
-    return t
+# The function is called when art-bot is directly mentioned. Eg: '@art-bot hey'
+@app.event("app_mention")
+def incoming_message(client, event):
+    handle_message(client, event)
 
 
-def clair_consumer_callback(msg, user_data):
-    """
-    :param msg: The incoming message to handle
-    :param user_data: Any userdata provided to consumer.consume.
-    :return: Will always return False to indicate more messages should be processed
-    """
-    try:
-        print('annotations:')
-        pprint.pprint(msg.annotations)
-
-        print('properties:')
-        pprint.pprint(msg.properties)
-
-        print('body:')
-        pprint.pprint(msg.body)
-    except Exception:
-        logging.error('Error handling message')
-        traceback.print_exc()
-
-    return False  # Tell consumer to keep consuming messages
+# This function will be called when any message is sent to any of the channels that art-bot is added to.
+# The above function, incoming_message does not work for DMs. To handle that we have to use the event 'message'
+# There is a field in event called channel_type. So we check to see if it's an 'im', which is a direct message
+# and ignore the rest. https://api.slack.com/events/message.im
+@app.event("message")
+def incoming_dm(client, event):
+    if event.get("channel_type") == "im":
+        handle_message(client, event)
 
 
-def consumer_thread(client_id, topic, callback_handler, consumer, durable, user_data):
-    try:
-        topic_clair_scan = f'Consumer.{client_id}.art-bot.VirtualTopic.{topic}'
-        if durable:
-            subscription_name = topic
-        else:
-            subscription_name = None
-        consumer.consume(topic_clair_scan, callback_handler, subscription_name=subscription_name, data=user_data)
-    except Exception:
-        traceback.print_exc()
-
-
-@click.command()
 def run():
-    try:
-        config_file = os.environ.get("ART_BOT_SETTINGS_YAML", f"{os.environ['HOME']}/.config/art-bot/settings.yaml")
-        with open(config_file, 'r') as stream:
-            bot_config.update(yaml.safe_load(stream))
-    except yaml.YAMLError as exc:
-        print(f"Error reading yaml in file {config_file}: {exc}")
-        exit(1)
-    except Exception as exc:
-        print(f"Error loading art-bot config file {config_file}: {exc}")
-        exit(1)
-
-    def abs_path_home(filename):
-        # if not absolute, relative to home dir
-        return filename if filename.startswith("/") else f"{os.environ['HOME']}/{filename}"
-
-    try:
-        with open(abs_path_home(bot_config["slack_api_token_file"]), "r") as stream:
-            bot_config["slack_api_token"] = stream.read().strip()
-    except Exception as exc:
-        print(f"Error: {exc}\nYou must provide a slack API token in your config. You can find this in bitwarden.")
-        exit(1)
-
     logging.basicConfig()
     logging.getLogger('activemq').setLevel(logging.DEBUG)
 
-    rtm_client = RTMClient(token=bot_config['slack_api_token'])
-    rtm_client.on("hello")(on_load)
-    rtm_client.on("message")(incoming_message)
+    # Get the Slack app token to start a socket connection
+    try:
+        with open(abs_path_home(bot_config["slack_app_token_file"]), "r") as stream:
+            bot_config["slack_app_token"] = stream.read().strip()
+    except Exception as exc:
+        print(f"Error: {exc}\nYou must provide a slack APP token in your config. You can find this in bitwarden.")
+        exit(1)
 
-    if "umb" in bot_config:
-        # umb listener setup is optional
-
-        bot_config["umb"].setdefault("env", "stage")
-        bot_config["umb"].setdefault("ca_certs_file", umb.DEFAULT_CA_CHAIN)
-        bot_config["umb"].setdefault("client_id", "openshift-art-bot-slack")
-        try:
-            if bot_config["umb"]["env"] not in ["dev", "stage", "prod"]:
-                raise Exception(f"invalid umb env specified: {bot_config['umb']['env']}")
-            for umbfile in ["client_cert_file", "client_key_file", "ca_certs_file"]:
-                if not bot_config["umb"].get(umbfile, None):
-                    raise Exception(f"config must specify a file for umb {umbfile}")
-                bot_config["umb"][umbfile] = abs_path_home(bot_config["umb"][umbfile])
-                if not os.path.isfile(bot_config["umb"][umbfile]):
-                    raise Exception(f"config specifies a file for umb {umbfile} that does not exist: {bot_config['umb'][umbfile]}")
-        except Exception as exc:
-            print(f"Error in umb configuration: {exc}")
-            exit(1)
-
-        clair_consumer = consumer_start('eng.clair.>', clair_consumer_callback)
-        clair_consumer.join()
-
-    rtm_client.start()
+    handler = SocketModeHandler(app, bot_config["slack_app_token"])
+    handler.start()
 
 
 if __name__ == "__main__":
