@@ -15,8 +15,9 @@ import random
 
 import umb
 from artbotlib.buildinfo import buildinfo_for_release, kernel_info, alert_on_build_complete
+from artbotlib.pr_in_build import pr_info
 from artbotlib.translation import translate_names
-from artbotlib.util import lookup_channel
+from artbotlib.util import lookup_channel, log_config
 from artbotlib.formatting import extract_plain_text, repeat_in_chunks
 from artbotlib.slack_output import SlackOutput
 from artbotlib import brew_list, elliott
@@ -316,6 +317,11 @@ def respond(client: RTMClient, event: dict):
         so.monitoring_say(f"<@{user_id}> asked: {plain_text}")
 
         map_command_to_regex(so, plain_text, user_id)
+            {
+                'regex': r'^pr info for \s*(https://)*(github.com/)*(openshift/)*(?P<repo>[a-zA-Z0-9-]+)*(/pull/)*(?P<pr_id>\d+) in %(major_minor)s(?: for (?P<arch>[a-zA-Z0-9-]+))?$' % re_snippets,
+                'flag': re.I,
+                'function': pr_info
+            },
 
         if not so.said_something:
             so.say("Sorry, I can't help with that yet. Ask 'help' to see what I can do.")
@@ -384,8 +390,9 @@ def consumer_thread(client_id, topic, callback_handler, consumer, durable, user_
         traceback.print_exc()
 
 
+@click.option('--debug', default=False, is_flag=True, help='Show debug output on console.')
 @click.command()
-def run():
+def run(debug):
     try:
         config_file = os.environ.get("ART_BOT_SETTINGS_YAML", f"{os.environ['HOME']}/.config/art-bot/settings.yaml")
         with open(config_file, 'r') as stream:
@@ -408,7 +415,7 @@ def run():
         print(f"Error: {exc}\nYou must provide a slack API token in your config. You can find this in bitwarden.")
         exit(1)
 
-    logging.basicConfig()
+    log_config(debug)
     logging.getLogger('activemq').setLevel(logging.DEBUG)
 
     rtm_client = RTMClient(token=bot_config['slack_api_token'])
