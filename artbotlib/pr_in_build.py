@@ -80,7 +80,7 @@ class PrInfo:
 
         imagestream_tag = pipeline_image_util.get_image_stream_tag(self.distgit, self.version)
         if not imagestream_tag:
-            self.so.say(f'Image for `{self.repo_name}` is not part of the payload: will not check into nightlies')
+            self.logger.warning('Image for %s is not part of the payload', self.repo_name)
         return imagestream_tag
 
     def get_nightlies(self) -> list:
