@@ -180,6 +180,11 @@ def map_command_to_regex(so, plain_text, user_id):
             "function": alert_on_build_complete,
             "user_id": True
         },
+        {
+            'regex': r'^pr info \s*(https://)*(github.com/)*(openshift/)*(?P<repo>[a-zA-Z0-9-]+)(/pull/)(?P<pr_id>\d+)(?: component (?P<component>[a-zA-Z0-9-]+))? in %(major_minor)s(?: for arch (?P<arch>[a-zA-Z0-9-]+))?$' % re_snippets,
+            'flag': re.I,
+            'function': pr_info
+        },
 
         # ART advisory info:
         {
@@ -318,11 +323,6 @@ def respond(client: RTMClient, event: dict):
         so.monitoring_say(f"<@{user_id}> asked: {plain_text}")
 
         map_command_to_regex(so, plain_text, user_id)
-            {
-                'regex': r'^pr info \s*(https://)*(github.com/)*(openshift/)*(?P<repo>[a-zA-Z0-9-]+)(/pull/)(?P<pr_id>\d+)(?: component (?P<component>[a-zA-Z0-9-]+))? in %(major_minor)s(?: for arch (?P<arch>[a-zA-Z0-9-]+))?$' % re_snippets,
-                'flag': re.I,
-                'function': pr_info
-            },
 
         if not so.said_something:
             so.say("Sorry, I can't help with that yet. Ask 'help' to see what I can do.")
