@@ -4,6 +4,10 @@ COLOR_MAPS = {
     'Accepted': 'Green',
     'Rejected': 'Red'
 }
+BREW_TASK_STATES = {
+    "Success": "success",
+    "Failure": "failure"
+}
 
 TWELVE_HOURS = 60 * 60 * 12
 
@@ -16,3 +20,5 @@ CGIT_URL = 'https://pkgs.devel.redhat.com/cgit'
 COMET_URL = 'https://comet.engineering.redhat.com/containers/repositories'
 
 ERRATA_TOOL_URL = 'https://errata.devel.redhat.com'
+
+GITHUB_API_OPENSHIFT = "https://api.github.com/repos/openshift"
