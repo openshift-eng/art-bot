@@ -11,6 +11,15 @@ friendly_channels:
 - team-art
 - aos-art
 - forum-release
+- art-release
+- art-release-3-11
+- art-release-4-7
+- art-release-4-8
+- art-release-4-9
+- art-release-4-10
+- art-release-4-11
+- art-release-4-12
+- art-release-4-13
 
 # files are relative to $HOME if not absolute.
 # you'll need to look these up in vault and create the files locally.
