@@ -233,7 +233,7 @@ def test_cdn_to_github():
 Upstream GitHub repository: <https://github.com/openshift/oc|*openshift/oc*>
 Private GitHub repository: <https://github.com/openshift-priv/oc|*openshift-priv/oc*>
 Production dist-git repo: <{constants.CGIT_URL}/containers/openshift-enterprise-cli-alt|*openshift-enterprise-cli-alt*>
-Payload tag: *cli-alt* 
+Payload tag: *cli-alt*
 """
     assert actual == expected
 

@@ -490,7 +490,7 @@ def get_delivery_repo_id(name: str) -> str:
     response = request_with_kerberos(url)
 
     if response.status_code == 404:
-        raise exceptions.DeliveryRepoUrlNotFound(f"Couldn't find delivery repo link on Pyxis")
+        raise exceptions.DeliveryRepoUrlNotFound("Couldn't find delivery repo link on Pyxis")
 
     try:
         repo_id = response.json()['data'][0]['_id']

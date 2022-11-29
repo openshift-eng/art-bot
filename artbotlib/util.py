@@ -201,7 +201,7 @@ def cmd_assert(so, cmd, set_env=None, cwd=None, realtime=False):
     :return:
     """
 
-    error_id = f'{so.from_user_id()}.{int(time.time()*1000)}'
+    error_id = f'{so.from_user_id()}.{int(time.time() * 1000)}'
 
     def send_cmd_error(rc, stdout, stderr):
         intro = f'Error running command (for user={so.from_user_mention()} error-id={error_id}): {cmd}'
@@ -213,7 +213,7 @@ def cmd_assert(so, cmd, set_env=None, cwd=None, realtime=False):
     except subprocess.CalledProcessError as exec:
         send_cmd_error(exec.returncode, exec.stdout, exec.stderr)
         raise
-    except:
+    except Exception:
         send_cmd_error(-1000, '', traceback.format_exc())
         raise
 
@@ -234,19 +234,28 @@ def koji_client_session():
 
 LOCK = RLock()
 CACHE = cachetools.LRUCache(maxsize=2000)
+
+
 def cached(func):
     """decorator to memoize functions"""
+
     @cachetools.cached(CACHE, lock=LOCK)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
+
     return wrapper
 
+
 CACHE_TTL = cachetools.TTLCache(maxsize=100, ttl=3600)  # expire after an hour
+
+
 def cached_ttl(func):
     """decorator to memoize functions"""
+
     @cachetools.cached(CACHE_TTL, lock=LOCK)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -256,6 +265,7 @@ def refresh_krb_auth(func):
         do_kinit()
         func_ret = func(*args, **kwargs)
         return func_ret
+
     return wrapper
 
 
