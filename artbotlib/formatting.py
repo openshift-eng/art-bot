@@ -71,18 +71,19 @@ def repeat_in_chunks(so: SlackOutput, name=None):
         channel_id = channel["id"]
 
         # make sure the user is also a member of the conversation
-        members_function = lambda c: so.web_client.conversations_members(channel=channel_id, cursor=c)
+        def members_function(c):
+            return so.web_client.conversations_members(channel=channel_id, cursor=c)
+
         if so.from_user_id() not in util.paginator(members_function, "members"):
             so.say(f"You must be a member of channel {name} to have me speak there.")
             return
 
-
     so.say(f"Sending that to {name}.")
     opts = dict(
-            channel=channel_id,
-            thread_ts=None,
-            unfurl_links=False,
-            unfurl_media=False,
+        channel=channel_id,
+        thread_ts=None,
+        unfurl_links=False,
+        unfurl_media=False,
     )
     so.say(f"{so.from_user_mention()} asked me to say:", **opts)
     # send one message per chunk to conversation.

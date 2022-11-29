@@ -72,7 +72,7 @@ class SlackOutput:
             )
             print("Response: ")
             pprint.pprint(r)
-        except:
+        except Exception:
             print("Error sending snippet to monitoring channel")
             traceback.print_exc()
 

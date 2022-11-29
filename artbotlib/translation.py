@@ -8,7 +8,7 @@ def translate_names(so, name_type, name, name_type2, major=None, minor=None):
     if name_type2 not in ["brew-image", "brew-component"]:
         so.say(f"Sorry, don't know how to translate to a {name_type2} yet.")
         return
-    
+
     query_name = {
         "brew-image": "image_name",
         "brew-component": "component",
@@ -20,4 +20,3 @@ def translate_names(so, name_type, name, name_type2, major=None, minor=None):
         so.say(f"Sorry, there is no image dist-git {name} in version {major_minor}.")
     else:
         so.say(f"Image dist-git {name} has {name_type2} '{stdout.strip()}' in version {major_minor}.")
-

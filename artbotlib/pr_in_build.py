@@ -254,7 +254,7 @@ class PrInfo:
                 f"No successful build found. First failed build: <{BREW_URL}/buildinfo?buildID={first_failure}|{first_failure}>")
             return
 
-        self.logger.info(f"No builds have run yet.")
+        self.logger.info("No builds have run yet.")
         self.so.say("No builds have started yet for the PR. Check again later.")
 
     async def check_nightly_or_releases(self, releases: Iterable) -> str:
@@ -302,7 +302,7 @@ class PrInfo:
             # Reason has already been told to the user...
             return
 
-        msg = f'Gathering PR info...'
+        msg = 'Gathering PR info...'
         self.so.say(msg)
         self.logger.info(msg)
 

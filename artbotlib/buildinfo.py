@@ -155,7 +155,7 @@ def rhcos_build_urls(build_id, arch="x86_64"):
     minor_version = re.match("4([0-9]+)[.]", build_id)  # 4<minor>.8#.###
     if minor_version:
         minor_version = f"4.{minor_version.group(1)}"
-    else:   # don't want to assume we know what this will look like later
+    else:  # don't want to assume we know what this will look like later
         return (None, None)
 
     suffix = "" if arch in ["x86_64", "amd64"] else f"-{arch}"
@@ -248,8 +248,8 @@ def alert_on_build_complete(so, user_id, build_id):
     try:
         # Has the build passed in by ID?
         build_id = int(build_id)
-    except ValueError:\
-        # No, by URL
+    except ValueError: \
+            # No, by URL
         build_id = int(build_id.split('=')[-1])
 
     while True:

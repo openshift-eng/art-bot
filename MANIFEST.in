@@ -1,0 +1,3 @@
+include requirements.txt
+include artbotlib/*
+include README.md

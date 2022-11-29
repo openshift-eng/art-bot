@@ -73,7 +73,6 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
 
     so.say('Let me look into that. It may take a minute...')
 
-
     if 'nightly-' in release_tag:
         repo_url = 'registry.svc.ci.openshift.org/ocp/release'
     else:
@@ -139,11 +138,13 @@ def latest_images_for_version(so, major_minor):
     so.say(f"Determining images for {major_minor} - this may take a few minutes...")
 
     try:
-        rc, stdout, stderr = util.cmd_assert(so, f"doozer --disable-gssapi --group openshift-{major_minor} images:print '{{component}}-{{version}}-{{release}}' --show-base --show-non-release --short")
+        rc, stdout, stderr = util.cmd_assert(so,
+                                             f"doozer --disable-gssapi --group openshift-{major_minor} images:print '{{component}}-{{version}}-{{release}}' --show-base --show-non-release --short")
         if rc:
             raise Exception()
     except Exception:  # convert any exception into generic (cmd_assert already reports details to monitoring)
-        so.say(f"Failed to retrieve latest images for version '{major_minor}': doozer could not find version '{major_minor}'")
+        so.say(
+            f"Failed to retrieve latest images for version '{major_minor}': doozer could not find version '{major_minor}'")
         return []
 
     image_nvrs = [nvr.strip() for nvr in stdout.strip().split('\n')]
@@ -208,7 +209,8 @@ def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
             so.say(f"Failed looking up packages in brew. Do tags exist for {major_minor}?")
             return
         if not rpms_for_package:
-            so.say(f"Could not find any package(s) named {name_list} in brew. Package name(s) need to be exact (case sensitive)")
+            so.say(
+                f"Could not find any package(s) named {name_list} in brew. Package name(s) need to be exact (case sensitive)")
             return
         if len(name_list) > len(rpms_for_package):
             missing = [name for name in name_list if name not in rpms_for_package]
@@ -236,7 +238,8 @@ def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
             for rpm in rpms:
                 if rpm in rpms_seen:
                     rpms_seen_for_package.setdefault(pkg, set()).add(rpm)
-        packages_contents = "\n".join(f"package {pkg} includes rpm(s): {rpms}" for pkg, rpms in rpms_seen_for_package.items())
+        packages_contents = "\n".join(
+            f"package {pkg} includes rpm(s): {rpms}" for pkg, rpms in rpms_seen_for_package.items())
         if packages_contents:
             output = f"{packages_contents}\n\n{output}"
 
@@ -343,7 +346,7 @@ def _rhcos_release_url(major_minor, arch="x86_64"):
 
 
 def _tags_for_version(major_minor):
-    tags = [ f"rhaos-{major_minor}-rhel-7-candidate" ]
+    tags = [f"rhaos-{major_minor}-rhel-7-candidate"]
     if not major_minor.startswith("3."):
         tags.append(f"rhaos-{major_minor}-rhel-8-candidate")
     return tags
@@ -351,7 +354,8 @@ def _tags_for_version(major_minor):
 
 def list_images_in_major_minor(so, major, minor):
     major_minor = f'{major}.{minor}'
-    rc, stdout, stderr = util.cmd_assert(so, f'doozer --disable-gssapi --group openshift-{major_minor} images:print \'{{image_name_short}}\' --show-base --show-non-release --short')
+    rc, stdout, stderr = util.cmd_assert(so,
+                                         f'doozer --disable-gssapi --group openshift-{major_minor} images:print \'{{image_name_short}}\' --show-base --show-non-release --short')
     if rc:
         util.please_notify_art_team_of_error(so, stderr)
     else:
