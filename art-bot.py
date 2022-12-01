@@ -85,6 +85,7 @@ _*ART build info:*_
 * What rpms are in image `image-nvr`?
 * Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
 * pr info `GitHub PR URL` [component `name`] in `major.minor` [for `arch`]
+* Alert when build `Brew build URL|Brew build ID` completes
 
 _*misc:*_
 * How can I get ART to build a new image?
