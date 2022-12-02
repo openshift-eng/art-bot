@@ -325,7 +325,12 @@ def respond(client, event):
 
         so.monitoring_say(f"<@{user_id}> asked: {plain_text}")
 
-        map_command_to_regex(so, plain_text, user_id)
+        try:
+            map_command_to_regex(so, plain_text, user_id)
+        except Exception as error:
+            # Catch any unexpected error and display appropriate message to the user.
+            so.say("Uh oh... there seems to be a problem. Please contact @.art-team")
+            so.monitoring_say(f"Error: {error}")
 
         if not so.said_something:
             so.say("Sorry, I can't help with that yet. Ask 'help' to see what I can do.")
@@ -359,7 +364,6 @@ def run(debug):
     logging.basicConfig()
     logging.getLogger('activemq').setLevel(logging.DEBUG)
 
-
     # Get the Slack app token to start a socket connection
     try:
         with open(abs_path_home(bot_config["slack_app_token_file"]), "r") as stream:
@@ -370,11 +374,9 @@ def run(debug):
 
     log_config(debug)
     logging.getLogger('activemq').setLevel(logging.DEBUG)
-    
-    
+
     handler = SocketModeHandler(app, bot_config["slack_app_token"])
     handler.start()
-
 
 
 if __name__ == "__main__":
