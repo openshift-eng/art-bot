@@ -98,7 +98,7 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
             util.please_notify_art_team_of_error(so, stderr)
             return
         release_component_image_info = json.loads(stdout)
-        component_labels = release_component_image_info.get('config', {}).get('container_config', {}).get('Labels', {})
+        component_labels = release_component_image_info['config']['config']['Labels']
         component_name = component_labels.get('com.redhat.component', 'UNKNOWN')
         component_version = component_labels.get('version', 'v?')
         component_release = component_labels.get('release', '?')
