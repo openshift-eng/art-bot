@@ -6,6 +6,7 @@ import urllib.request
 
 import koji
 
+import artbotlib.exectools
 from . import util
 from .constants import RHCOS_BASE_URL
 
@@ -65,7 +66,7 @@ def specific_rpms_for_image(so, rpms, nvr):
                    filename='{}-rpms.txt'.format(nvr))
 
 
-@util.limit_concurrency(100)
+@artbotlib.exectools.limit_concurrency(100)
 async def get_tag_specs(so, tag_spec, data_type) -> str:
     """
     Fetches tag information by running 'oc image info'
@@ -74,7 +75,7 @@ async def get_tag_specs(so, tag_spec, data_type) -> str:
 
     release_component_name = tag_spec['name']
     release_component_image = tag_spec['from']['name']
-    rc, stdout, stderr = await util.cmd_gather_async(f'oc image info -o=json {release_component_image}')
+    rc, stdout, stderr = await artbotlib.exectools.cmd_gather_async(f'oc image info -o=json {release_component_image}')
     if rc:
         util.please_notify_art_team_of_error(so, stderr)
         return ''
@@ -120,7 +121,7 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
     image_url = f'{repo_url}:{release_tag}-x86_64'
 
     print(f'Trying: {image_url}')
-    rc, stdout, stderr = util.cmd_assert(so, f'oc adm release info -o=json --pullspecs {image_url}')
+    rc, stdout, stderr = artbotlib.exectools.cmd_assert(so, f'oc adm release info -o=json --pullspecs {image_url}')
     if rc:
         util.please_notify_art_team_of_error(so, stderr)
         return
@@ -148,7 +149,7 @@ def latest_images_for_version(so, major_minor):
     so.say(f"Determining images for {major_minor} - this may take a few minutes...")
 
     try:
-        rc, stdout, stderr = util.cmd_assert(so,
+        rc, stdout, stderr = artbotlib.exectools.cmd_assert(so,
                                              f"doozer --disable-gssapi --group openshift-{major_minor} images:print '{{component}}-{{version}}-{{release}}' --show-base --show-non-release --short")
         if rc:
             raise Exception()
@@ -364,7 +365,7 @@ def _tags_for_version(major_minor):
 
 def list_images_in_major_minor(so, major, minor):
     major_minor = f'{major}.{minor}'
-    rc, stdout, stderr = util.cmd_assert(so,
+    rc, stdout, stderr = artbotlib.exectools.cmd_assert(so,
                                          f'doozer --disable-gssapi --group openshift-{major_minor} images:print \'{{image_name_short}}\' --show-base --show-non-release --short')
     if rc:
         util.please_notify_art_team_of_error(so, stderr)
