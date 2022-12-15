@@ -1,3 +1,4 @@
+import asyncio
 import fnmatch
 import json
 import re
@@ -64,6 +65,44 @@ def specific_rpms_for_image(so, rpms, nvr):
                    filename='{}-rpms.txt'.format(nvr))
 
 
+@util.limit_concurrency(100)
+async def get_tag_specs(so, tag_spec, data_type) -> str:
+    """
+    Fetches tag information by running 'oc image info'
+    and returns the appropriate field depending on the data type provided
+    """
+
+    release_component_name = tag_spec['name']
+    release_component_image = tag_spec['from']['name']
+    rc, stdout, stderr = await util.cmd_gather_async(f'oc image info -o=json {release_component_image}')
+    if rc:
+        util.please_notify_art_team_of_error(so, stderr)
+        return ''
+    release_component_image_info = json.loads(stdout)
+    component_labels = release_component_image_info['config']['config']['Labels']
+    component_name = component_labels.get('com.redhat.component', 'UNKNOWN')
+    component_version = component_labels.get('version', 'v?')
+    component_release = component_labels.get('release', '?')
+    component_upstream_commit_url = component_labels.get('io.openshift.build.commit.url', '?')
+    component_distgit_commit = component_labels.get('vcs-ref', '?')
+    component_rhcc_url = component_labels.get('url', '?')
+
+    result = f'{release_component_name}='
+    if data_type.startswith('nvr'):
+        result += f'{component_name}-{component_version}-{component_release}'
+    elif data_type.startswith('distgit'):
+        distgit_name = component_name.rstrip('-container')
+        result += f'http://pkgs.devel.redhat.com/cgit/{distgit_name}/commit/?id={component_distgit_commit}'
+    elif data_type.startswith('commit'):
+        result += f'{component_upstream_commit_url}'
+    elif data_type.startswith('catalog'):
+        result += f'{component_rhcc_url}'
+    elif data_type.startswith('image'):
+        result += release_component_image
+
+    return result
+
+
 def list_component_data_for_release_tag(so, data_type, release_tag):
     data_type = data_type.lower()
     data_types = ('nvr', 'distgit', 'commit', 'catalog', 'image')
@@ -90,39 +129,10 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
 
     release_info = json.loads(stdout)
     tag_specs = list(release_info['references']['spec']['tags'])
-    for tag_spec in sorted(tag_specs, key=lambda x: x['name']):
-        release_component_name = tag_spec['name']
-        release_component_image = tag_spec['from']['name']
-        rc, stdout, stderr = util.cmd_assert(so, f'oc image info -o=json {release_component_image}')
-        if rc:
-            util.please_notify_art_team_of_error(so, stderr)
-            return
-        release_component_image_info = json.loads(stdout)
-        component_labels = release_component_image_info['config']['config']['Labels']
-        component_name = component_labels.get('com.redhat.component', 'UNKNOWN')
-        component_version = component_labels.get('version', 'v?')
-        component_release = component_labels.get('release', '?')
-        component_upstream_commit_url = component_labels.get('io.openshift.build.commit.url', '?')
-        component_distgit_commit = component_labels.get('vcs-ref', '?')
-        component_rhcc_url = component_labels.get('url', '?')
 
-        payload += f'{release_component_name}='
-        if data_type.startswith('nvr'):
-            payload += f'{component_name}-{component_version}-{component_release}'
-        elif data_type.startswith('distgit'):
-            distgit_name = component_name.rstrip('-container')
-            payload += f'http://pkgs.devel.redhat.com/cgit/{distgit_name}/commit/?id={component_distgit_commit}'
-        elif data_type.startswith('commit'):
-            payload += f'{component_upstream_commit_url}'
-        elif data_type.startswith('catalog'):
-            payload += f'{component_rhcc_url}'
-        elif data_type.startswith('image'):
-            payload += release_component_image
-        else:
-            so.say(f"Sorry, I don't know how to extract information about {data_type}")
-            return
-
-        payload += '\n'
+    results = asyncio.get_event_loop().run_until_complete(
+        asyncio.gather(*[get_tag_specs(so, tag_spec, data_type) for tag_spec in sorted(tag_specs, key=lambda x: x['name'])]))
+    payload += '\n'.join(results)
 
     so.snippet(payload=payload,
                intro=f'The release components map to {data_type} as follows:',
