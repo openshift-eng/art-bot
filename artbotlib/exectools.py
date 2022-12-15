@@ -4,6 +4,7 @@ import os
 import shlex
 import subprocess
 import time
+import traceback
 from fcntl import fcntl, F_GETFL, F_SETFL
 from typing import Union, List, Tuple
 
@@ -121,24 +122,22 @@ def cmd_gather(cmd, set_env=None, cwd=None, realtime=False):
         # setup non-blocking read
         # set the O_NONBLOCK flag of proc.stdout file descriptor:
         flags = fcntl(proc.stdout, F_GETFL)  # get current proc.stdout flags
-        fcntl(proc.stdout, F_SETFL, flags | O_NONBLOCK)
+        fcntl(proc.stdout, F_SETFL, flags | os.O_NONBLOCK)
         # set the O_NONBLOCK flag of proc.stderr file descriptor:
         flags = fcntl(proc.stderr, F_GETFL)  # get current proc.stderr flags
-        fcntl(proc.stderr, F_SETFL, flags | O_NONBLOCK)
+        fcntl(proc.stderr, F_SETFL, flags | os.O_NONBLOCK)
 
         rc = None
         while rc is None:
-            output = None
             try:
-                output = read(proc.stdout.fileno(), 256)
+                output = os.read(proc.stdout.fileno(), 256)
                 logger.info(f'{cmd_info} stdout: {out.rstrip()}')
                 out += output
             except OSError:
                 pass
 
-            error = None
             try:
-                error = read(proc.stderr.fileno(), 256)
+                error = os.read(proc.stderr.fileno(), 256)
                 logger.warning(f'{cmd_info} stderr: {error.rstrip()}')
                 out += error
             except OSError:
