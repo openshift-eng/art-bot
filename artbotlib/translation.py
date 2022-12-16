@@ -2,14 +2,7 @@ import artbotlib.exectools
 from . import util
 
 
-def translate_names(so, name_type, name, name_type2, major=None, minor=None):
-    if name_type not in ["distgit", "dist-git"]:
-        so.say(f"Sorry, don't know how to look up a {name_type} yet.")
-        return
-    if name_type2 not in ["brew-image", "brew-component"]:
-        so.say(f"Sorry, don't know how to translate to a {name_type2} yet.")
-        return
-
+def translate_names(so, _, name, name_type2, major=None, minor=None):
     query_name = {
         "brew-image": "image_name",
         "brew-component": "component",
