@@ -90,4 +90,3 @@ def nightly_color_status(so, user_id, release_url, release_browser) -> None:
                 break
     finally:
         del variables.active_slack_objects[so]
-
