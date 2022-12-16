@@ -28,11 +28,6 @@ Officially there is no podman-compose. There's a github project to try for that.
 
 The following demonstrates usage for a user `lmeyer` with uid/gid 3668 (as assigned in ldap).
 
-* Configure art-bot's runtime settings by copying settings.yaml to
-  `~/.config/art-bot/settings.yaml` and editing. You'll want to get the rest of
-  the contents of that conf dir from our ocp4 deployment, bitwarden, etc - these
-  are never to be committed in git.
-
 * To build, from the context of the top level of this repo:
 
    `$ podman build --build-arg USERNAME=lmeyer --build-arg USER_UID=3668 -f container/Dockerfile -t art-bot . && podman tag art-bot:latest art-bot:base`
@@ -120,30 +115,25 @@ podman run -it --rm \
   experiment with changes to all of these without any commits or rebuilds. Of
   course, that means you need to keep them checked out the way you want them.
 
-#### Running
+#### Running in Development
 
-Inside the container you should just be able to:
+To start the developer console, run `./art_bot_dev.py`. You should see a prompt like
 
-`./art-bot.py`
+```python
+---
+Welcome to the developer interface for Art-Bot.
+To exit, type in 'exit' or use Ctrl-C
+---
 
-Do heed the bit in `settings.yaml` about disabling UMB first. Then you can just
-hit ctrl-C to kill it and start it again.
+Enter your command:
+```
+New regexes should be defined in `art-bot.py`
 
-#### Talking to the bot
+#### Integration with Slack
 
-It's easiest when testing to just DM the bot. You'll need to add the `art-bot` app in slack to do that.
-
-For things that require actually being in a channel, you can just talk to it in
-one of the configured "friendly" channels where it listens, or create your own
-private channel and invite it there.
-
-You'll need to address the bot by its dev name configured in settings.yaml to get a dev response. So typically:
-
-> sosiouxme:
-> hello @art-bot-dev
->
-> art-bot-dev:
-> Howdy, @sosiouxme
+The bot is decoupled from slack. To test the integration, contact the Openshift Automated Release Tooling team, and they
+will do a final check to see if it's working in the Slack workspace. New features added should be tested with the 
+Developer console first.
 
 #### Testing
 
