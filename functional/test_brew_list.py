@@ -1,5 +1,4 @@
-import flexmock
-import pytest
+from unittest.mock import MagicMock
 
 from artbotlib import brew_list, util
 
@@ -19,11 +18,11 @@ def test_find_rpms_in_packages():
 
 
 def test_find_rhcos_build_rpms():
-    rpms = brew_list._find_rhcos_build_rpms(flexmock(), "4.3")
+    rpms = brew_list._find_rhcos_build_rpms(MagicMock(), "4.3")
     assert any(rpm.startswith("ostree-") for rpm in rpms)
 
-    rpms = brew_list._find_rhcos_build_rpms(flexmock(), "4.1", build_id="410.81.20200106.0")
+    rpms = brew_list._find_rhcos_build_rpms(MagicMock(), "4.1", build_id="410.81.20200106.0")
     assert "openshift-hyperkube-4.1.30-202001030309.git.0.65f8a20.el8_0" in rpms
 
-    rpms = brew_list._find_rhcos_build_rpms(flexmock(), "4.3", arch="s390x")
+    rpms = brew_list._find_rhcos_build_rpms(MagicMock(), "4.3", arch="s390x")
     assert any(rpm.startswith("s390utils-base-") for rpm in rpms)
