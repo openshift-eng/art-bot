@@ -1,3 +1,4 @@
+import artbotlib.exectools
 from . import util
 
 
@@ -15,7 +16,7 @@ def translate_names(so, name_type, name, name_type2, major=None, minor=None):
     }[name_type2]
     major_minor = f"{major}.{minor}" if major and minor else "4.5"
 
-    rc, stdout, stderr = util.cmd_gather(f"doozer --disable-gssapi --group openshift-{major_minor} --images {name} images:print \'{{{query_name}}}\' --show-base --show-non-release --short")
+    rc, stdout, stderr = artbotlib.exectools.cmd_gather(f"doozer --disable-gssapi --group openshift-{major_minor} --images {name} images:print \'{{{query_name}}}\' --show-base --show-non-release --short")
     if rc:
         so.say(f"Sorry, there is no image dist-git {name} in version {major_minor}.")
     else:

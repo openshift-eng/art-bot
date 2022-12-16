@@ -7,6 +7,7 @@ from enum import Enum
 
 import koji
 
+import artbotlib.exectools
 from . import util, brew_list, constants
 from .constants import BREW_URL
 
@@ -41,7 +42,7 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
         return None, None, None
 
     # Get image pullspec
-    rc, stdout, stderr = await util.cmd_gather_async(
+    rc, stdout, stderr = await artbotlib.exectools.cmd_gather_async(
         f"oc adm release info {release_img_pullspec} --image-for {name}",
         check=False
     )
@@ -51,7 +52,7 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
     pullspec = stdout.strip()
 
     # Get image info
-    rc, stdout, stderr = await util.cmd_gather_async(f"oc image info {pullspec} -o json")
+    rc, stdout, stderr = await artbotlib.exectools.cmd_gather_async(f"oc image info {pullspec} -o json")
     if rc:
         so.say(f"Sorry, I wasn't able to query the component image pullspec {pullspec}.")
         util.please_notify_art_team_of_error(so, stderr)

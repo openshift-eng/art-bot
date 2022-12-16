@@ -20,8 +20,7 @@ def test_availability_github2():
 def test_github_to_distgit1():
     test_repo = "cluster-resource-override-admission-operator"
     response = img_util.github_to_distgit(test_repo, "4.10")
-
-    assert response is not None
+    assert 'clusterresourceoverride-operator' in response
 
 
 def test_github_to_distgit2():
@@ -153,7 +152,7 @@ Delivery (Comet) repo: <{constants.COMET_URL}/5f6d2a2049dbe0cdd0373f29|*openshif
 def test_doozer_brew_distgit():
     response = img_util.doozer_brew_distgit("4.10")
 
-    assert len(response) == 208
+    assert len(response) == 209
 
 
 def test_brew_to_distgit():
@@ -233,8 +232,7 @@ def test_cdn_to_github():
 Upstream GitHub repository: <https://github.com/openshift/oc|*openshift/oc*>
 Private GitHub repository: <https://github.com/openshift-priv/oc|*openshift-priv/oc*>
 Production dist-git repo: <{constants.CGIT_URL}/containers/openshift-enterprise-cli-alt|*openshift-enterprise-cli-alt*>
-Payload tag: *cli-alt*
-"""
+Payload tag: *cli-alt* \n"""
     assert actual == expected
 
 
@@ -286,10 +284,9 @@ def test_get_image_stream_tag2():
     assert actual == expected
 
 
-def test_doozer_github_distgit():
-    response = img_util.doozer_github_distgit("4.10")
-
-    assert len(response) == 208
+def distgit_github_mappings():
+    response = img_util.distgit_github_mappings("4.10")
+    assert len(response) == 209
 
 
 def test_require_bundle_build1():

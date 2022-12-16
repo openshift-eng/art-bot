@@ -1,10 +1,9 @@
 #!/usr/bin/python3
-
 # Script to start the developer interface for art-bot
 
+from artbotlib.regex_mapping import map_command_to_regex
 from artbotlib.slack_output import SlackDeveloperOutput
 
-art_bot = __import__("art-bot")
 
 if __name__ == "__main__":
     so = SlackDeveloperOutput()
@@ -15,6 +14,6 @@ if __name__ == "__main__":
             command = input("Enter your command: ")
             if command.lower() == "exit":
                 break
-            art_bot.map_command_to_regex(so, command, None)
+            map_command_to_regex(so, command, None)
     except KeyboardInterrupt:
         print("Exiting...")

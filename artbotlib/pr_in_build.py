@@ -8,6 +8,7 @@ from collections.abc import Iterable
 
 import requests
 
+import artbotlib.exectools
 from artbotlib import util, pipeline_image_util
 from artbotlib.exceptions import NullDataReturned
 from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT
@@ -271,10 +272,10 @@ class PrInfo:
                 continue
 
             cmd = f'oc adm release info {release["pullSpec"]} --image-for {self.imagestream_tag}'
-            _, stdout, _ = await util.cmd_gather_async(cmd)
+            _, stdout, _ = await artbotlib.exectools.cmd_gather_async(cmd)
 
             cmd = f'oc image info -o json {stdout}'
-            _, stdout, _ = await util.cmd_gather_async(cmd)
+            _, stdout, _ = await artbotlib.exectools.cmd_gather_async(cmd)
             labels = json.loads(stdout)['config']['config']['Labels']
             commit_id = labels['io.openshift.build.commit.id']
 
