@@ -202,10 +202,9 @@ def signal_handler(_signo, _stack_frame):
     If it is, report to the user saying that they have re-run the command.
     """
     slack_objects = variables.active_slack_objects
-    if slack_objects:
-        for slack_object in slack_objects:
-            plain_text = extract_plain_text({"data": slack_object.event})
-            slack_object.say(f"Uh oh... the pod was restarted. Please run *'{plain_text}'* again.")
+    for slack_object in slack_objects:
+        plain_text = extract_plain_text({"data": slack_object.event})
+        slack_object.say(f"Uh oh... art-bot is restarting. Please try *'{plain_text}'* again, after a minute.")
 
 
 signal.signal(signal.SIGTERM, signal_handler)
