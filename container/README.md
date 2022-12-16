@@ -92,7 +92,7 @@ podman run -it --rm \
     -v $HOME/.gitconfig:/home/$USER/.gitconfig:ro,cached,z \
     -v $HOME/.vim/:/home/$USER/.vim/:ro,cached,z \
     -v $HOME/.vimrc:/home/$USER/.vimrc:ro,cached,z \
-    -v $CONTAINER/krb5-redhat.conf:/etc/krb5.conf.d/krb5-redhat.conf:ro,cached,z \
+    -v $CONTAINER/krb5-redhat.conf:/etc/krb5.conf:ro,cached,z \
     -v $CONTAINER/doozer-settings.yaml:/home/$USER/.config/doozer/settings.yaml:ro,cached,z \
     -v $CONTAINER/elliott-settings.yaml:/home/$USER/.config/elliott/settings.yaml:ro,cached,z \
     -v $OPENSHIFT/art-bot/:/workspaces/art-bot/:cached,z \
