@@ -4,7 +4,7 @@
 
 from artbotlib.slack_output import SlackDeveloperOutput
 
-art_bot = __import__("art-bot")
+regex_mapping = __import__("artbotlib.regex_mapping")
 
 if __name__ == "__main__":
     so = SlackDeveloperOutput()
@@ -15,6 +15,6 @@ if __name__ == "__main__":
             command = input("Enter your command: ")
             if command.lower() == "exit":
                 break
-            art_bot.map_command_to_regex(so, command, None)
+            regex_mapping(so, command, None)
     except KeyboardInterrupt:
         print("Exiting...")
