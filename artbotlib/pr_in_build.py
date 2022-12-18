@@ -11,9 +11,9 @@ import requests
 import artbotlib.exectools
 from artbotlib import util, pipeline_image_util
 from artbotlib.exceptions import NullDataReturned
-from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT
+from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT, ART_DASH_SERVER_ROUTE
 
-API = f"{os.environ['ART_DASH_SERVER_ROUTE']}/api/v1"
+API = f"{ART_DASH_SERVER_ROUTE}/api/v1"
 RELEASESTREAM_ENDPOINT_TEMPLATE = Template('https://${arch}.ocp.releases.ci.openshift.org/api/v1/releasestream')
 VALID_ARCHES = [
     'amd64',
