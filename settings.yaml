@@ -1,5 +1,5 @@
 ---
-
+# this file is only for production
 # art-bot looks for this in ~/.config/art-bot/settings.yaml by default
 
 # channel where bot reports what is being asked and any errors
