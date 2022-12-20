@@ -13,7 +13,6 @@ from artbotlib import util, pipeline_image_util
 from artbotlib.exceptions import NullDataReturned
 from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT, ART_DASH_SERVER_ROUTE
 
-API = f"{ART_DASH_SERVER_ROUTE}/api/v1"
 RELEASESTREAM_ENDPOINT_TEMPLATE = Template('https://${arch}.ocp.releases.ci.openshift.org/api/v1/releasestream')
 VALID_ARCHES = [
     'amd64',
@@ -217,7 +216,8 @@ class PrInfo:
             "label_io_openshift_build_commit_id": commit,
             "brew_task_state": task_state
         }
-        url = f"{API}/builds/"
+        api = f"{os.environ['ART_DASH_SERVER_ROUTE']}/api/v1"
+        url = f"{api}/builds/"
         response = requests.get(url, params=params)
         if response.status_code == 200:
             return response.json()
