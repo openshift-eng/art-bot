@@ -23,4 +23,4 @@ ERRATA_TOOL_URL = 'https://errata.devel.redhat.com'
 
 GITHUB_API_OPENSHIFT = "https://api.github.com/repos/openshift"
 
-ART_DASH_SERVER_ROUTE = "http://art-dash-server-art-build-dev.apps.ocp4.prod.psi.redhat.com"
+ART_DASH_API_ROUTE = "http://art-dash-server-art-build-dev.apps.ocp4.prod.psi.redhat.com/api/v1"
