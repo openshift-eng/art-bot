@@ -252,6 +252,7 @@ def kernel_info(so, release_img, arch):
     """
 
     # Validate arch parameter
+    arch = 'amd64' if not arch else arch
     valid_arches = util.RC_ARCH_TO_RHCOS_ARCH.keys()
     if arch not in valid_arches:
         so.say(f'Arch {arch} is not valid: please choose one in {", ".join(valid_arches)}')
