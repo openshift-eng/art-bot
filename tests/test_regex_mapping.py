@@ -119,6 +119,32 @@ def test_invalid_component_types():
            "('nvr', 'distgit', 'commit', 'catalog', 'image')" in inspector.output
 
 
+@patch('artbotlib.regex_mapping.kernel_info')
+def test_kernel_info(kernel_info_mock):
+    """
+    Test valid/invalid queries for artbotlib.buildinfo.kernel_info()
+    """
+
+    kernel_info_mock.side_effect = lambda outputter, **_: outputter.say('mock called')
+    so_mock = flexmock(so)
+
+    # Valid
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, 'what kernel is used in 4.10.10', None)
+
+    # Valid
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, 'what kernel is used in 4.10.10 for arch amd64', None)
+
+    # Invlid
+    so_mock.should_receive('say').never()
+    map_command_to_regex(so_mock, 'what kernel is in 4.10.10', None)
+
+    # Invalid
+    so_mock.should_receive('say').never()
+    map_command_to_regex(so_mock, 'what kernel is used in 4.10.10 for amd64', None)
+
+
 @patch('artbotlib.exectools.cmd_assert')
 def test_list_images_in_major_minor(cmd_assert_mock):
     """
