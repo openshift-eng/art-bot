@@ -207,11 +207,9 @@ def kernel_info(so, release_img):
     async def rhcos_kernel_info():
         build_info, pullspec, _ = await get_image_info(so, 'machine-os-content', release_img)
         labels = build_info['config']['config']['Labels']
-        kernel_version = labels['com.coreos.rpm.kernel']
-        kernel_rt_version = labels['com.coreos.rpm.kernel-rt-core']
         return {
             'name': 'rhcos',
-            'rpms': [kernel_version, kernel_rt_version],
+            'rpms': [labels['com.coreos.rpm.kernel-rt-core']],
             'pullspec': pullspec
         }
 
