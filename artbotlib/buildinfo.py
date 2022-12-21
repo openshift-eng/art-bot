@@ -1,15 +1,20 @@
 import asyncio
 import json
+import logging
 import re
 from typing import Tuple, Union
 import time
 from enum import Enum
 
+import aiohttp
 import koji
 
 import artbotlib.exectools
 from . import util, brew_list, constants
-from .constants import BREW_URL
+
+
+LOGGER = logging.getLogger(__name__)
+util.log_config()
 
 
 class BuildState(Enum):
@@ -29,7 +34,7 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
     :return: tuple of (build info json data, pullspec text, release image text)
     """
 
-    print(f'Getting image info for {name}')
+    LOGGER.info(f'Getting image info for {name}')
 
     if ".ci." in re.sub(".*:", "", release_img):
         so.say("Sorry, no ART build info for a CI image.")
@@ -166,24 +171,86 @@ def rhcos_build_urls(build_id, arch="x86_64"):
     return contents, stream
 
 
+async def rhcos_build_metadata(build_id, ocp_version, arch):
+    """
+    Fetches RHCOS build metadata
+    :param build_id: e.g. '410.84.202212022239-0'
+    :param ocp_version: e.g. '4.10'
+    :param arch: one in {'x86_64', 'ppc64le', 's390x', 'aarch64'}
+    :return: tuple of (build info json data, pullspec text, release image text)
+    """
+
+    LOGGER.info('Retrieving metadata for RHCOS build %s', build_id)
+
+    # Old pipeline
+    arch_suffix = '' if arch == 'x86_64' else f'-{arch}'
+    old_pipeline_url = f'{constants.RHCOS_BASE_URL}/storage/releases/rhcos-{ocp_version}{arch_suffix}/' \
+                       f'{build_id}/{arch}/commitmeta.json'
+    try:
+        async with aiohttp.ClientSession() as session:
+            LOGGER.debug('Fetching URL %s', old_pipeline_url)
+            async with session.get(old_pipeline_url) as resp:
+                metadata = await resp.json()
+        return metadata
+    except aiohttp.client_exceptions.ContentTypeError:
+        # This build belongs to the new pipeline
+        pass
+
+    # New pipeline
+    new_pipeline_url = f'{constants.RHCOS_BASE_URL}/storage/prod/streams/{ocp_version}/builds/' \
+                       f'{build_id}/{arch}/commitmeta.json'
+    async with aiohttp.ClientSession() as session:
+        LOGGER.debug('Fetching URL %s', new_pipeline_url)
+        async with session.get(new_pipeline_url) as resp:
+            metadata = await resp.json()
+    return metadata
+
+
+async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
+    """
+    Given a nightly or release, return the associated RHCOS build id
+
+    :param release_img: e.g. 4.12.0-0.nightly-2022-12-20-034740, 4.10.10
+    :param arch: one in {'amd64', 'arm64', 'ppc64le', 's390x'}
+    :return: e.g. 412.86.202212170457-0
+    """
+
+    LOGGER.info('Retrieving rhcos build ID for %s', release_img)
+
+    async with aiohttp.ClientSession() as session:
+        url = f'https://{arch}.{constants.RC_BASE_HOSTNAME}/releasetag/{release_img}/json'
+        LOGGER.debug('Fetching URL %s', url)
+
+        async with session.get(url) as resp:
+            release_info = await resp.json()
+
+    return release_info['displayVersions']['machine-os']['Version']
+
+
 def brew_build_url(nvr):
     try:
         build = util.koji_client_session().getBuild(nvr, strict=True)
     except Exception as e:
         # not clear how we'd like to learn about this... shouldn't happen much
-        print(f"error searching for image {nvr} components in brew: {e}")
+        LOGGER.info(f"error searching for image {nvr} components in brew: {e}")
         return None
 
     return f"{constants.BREW_URL}/buildinfo?buildID={build['id']}"
 
 
-def kernel_info(so, release_img):
+def kernel_info(so, release_img, arch):
     """
     Currently, kernel and kernel-rt RPMs are found in images:
     - RHCOS
     - driver-toolkit
     - ironic-rhcos-downloader
     """
+
+    # Validate arch parameter
+    valid_arches = util.RC_ARCH_TO_RHCOS_ARCH.keys()
+    if arch not in valid_arches:
+        so.say(f'Arch {arch} is not valid: please choose one in {", ".join(valid_arches)}')
+        return
 
     # Non-RHCOS kernel info
     async def non_rhcos_kernel_info(image):
@@ -205,27 +272,39 @@ def kernel_info(so, release_img):
 
     # RHCOS kernel info
     async def rhcos_kernel_info():
+        ocp_version = util.ocp_version_from_release_img(release_img)
+        rpms = []
+
+        # Fetch release info from Release Controller to get RHCOS build ID
+        rhcos_build_id = await get_rhcos_build_id_from_release(release_img, arch)
+
+        # Fetch RHCOS build metadata
+        metadata = await rhcos_build_metadata(rhcos_build_id, ocp_version, util.RC_ARCH_TO_RHCOS_ARCH[arch])
+        pkg_list = metadata['rpmostree.rpmdb.pkglist']
+        kernel_core = [pkg for pkg in pkg_list if 'kernel-core' in pkg][0]
+        rpms.append(f'kernel-core.{".".join(kernel_core[2:])}')
+
+        # Get kernel-rt-core from build labels, if available
         build_info, pullspec, _ = await get_image_info(so, 'machine-os-content', release_img)
         labels = build_info['config']['config']['Labels']
+        if 'com.coreos.rpm.kernel-rt-core' in labels:
+            rpms.append(f"kernel-rt-core.{labels['com.coreos.rpm.kernel-rt-core']}")
+
         return {
             'name': 'rhcos',
-            'rpms': [labels['com.coreos.rpm.kernel-rt-core']],
+            'rpms': rpms,
             'pullspec': pullspec
         }
 
     so.say(f'Gathering image info for `{release_img}`...')
-    loop = asyncio.new_event_loop()
-
-    async def gather_kernel_info():
-        tasks = [
-            asyncio.ensure_future(non_rhcos_kernel_info('driver-toolkit')),
-            asyncio.ensure_future(non_rhcos_kernel_info('ironic-machine-os-downloader')),
-            asyncio.ensure_future(rhcos_kernel_info())
-        ]
-        return await asyncio.gather(*tasks, return_exceptions=True)
 
     # Format output and send to Slack
-    res = loop.run_until_complete(gather_kernel_info())
+    res = asyncio.get_event_loop().run_until_complete(asyncio.gather(*[
+        asyncio.ensure_future(non_rhcos_kernel_info('driver-toolkit')),
+        asyncio.ensure_future(non_rhcos_kernel_info('ironic-machine-os-downloader')),
+        asyncio.ensure_future(rhcos_kernel_info())
+    ], return_exceptions=True))
+
     output = []
     for entry in res:
         if isinstance(entry, ChildProcessError):
@@ -261,11 +340,11 @@ def alert_on_build_complete(so, user_id, build_id):
         try:
             build = util.koji_client_session().getBuild(build_id, strict=True)
             state = BuildState(build['state'])
-            print(f'Build {build_id} has state {state.name}')
+            LOGGER.info(f'Build {build_id} has state {state.name}')
 
         except ValueError:
             # Failed to convert the build state to a valid BuildState enum
-            print(f'Unexpected status {build.state} for build {build_id}')
+            LOGGER.info(f'Unexpected status {build.state} for build {build_id}')
             so.say(f'Build {build_id} has unhandled status {state.name}. '
                    f'Check {constants.BREW_URL}/buildinfo?buildID={build_id} for details')
             return

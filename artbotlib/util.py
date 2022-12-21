@@ -9,6 +9,22 @@ import functools
 
 logger = logging.getLogger(__name__)
 
+# Release Controller and RHCOS browser call arches in different ways;
+# these two dictionaries easily map names from/to one namespace to the other
+RC_ARCH_TO_RHCOS_ARCH = {
+    'amd64': 'x86_64',
+    'arm64': 'aarch64',
+    'ppc64le': 'ppc64le',
+    's390x': 's390x'
+}
+
+RHCOS_ARCH_TO_RC_ARCH = {
+    'x86_64': 'amd64',
+    'aarch64': 'arm64',
+    'ppc64le': 'ppc64le',
+    's390x': 's390x'
+}
+
 
 def please_notify_art_team_of_error(so, payload):
     dt = datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
@@ -113,3 +129,14 @@ def log_config(debug: bool = False):
         handlers=[default_handler],
         level=logging.DEBUG if debug else logging.INFO
     )
+
+
+def ocp_version_from_release_img(release_img: str) -> str:
+    """
+    Given a nightly or release name, return the OCP version
+
+    :param release_img: e.g. '4.12.0-0.nightly-2022-12-20-034740', '4.10.10'
+    :return: e.g. '4.10'
+    """
+
+    return '.'.join(release_img.split('-')[0].split('.')[:2])

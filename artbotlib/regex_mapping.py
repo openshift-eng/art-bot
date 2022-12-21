@@ -50,7 +50,7 @@ def map_command_to_regex(so, plain_text, user_id):
             "function": brew_list.list_component_data_for_release_tag
         },
         {
-            "regex": r"^What kernel is used in (?P<release_img>[-.:/#\w]+)$",
+            "regex": r"^What kernel is used in (?P<release_img>[-.:/#\w]+)(?: for arch (?P<arch>[a-zA-Z0-9-]+))?$",
             "flag": re.I,
             "function": kernel_info
         },
