@@ -7,6 +7,7 @@ import time
 from enum import Enum
 
 import aiohttp
+from aiohttp import client_exceptions
 import koji
 
 import artbotlib.exectools
@@ -98,7 +99,8 @@ def buildinfo_for_release(so, name, release_img):
             rhcos_build = build_info["config"]["config"]["Labels"]["version"]
             arch = build_info["config"]["architecture"]
         except KeyError:
-            so.say(f"Sorry, I expected a 'version' label and architecture for pullspec {pullspec_text} but didn't see one. Weird huh?")
+            so.say(f"Sorry, I expected a 'version' label and architecture for pullspec "
+                   f"{pullspec_text} but didn't see one. Weird huh?")
             return
 
         contents_url, stream_url = rhcos_build_urls(rhcos_build, arch)
@@ -114,7 +116,8 @@ def buildinfo_for_release(so, name, release_img):
         version = labels["version"]
         release = labels["release"]
     except KeyError:
-        so.say(f"Sorry, one of the component, version, or release labels is missing for pullspec {pullspec_text}. Weird huh?")
+        so.say(f"Sorry, one of the component, version, or release labels is missing "
+               f"for pullspec {pullspec_text}. Weird huh?")
         return
 
     nvr = f"{name}-{version}-{release}"
@@ -137,7 +140,8 @@ def get_img_pullspec(release_img: str) -> Union[Tuple[None, None], Tuple[str, st
             return None, None
         release_img = re.sub(r".*/", "", release_img)
     elif "nightly" in release_img:
-        suffix = "-s390x" if "s390x" in release_img else "-ppc64le" if "ppc64le" in release_img else "-arm64" if "arm64" in release_img else ""
+        suffix = "-s390x" if "s390x" in release_img else "-ppc64le" if "ppc64le" in release_img \
+            else "-arm64" if "arm64" in release_img else ""
         release_img_pullspec = f"registry.ci.openshift.org/ocp{suffix}/release{suffix}:{release_img}"
     else:
         # assume public release name
@@ -162,11 +166,12 @@ def rhcos_build_urls(build_id, arch="x86_64"):
     if minor_version:
         minor_version = f"4.{minor_version.group(1)}"
     else:  # don't want to assume we know what this will look like later
-        return (None, None)
+        return None, None
 
     suffix = "" if arch in ["x86_64", "amd64"] else f"-{arch}"
 
-    contents = f"{constants.RHCOS_BASE_URL}/contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
+    contents = f"{constants.RHCOS_BASE_URL}/" \
+               f"contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
     stream = f"{constants.RHCOS_BASE_URL}/?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}#{build_id}"
     return contents, stream
 
