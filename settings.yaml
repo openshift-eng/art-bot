@@ -1,9 +1,7 @@
 ---
+# this file is only for production
+# art-bot looks for this in ~/.config/art-bot/settings.yaml by default
 
-# art-bot looks for this file in ~/.config/art-bot/settings.yaml by default
-
-# react to and respond as this name instead of the default
-username: art-bot-dev
 # channel where bot reports what is being asked and any errors
 monitoring_channel: art-bot-monitoring
 # channels the bot can respond in instead of DM'ing user back
@@ -24,20 +22,4 @@ friendly_channels:
 # files are relative to $HOME if not absolute.
 # you'll need to look these up in vault and create the files locally.
 slack_api_token_file: .config/art-bot/slack-api-token
-
-# for dev purposes you will want to delete the following to disable UMB, as it
-# prevents shutting down properly.  also we haven't implemented much that uses
-# it... yet.
-umb:
-  # Which UMB environment to use
-  # dev, stage, prod
-  env: prod
-  # The client-id associated with the cert/key pair for the UMB
-  client_id: openshift-art-bot-slack
-  # Path to the client key for UMB authentication
-  client_key_file: .config/art-bot/umb.key
-  # Path to the client certificate for UMB authentication
-  client_cert_file: .config/art-bot/umb.cert
-  # Manually specify the path to the RHIT CA Trust Chain.
-  # shouldn't need this if the certs are present and certifi isn't nuts
-  # ca_certs_file: .config/art-bot/RHIT.cert
+slack_app_token_file: .config/art-bot/slack-app-token

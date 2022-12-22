@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 import re
 import logging
 from string import Template
@@ -11,7 +10,7 @@ import requests
 import artbotlib.exectools
 from artbotlib import util, pipeline_image_util
 from artbotlib.exceptions import NullDataReturned
-from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT
+from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT, ART_DASH_API_ROUTE
 
 RELEASESTREAM_ENDPOINT_TEMPLATE = Template('https://${arch}.ocp.releases.ci.openshift.org/api/v1/releasestream')
 VALID_ARCHES = [
@@ -216,8 +215,7 @@ class PrInfo:
             "label_io_openshift_build_commit_id": commit,
             "brew_task_state": task_state
         }
-        api = f"{os.environ['ART_DASH_SERVER_ROUTE']}/api/v1"
-        url = f"{api}/builds/"
+        url = f"{ART_DASH_API_ROUTE}/builds/"
         response = requests.get(url, params=params)
         if response.status_code == 200:
             return response.json()
