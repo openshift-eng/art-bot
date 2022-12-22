@@ -10,8 +10,7 @@ import aiohttp
 from aiohttp import client_exceptions
 import koji
 
-import artbotlib.exectools
-from . import util, brew_list, constants
+from . import util, brew_list, constants, exectools
 
 
 LOGGER = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
         return None, None, None
 
     # Get image pullspec
-    rc, stdout, stderr = await artbotlib.exectools.cmd_gather_async(
+    rc, stdout, stderr = await exectools.cmd_gather_async(
         f"oc adm release info {release_img_pullspec} --image-for {name}",
         check=False
     )
@@ -58,7 +57,7 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
     pullspec = stdout.strip()
 
     # Get image info
-    rc, stdout, stderr = await artbotlib.exectools.cmd_gather_async(f"oc image info {pullspec} -o json")
+    rc, stdout, stderr = await exectools.cmd_gather_async(f"oc image info {pullspec} -o json")
     if rc:
         so.say(f"Sorry, I wasn't able to query the component image pullspec {pullspec}.")
         util.please_notify_art_team_of_error(so, stderr)
@@ -223,7 +222,7 @@ async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
     LOGGER.info('Retrieving rhcos build ID for %s', release_img)
 
     async with aiohttp.ClientSession() as session:
-        url = f'https://{arch}.{constants.RC_BASE_HOSTNAME}/releasetag/{release_img}/json'
+        url = f'{constants.RELEASE_CONTROLLER_URL.substitute(arch=arch)}/releasetag/{release_img}/json'
         LOGGER.debug('Fetching URL %s', url)
 
         async with session.get(url) as resp:
@@ -253,7 +252,7 @@ def kernel_info(so, release_img, arch):
 
     # Validate arch parameter
     arch = 'amd64' if not arch else arch
-    valid_arches = util.RC_ARCH_TO_RHCOS_ARCH.keys()
+    valid_arches = constants.RC_ARCH_TO_RHCOS_ARCH.keys()
     if arch not in valid_arches:
         so.say(f'Arch {arch} is not valid: please choose one in {", ".join(valid_arches)}')
         return
@@ -285,7 +284,8 @@ def kernel_info(so, release_img, arch):
         rhcos_build_id = await get_rhcos_build_id_from_release(release_img, arch)
 
         # Fetch RHCOS build metadata
-        metadata = await rhcos_build_metadata(rhcos_build_id, ocp_version, util.RC_ARCH_TO_RHCOS_ARCH[arch])
+        metadata = await rhcos_build_metadata(
+            rhcos_build_id, ocp_version, constants.RC_ARCH_TO_RHCOS_ARCH[arch])
         pkg_list = metadata['rpmostree.rpmdb.pkglist']
         kernel_core = [pkg for pkg in pkg_list if 'kernel-core' in pkg][0]
         rpms.append(f'kernel-core.{".".join(kernel_core[2:])}')

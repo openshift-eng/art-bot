@@ -9,22 +9,6 @@ import functools
 
 logger = logging.getLogger(__name__)
 
-# Release Controller and RHCOS browser call arches in different ways;
-# these two dictionaries easily map names from/to one namespace to the other
-RC_ARCH_TO_RHCOS_ARCH = {
-    'amd64': 'x86_64',
-    'arm64': 'aarch64',
-    'ppc64le': 'ppc64le',
-    's390x': 's390x'
-}
-
-RHCOS_ARCH_TO_RC_ARCH = {
-    'x86_64': 'amd64',
-    'aarch64': 'arm64',
-    'ppc64le': 'ppc64le',
-    's390x': 's390x'
-}
-
 
 def please_notify_art_team_of_error(so, payload):
     dt = datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
