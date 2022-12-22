@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 import re
 import logging
 from string import Template
