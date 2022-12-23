@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import re
-import traceback
 from typing import Tuple, Union
 import time
 from enum import Enum
@@ -227,7 +226,10 @@ async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
         LOGGER.debug('Fetching URL %s', url)
 
         async with session.get(url) as resp:
-            release_info = await resp.json()
+            try:
+                release_info = await resp.json()
+            except aiohttp.client_exceptions.ContentTypeError:
+                return None
 
     return release_info['displayVersions']['machine-os']['Version']
 
@@ -262,6 +264,10 @@ def kernel_info(so, release_img, arch):
     async def non_rhcos_kernel_info(image):
         # Get image build for provided release image
         build_info, pullspec, _ = await get_image_info(so, image, release_img)
+        if not build_info:
+            # Release wasn't found. Already notified on Slack
+            return None
+
         labels = build_info["config"]["config"]["Labels"]
         name = labels["com.redhat.component"]
         version = labels["version"]
@@ -283,6 +289,9 @@ def kernel_info(so, release_img, arch):
 
         # Fetch release info from Release Controller to get RHCOS build ID
         rhcos_build_id = await get_rhcos_build_id_from_release(release_img, arch)
+        if not rhcos_build_id:
+            so.say(f'Couldn\'t find release `{release_img}` on Release Controller')
+            return
 
         # Fetch RHCOS build metadata
         metadata = await rhcos_build_metadata(
@@ -310,16 +319,12 @@ def kernel_info(so, release_img, arch):
         asyncio.ensure_future(non_rhcos_kernel_info('driver-toolkit')),
         asyncio.ensure_future(non_rhcos_kernel_info('ironic-machine-os-downloader')),
         asyncio.ensure_future(rhcos_kernel_info())
-    ], return_exceptions=True))
+    ], return_exceptions=False))
 
     output = []
-    for entry in res:
-        if isinstance(entry, Exception):
-            so.say(f"Sorry, this error raised during the process: {entry}\n"
-                   f"{traceback.format_exc()}")
-            return
-
-        assert isinstance(entry, dict)
+    # If the result entry is None, something happened
+    # Skip it, assuming the user has already been notified abut errors
+    for entry in filter(lambda x: x, res):
         output.append(f'Kernel info for `{entry["name"]}` {entry["pullspec"]}:')
         output.append('```')
         output.extend(entry['rpms'])
