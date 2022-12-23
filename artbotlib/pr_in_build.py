@@ -2,7 +2,6 @@ import asyncio
 import json
 import re
 import logging
-from string import Template
 from collections.abc import Iterable
 
 import requests
@@ -10,15 +9,8 @@ import requests
 import artbotlib.exectools
 from artbotlib import util, pipeline_image_util
 from artbotlib.exceptions import NullDataReturned
-from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT, ART_DASH_API_ROUTE
-
-RELEASESTREAM_ENDPOINT_TEMPLATE = Template('https://${arch}.ocp.releases.ci.openshift.org/api/v1/releasestream')
-VALID_ARCHES = [
-    'amd64',
-    'arm64',
-    's390x',
-    'ppc64le'
-]
+from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT, ART_DASH_API_ROUTE, \
+    RELEASE_CONTROLLER_URL
 
 
 class PrInfo:
@@ -32,6 +24,9 @@ class PrInfo:
         self.version = version
         self.arch = arch if arch else 'amd64'
         self.component = component
+        self.valid_arches = artbotlib.constants.RC_ARCH_TO_RHCOS_ARCH.keys()
+        self.releasestream_api_endpoint = \
+            f'{RELEASE_CONTROLLER_URL.substitute(arch=self.arch)}/api/v1/releasestream'
 
         self.merge_commit = None
         self.distgit = None
@@ -97,11 +92,11 @@ class PrInfo:
         """
 
         major, minor = self.version.split('.')
-        releasestream_endpoint = RELEASESTREAM_ENDPOINT_TEMPLATE.substitute(arch=self.arch)
+
         if self.arch == 'amd64':
-            nightly_endpoint = f'{releasestream_endpoint}/{major}.{minor}.0-0.nightly/tags'
+            nightly_endpoint = f'{self.releasestream_api_endpoint}/{major}.{minor}.0-0.nightly/tags'
         else:
-            nightly_endpoint = f'{releasestream_endpoint}/{major}.{minor}.0-0.nightly-{self.arch}/tags'
+            nightly_endpoint = f'{self.releasestream_api_endpoint}/{major}.{minor}.0-0.nightly-{self.arch}/tags'
 
         response = requests.get(nightly_endpoint)
         if response.status_code != 200:
@@ -127,11 +122,11 @@ class PrInfo:
         """
 
         major, minor = self.version.split('.')
-        releasestream_endpoint = RELEASESTREAM_ENDPOINT_TEMPLATE.substitute(arch=self.arch)
+
         if self.arch == 'amd64':
-            release_endpoint = f'{releasestream_endpoint}/{major}-stable/tags'
+            release_endpoint = f'{self.releasestream_api_endpoint}/{major}-stable/tags'
         else:
-            release_endpoint = f'{releasestream_endpoint}/{major}-stable-{self.arch}/tags'
+            release_endpoint = f'{self.releasestream_api_endpoint}/{major}-stable-{self.arch}/tags'
 
         response = requests.get(release_endpoint)
         if response.status_code != 200:
@@ -288,9 +283,9 @@ class PrInfo:
 
     async def run(self):
         # Check arch
-        if self.arch not in VALID_ARCHES:
+        if self.arch not in self.valid_arches:
             self.so.say(f'`{self.arch}` is not a valid architecture: '
-                        f'please select one in one in {VALID_ARCHES} and try again')
+                        f'please select one in one in {self.valid_arches} and try again')
             return
         self.logger.info('Using arch %s', self.arch)
 

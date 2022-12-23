@@ -113,3 +113,14 @@ def log_config(debug: bool = False):
         handlers=[default_handler],
         level=logging.DEBUG if debug else logging.INFO
     )
+
+
+def ocp_version_from_release_img(release_img: str) -> str:
+    """
+    Given a nightly or release name, return the OCP version
+
+    :param release_img: e.g. '4.12.0-0.nightly-2022-12-20-034740', '4.10.10'
+    :return: e.g. '4.10'
+    """
+
+    return '.'.join(release_img.split('-')[0].split('.')[:2])
