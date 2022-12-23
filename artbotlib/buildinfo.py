@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import re
+import traceback
 from typing import Tuple, Union
 import time
 from enum import Enum
@@ -313,10 +314,12 @@ def kernel_info(so, release_img, arch):
 
     output = []
     for entry in res:
-        if isinstance(entry, ChildProcessError):
-            so.say(f"Sorry, I wasn't able to query the release image `{release_img}`.")
+        if isinstance(entry, Exception):
+            so.say(f"Sorry, this error raised during the process: {entry}\n"
+                   f"{traceback.format_exc()}")
             return
 
+        assert isinstance(entry, dict)
         output.append(f'Kernel info for `{entry["name"]}` {entry["pullspec"]}:')
         output.append('```')
         output.extend(entry['rpms'])
