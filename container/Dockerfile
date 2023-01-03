@@ -63,7 +63,7 @@ RUN umask a+rx && pip3 install --upgrade \
 COPY container/krb5-redhat.conf /etc/krb5.conf
 COPY . /tmp/art-bot
 USER 0
-RUN cp -r /tmp/art-bot/{artbotlib,art-bot.py} . \
+RUN cp -r /tmp/art-bot/{artbotlib,art-bot.py,art_bot_dev.py} . \
  && cp /tmp/art-bot/container/doozer-settings.yaml /home/"$USERNAME"/.config/doozer/settings.yaml \
  && cp /tmp/art-bot/container/elliott-settings.yaml /home/"$USERNAME"/.config/elliott/settings.yaml \
  && rm -rf /tmp/art-bot
