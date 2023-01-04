@@ -1,14 +1,18 @@
 #!/usr/bin/python3
-
+import signal
 import click
 import os
 import os.path
 import pprint
 import logging
 import yaml
-from multiprocessing.pool import ThreadPool
 import traceback
-
+import random
+import artbotlib.variables as variables
+from multiprocessing.pool import ThreadPool
+from artbotlib.buildinfo import buildinfo_for_release, kernel_info, alert_on_build_complete
+from artbotlib.pr_in_build import pr_info
+from artbotlib.translation import translate_names
 from artbotlib.regex_mapping import map_command_to_regex
 from artbotlib.util import lookup_channel, log_config
 from artbotlib.formatting import extract_plain_text
@@ -191,6 +195,19 @@ def run(debug):
     handler = SocketModeHandler(app, bot_config["slack_app_token"])
     handler.start()
 
+
+def signal_handler(_signo, _stack_frame):
+    """
+    Function to handle SIGTERM signal sent during pod termination. Check if check nightly color command is still running.
+    If it is, report to the user saying that they have re-run the command.
+    """
+    slack_objects = variables.active_slack_objects
+    for slack_object in slack_objects:
+        plain_text = extract_plain_text({"data": slack_object.event})
+        slack_object.say(f"Uh oh... art-bot is restarting. Please try *'{plain_text}'* again, after a minute.")
+
+
+signal.signal(signal.SIGTERM, signal_handler)
 
 if __name__ == "__main__":
     run()

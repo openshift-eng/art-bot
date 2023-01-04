@@ -2,7 +2,7 @@ import requests
 import time
 from typing import Union
 import json
-
+import artbotlib.variables as variables
 from artbotlib.constants import COLOR_MAPS, TWELVE_HOURS, FIVE_MINUTES
 
 
@@ -71,18 +71,22 @@ def nightly_color_status(so, user_id, release_url, release_browser) -> None:
 
     so.say(f"<@{user_id}> Ok, I'll respond here when tests have finished.")
     start = time.time()
-    while True:
-        now = time.time()
-        if now - start > TWELVE_HOURS:  # Timeout after 12 hrs.
-            so.say(f"<@{user_id}> {slack_url_payload} didn't change even after 12 hrs :(")
-            break
+    variables.active_slack_objects[so] = 1
+    try:
+        while True:
+            now = time.time()
+            if now - start > TWELVE_HOURS:  # Timeout after 12 hrs.
+                so.say(f"<@{user_id}> {slack_url_payload} didn't change even after 12 hrs :(")
+                break
 
-        time.sleep(FIVE_MINUTES)  # check every 5 minutes
+            time.sleep(FIVE_MINUTES)  # check every 5 minutes
 
-        color = get_nightly_color(release_url, release_browser)
-        if color:
-            so.say(f"<@{user_id}> {slack_url_payload} changed to `{color}` !")
-            if color == "Red":
-                payload = get_failed_jobs(release_url, release_browser)
-                so.say(payload)
-            break
+            color = get_nightly_color(release_url, release_browser)
+            if color:
+                so.say(f"<@{user_id}> {slack_url_payload} changed to `{color}` !")
+                if color == "Red":
+                    payload = get_failed_jobs(release_url, release_browser)
+                    so.say(payload)
+                break
+    finally:
+        del variables.active_slack_objects[so]
