@@ -2,8 +2,9 @@ import os
 import re
 
 from artbotlib import brew_list, elliott
-from artbotlib.buildinfo import buildinfo_for_release, kernel_info, alert_on_build_complete
+from artbotlib.buildinfo import buildinfo_for_release, alert_on_build_complete
 from artbotlib.help import greet_user, show_help
+from artbotlib.kernel_info import kernel_info
 from artbotlib.nightly_color import nightly_color_status
 from artbotlib.pipeline_image_names import pipeline_from_github, pipeline_from_distgit, pipeline_from_brew, \
     pipeline_from_cdn, pipeline_from_delivery
