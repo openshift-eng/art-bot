@@ -7,12 +7,8 @@ import pprint
 import logging
 import yaml
 import traceback
-import random
 import artbotlib.variables as variables
 from multiprocessing.pool import ThreadPool
-from artbotlib.buildinfo import buildinfo_for_release, kernel_info, alert_on_build_complete
-from artbotlib.pr_in_build import pr_info
-from artbotlib.translation import translate_names
 from artbotlib.regex_mapping import map_command_to_regex
 from artbotlib.util import lookup_channel, log_config
 from artbotlib.formatting import extract_plain_text
