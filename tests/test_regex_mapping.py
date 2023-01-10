@@ -726,3 +726,41 @@ def test_nightly_color_status(pipeline_mock):
             '4.13.0-0.ci-2022-12-19-111818 stops being blue'
     so_mock.should_receive('say').never()
     map_command_to_regex(so_mock, query, None)
+
+
+@patch('artbotlib.regex_mapping.first_prow_job_succeedes')
+def test_first_prow_job_succeedes(pipeline_mock):
+    """
+    Test valid/invalid queries for prow.first_prow_job_succeedes()
+    """
+
+    pipeline_mock.side_effect = lambda outputter, *_, **__: outputter.say('mock called')
+    so_mock = flexmock(so)
+
+    # Valid
+    query = 'alert when first prow job in https://prow.ci.openshift.org/view/gs/origin-ci-test/logs/' \
+            'release-openshift-origin-installer-e2e-azure-upgrade/1612684208528953344 ' \
+            'https://prow.ci.openshift.org/view/gs/origin-ci-test/logs/' \
+            'release-openshift-origin-installer-e2e-azure-upgrade/1612684208528953344 succeedes'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Valid
+    query = 'alert when first prow job in https://prow.ci.openshift.org/view/gs/origin-ci-test/logs/' \
+            'release-openshift-origin-installer-e2e-azure-upgrade/1612684208528953344 succeedes'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Valid
+    query = 'alert when first prow job in       https://prow.ci.openshift.org/view/gs/origin-ci-test/logs/' \
+            'release-openshift-origin-installer-e2e-azure-upgrade/1612684208528953344 succeedes'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Valid
+    query = 'alert when first prow job in       https://prow.ci.openshift.org/view/gs/origin-ci-test/logs/' \
+            'release-openshift-origin-installer-e2e-azure-upgrade/1612684208528953344     ' \
+            'https://prow.ci.openshift.org/view/gs/origin-ci-test/logs/' \
+            'release-openshift-origin-installer-e2e-azure-upgrade/1612684208528953344 succeedes'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)

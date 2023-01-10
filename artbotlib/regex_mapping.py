@@ -3,12 +3,14 @@ import re
 
 from artbotlib import brew_list, elliott
 from artbotlib.buildinfo import buildinfo_for_release, alert_on_build_complete
+from artbotlib.constants import PROW_BASE_URL
 from artbotlib.help import greet_user, show_help
 from artbotlib.kernel_info import kernel_info
 from artbotlib.nightly_color import nightly_color_status
 from artbotlib.pipeline_image_names import pipeline_from_github, pipeline_from_distgit, pipeline_from_brew, \
     pipeline_from_cdn, pipeline_from_delivery
 from artbotlib.pr_in_build import pr_info
+from artbotlib.prow import prow_job_status, first_prow_job_succeeds
 from artbotlib.translation import translate_names
 
 
@@ -140,6 +142,18 @@ def map_command_to_regex(so, plain_text, user_id):
             "regex": r"^Alert ?(if|when|on)? https://(?P<release_browser>[\w]+).ocp.releases.ci.openshift.org(?P<release_url>[\w/.-]+) ?(stops being blue|fails|is rejected|is red|is accepted|is green)?$",
             "flag": re.I,
             "function": nightly_color_status,
+            "user_id": True
+        },
+        {
+            "regex": rf"^Alert ?(if|when|on)? prow job {PROW_BASE_URL}/view/gs/(?P<job_path>\S*) completes$",
+            "flag": re.I,
+            "function": prow_job_status,
+            "user_id": True
+        },
+        {
+            "regex": rf"^Alert ?(if|when|on)? first prow job in(?P<job_paths>(( )*{PROW_BASE_URL}/view/gs/\S*)*) succeeds$",
+            "flag": re.I,
+            "function": first_prow_job_succeeds,
             "user_id": True
         }
     ]
