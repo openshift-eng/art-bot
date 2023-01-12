@@ -7,6 +7,7 @@ from enum import Enum
 import aiohttp
 from aiohttp import client_exceptions
 
+from artbotlib import variables
 from artbotlib.constants import FIVE_MINUTES, TWELVE_HOURS, PROW_BASE_URL
 
 GS_WEB_URL = 'https://gcsweb-ci.apps.ci.l2s4.p1.openshiftapps.com/gcs'
@@ -112,12 +113,15 @@ def first_prow_job_succeeds(so, user_id: str, job_paths: str):
     fail_count = 0
     max_attempts = 3
 
+    # Handle pod restarts while loop is running
+    variables.active_slack_objects[so] = 1
+
     while True:
         # Timeout after 12 hrs.
         now = time.time()
         if now - start > TWELVE_HOURS:  # Timeout after 12 hrs.
             so.say(f"<@{user_id}> no job in {job_paths} completed within 12 hrs :(")
-            return
+            break
         logger.info('Checking states for jobs %s', job_paths)
 
         tasks = [get_job_state(path) for path in paths]
@@ -127,7 +131,7 @@ def first_prow_job_succeeds(so, user_id: str, job_paths: str):
         if all([isinstance(result, Exception) for result in results]):
             if fail_count >= max_attempts:
                 so.say('Sorry, failed checking all provided Prow jobs')
-                return
+                break
 
             time.sleep(FIVE_MINUTES)
             max_attempts += 1
@@ -146,13 +150,16 @@ def first_prow_job_succeeds(so, user_id: str, job_paths: str):
         # If all jobs failed, notify the user
         if all([result == ProwJobState.FAILURE.value for result in results]):
             so.say(f"<@{user_id}> all jobs failed!")
-            return
+            break
 
         # If at least one job passed, notify the user
         for index, result in enumerate(results):
             if result == ProwJobState.SUCCESS.value:
                 so.say(f"<@{user_id}> prow job {paths[index]} completed successfully!")
-                return
+                break
 
         # If not completed yet, wait and retry
         time.sleep(FIVE_MINUTES)
+
+    # Remove
+    del variables.active_slack_objects[so]
