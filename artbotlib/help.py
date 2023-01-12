@@ -20,6 +20,7 @@ _*ART releases:*_
 * Image list advisory `advisory_id`
 * Alert if `release_url` (stops being blue|fails|is rejected|is red|is accepted|is green)
 * What kernel is used in `release image name or pullspec`?
+* Alert (if|when|on) prow job `Prow job URL` completes
 
 _*ART build info:*_
 * Where in `major.minor` (is|are) the `name1,name2,...` (RPM|package) used?

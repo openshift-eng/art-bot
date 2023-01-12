@@ -29,6 +29,8 @@ ART_DASH_API_ROUTE = "http://art-dash-server-art-build-dev.apps.ocp4.prod.psi.re
 
 RELEASE_CONTROLLER_URL = Template('https://${arch}.ocp.releases.ci.openshift.org')
 
+PROW_BASE_URL = 'https://prow.ci.openshift.org'
+
 # Release Controller and RHCOS browser call arches in different ways;
 # these two dictionaries easily map names from/to one namespace to the other
 RC_ARCH_TO_RHCOS_ARCH = {

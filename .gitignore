@@ -133,3 +133,6 @@ slack-api-token
 
 # Pycharm
 .idea
+
+# Backup files
+*.orig
