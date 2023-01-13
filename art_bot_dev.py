@@ -3,9 +3,10 @@
 
 from artbotlib.regex_mapping import map_command_to_regex
 from artbotlib.slack_output import SlackDeveloperOutput
-
+from artbotlib.util import log_config
 
 if __name__ == "__main__":
+    log_config()
     so = SlackDeveloperOutput()
     print("---\nWelcome to the developer interface for Art-Bot.")
     print("To exit, type in 'exit' or use Ctrl-C\n---\n")
