@@ -103,6 +103,8 @@ def first_prow_job_succeeds(so, user_id: str, job_paths: str):
     Times out after 12 hours
     """
 
+    job_paths = job_paths.replace(f'{PROW_BASE_URL}/view/gs', '')
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     start = time.time()
