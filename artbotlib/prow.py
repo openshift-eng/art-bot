@@ -70,6 +70,9 @@ def prow_job_status(so, user_id: str, job_path: str):
     job_state = ProwJobState.PENDING.value
     start = time.time()
 
+    # Handle pod restarts while loop is running
+    variables.active_slack_objects.add(so)
+
     while job_state == ProwJobState.PENDING.value:
         # Timeout after 12 hrs.
         now = time.time()
@@ -96,6 +99,9 @@ def prow_job_status(so, user_id: str, job_path: str):
         # If not completed yet, wait and retry
         time.sleep(FIVE_MINUTES)
 
+    # Remove slack object
+    variables.active_slack_objects.remove(so)
+
 
 def first_prow_job_succeeds(so, user_id: str, job_paths: str):
     """
@@ -116,7 +122,7 @@ def first_prow_job_succeeds(so, user_id: str, job_paths: str):
     max_attempts = 3
 
     # Handle pod restarts while loop is running
-    variables.active_slack_objects[so] = 1
+    variables.active_slack_objects.add(so)
 
     while True:
         # Timeout after 12 hrs.
@@ -163,5 +169,5 @@ def first_prow_job_succeeds(so, user_id: str, job_paths: str):
         # If not completed yet, wait and retry
         time.sleep(FIVE_MINUTES)
 
-    # Remove
-    del variables.active_slack_objects[so]
+    # Remove slack object
+    variables.active_slack_objects.remove(so)

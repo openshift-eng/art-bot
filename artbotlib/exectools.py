@@ -8,6 +8,9 @@ import traceback
 from fcntl import fcntl, F_GETFL, F_SETFL
 from typing import Union, List, Tuple
 
+from artbotlib import variables as variables
+from artbotlib.formatting import extract_plain_text
+
 from artbotlib.util import logger
 
 
@@ -186,3 +189,15 @@ def cmd_assert(so, cmd, set_env=None, cwd=None, realtime=False):
         raise IOError(f'Non-zero return code from: {cmd}')
 
     return rc, stdout, stderr
+
+
+def sigterm_handler(_signo, _stack_frame):
+    """
+    Function to handle SIGTERM signal sent during pod termination. Check if long running requests are still running.
+    If any, report to the user saying that they have re-run the command.
+    """
+
+    slack_objects = variables.active_slack_objects
+    for slack_object in slack_objects:
+        plain_text = extract_plain_text({"data": slack_object.event})
+        slack_object.say(f"Uh oh... art-bot is restarting. Please try *'{plain_text}'* again, after a minute.")

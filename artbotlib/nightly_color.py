@@ -71,7 +71,7 @@ def nightly_color_status(so, user_id, release_url, release_browser) -> None:
 
     so.say(f"<@{user_id}> Ok, I'll respond here when tests have finished.")
     start = time.time()
-    variables.active_slack_objects[so] = 1
+    variables.active_slack_objects.add(so)
     try:
         while True:
             now = time.time()
@@ -89,4 +89,4 @@ def nightly_color_status(so, user_id, release_url, release_browser) -> None:
                     so.say(payload)
                 break
     finally:
-        del variables.active_slack_objects[so]
+        variables.active_slack_objects.remove(so)
