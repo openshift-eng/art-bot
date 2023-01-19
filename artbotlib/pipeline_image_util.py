@@ -1,7 +1,6 @@
 import requests
 import yaml
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
-from collections import defaultdict
 
 import artbotlib.exectools
 from . import util, constants
@@ -243,7 +242,8 @@ def brew_to_delivery(brew_package_name: str, variant: str) -> str:
     return payload
 
 
-@util.cached
+# @util.cached
+# @util.cached
 def doozer_brew_distgit(version: str) -> list:
     output = artbotlib.exectools.cmd_gather(f"doozer --disable-gssapi -g openshift-{version} "
                                             f"images:print --short '{{component}}: {{name}}'")
@@ -567,7 +567,7 @@ def github_distgit_mappings(version: str) -> dict:
     return mappings
 
 
-@util.cached
+# @util.cached
 def distgit_github_mappings(version: str) -> dict:
     """
     Function to get the distgit to GitHub mappings present in a particular OCP version.
