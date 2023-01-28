@@ -47,7 +47,6 @@ def handle_request(so, version, content_name, image_type):
     url = f"{constants.ART_DASH_API_ROUTE}/" \
           f"pipeline-image?starting_from={image_type}&name={content_name}&version={version}"
     logger.debug("URL to server: ", url)
-    print(url)
     response = requests.get(url)
 
     try:
