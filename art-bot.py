@@ -92,8 +92,7 @@ def respond(client, event):
         data = event
         web_client = client
 
-        print('\n----------------- DATA -----------------\n')
-        pprint.pprint(data)
+        logger.info(data)
 
         # Channel we were contacted from.
         from_channel = data['channel']
@@ -125,8 +124,8 @@ def respond(client, event):
 
         plain_text = extract_plain_text({"data": data}, alt_username)
 
-        print(f'Gating {from_channel}')
-        print(f'Query was: {plain_text}')
+        logger.info(f"Gating {from_channel}")
+        logger.info(f"Query was: {plain_text}")
 
         so = SlackOutput(
             web_client=web_client,
@@ -145,13 +144,14 @@ def respond(client, event):
             # Catch any unexpected error and display appropriate message to the user.
             so.say("Uh oh... there seems to be a problem. Please contact @.art-team")
             so.monitoring_say(f"Error: {error}")
+            logger.error(error)
 
         if not so.said_something:
             so.say("Sorry, I can't help with that yet. Ask 'help' to see what I can do.")
 
     except Exception:
-        print('Error responding to message:')
-        pprint.pprint(event)
+        logger.error("Error responding to message:")
+        logger.error(event)
         traceback.print_exc()
         raise
 
@@ -175,8 +175,7 @@ def incoming_dm(client, event):
 @click.option('--debug', default=False, is_flag=True, help='Show debug output on console.')
 @click.command()
 def run(debug):
-    logging.basicConfig()
-    logging.getLogger('activemq').setLevel(logging.DEBUG)
+    log_config(debug)
 
     # Get the Slack app token to start a socket connection
     try:
@@ -185,9 +184,6 @@ def run(debug):
     except Exception as exc:
         print(f"Error: {exc}\nYou must provide a slack APP token in your config. You can find this in bitwarden.")
         exit(1)
-
-    log_config(debug)
-    logging.getLogger('activemq').setLevel(logging.DEBUG)
 
     handler = SocketModeHandler(app, bot_config["slack_app_token"])
     handler.start()
