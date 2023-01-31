@@ -3,7 +3,6 @@ import signal
 import click
 import os
 import os.path
-import pprint
 import logging
 import yaml
 import traceback
@@ -36,13 +35,13 @@ try:
     with open(abs_path_home(bot_config["slack_api_token_file"]), "r") as stream:
         bot_config["slack_api_token"] = stream.read().strip()
 except yaml.YAMLError as e:
-    print(f"Error reading yaml in file {config_file}: {e}")
+    logger.error(f"Error reading yaml in file {config_file}: {e}")
     exit(1)
 except KeyError as e:
-    print(f"Error: {e}\nYou must provide a slack API token in your config. You can find this in bitwarden.")
+    logger.error(f"Error: {e}\nYou must provide a slack API token in your config. You can find this in bitwarden.")
     exit(1)
 except Exception as e:
-    print(f"Error loading art-bot config file {config_file}: {e}")
+    logger.error(f"Error loading art-bot config file {config_file}: {e}")
     exit(1)
 
 # Since 'slack_api_token' is needed and @app.event is a header,
@@ -63,7 +62,7 @@ def handle_message(client, event):
     try:
         bot_config["self"] = {"id": r.data["user_id"], "name": r.data["user"]}
         if "monitoring_channel" not in bot_config:
-            print("Warning: no monitoring_channel configured.")
+            logger.warning("Warning: no monitoring_channel configured.")
         else:
             found = lookup_channel(web_client, bot_config["monitoring_channel"], only_private=True)
             if not found:
@@ -81,7 +80,7 @@ def handle_message(client, event):
         bot_config.setdefault("username", bot_config["self"]["name"])
 
     except Exception as exc:
-        print(f"Error with the contents of your settings file:\n{exc}")
+        logger.error(f"Error with the contents of your settings file:\n{exc}")
         exit(1)
 
     pool.apply_async(respond, (client, event))
@@ -182,7 +181,7 @@ def run(debug):
         with open(abs_path_home(bot_config["slack_app_token_file"]), "r") as token_file:
             bot_config["slack_app_token"] = token_file.read().strip()
     except Exception as exc:
-        print(f"Error: {exc}\nYou must provide a slack APP token in your config. You can find this in bitwarden.")
+        logger.error(f"Error: {exc}\nYou must provide a slack APP token in your config. You can find this in bitwarden.")
         exit(1)
 
     handler = SocketModeHandler(app, bot_config["slack_app_token"])
