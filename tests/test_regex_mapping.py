@@ -347,6 +347,35 @@ def test_image_list_advisory(image_list_mock):
     so_mock.should_receive('say').never()
     map_command_to_regex(so_mock, query, None)
 
+@patch('artbotlib.elliott.go_nvrs')
+def test_go_nvrs(go_nvrs_mock):
+    """
+    Test valid/invalid queries for elliott.go_nvrs()
+    """
+
+    go_nvrs_mock.side_effect = lambda outputter, *_, **__: outputter.say('mock called')
+    so_mock = flexmock(so)
+
+    # Valid
+    query = 'go version for ose-ovn-kubernetes-container-v4.7.0-202108160002.p0.git.9581e60.assembly.stream'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Valid
+    query = 'golang version for ose-ovn-kubernetes-container-v4.7.0-202108160002.p0.git.9581e60.assembly.stream'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Valid
+    query = 'go version of ose-ovn-kubernetes-container-v4.7.0-202108160002.p0.git.9581e60.assembly.stream'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Invalid - missing advisory ID
+    query = 'go version for nvr1,nvr2'
+    so_mock.should_receive('say').never()
+    map_command_to_regex(so_mock, query, None)
+
 
 @patch('artbotlib.brew_list.list_uses_of_rpms')
 def test_list_uses_of_rpms(uses_mock):
