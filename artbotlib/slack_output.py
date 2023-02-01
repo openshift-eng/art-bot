@@ -1,6 +1,7 @@
-import pprint
 import traceback
-import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SlackOutput:
@@ -15,7 +16,7 @@ class SlackOutput:
         self.said_something = False
 
     def say(self, text, **msg_opts):
-        print(f"Responding back through: {self.target_channel_id}")
+        logger.info(f"Responding back through: {self.target_channel_id}")
         self.said_something = True
         msg = dict(
             channel=self.target_channel_id,
@@ -25,13 +26,12 @@ class SlackOutput:
         )
         msg.update(msg_opts)
         response = self.web_client.chat_postMessage(**msg)
-        print(f"response ok: {response.get('ok')}\n")
-        pprint.pprint(f"ok: {response.get('message')}")
+        logger.info(response)
 
     def snippet(self, payload, intro=None, filename=None, filetype=None):
         self.said_something = True
-        print(f"Called with payload: {payload}")
-        print(f"Responding back through: {self.target_channel_id}")
+        logger.info(f"Called with payload: {payload}")
+        logger.info(f"Responding back through: {self.target_channel_id}")
         r = self.web_client.files_upload(
             initial_comment=intro,
             channels=self.target_channel_id,
@@ -40,8 +40,8 @@ class SlackOutput:
             filetype=filetype,
             thread_ts=self.thread_ts,
         )
-        print("Response: ")
-        pprint.pprint(r)
+        logger.info("Response: ")
+        logger.info(r)
 
     def monitoring_say(self, text, **msg_opts):
         if not self.monitoring_channel_id:
@@ -55,14 +55,14 @@ class SlackOutput:
             msg.update(msg_opts)
             self.web_client.chat_postMessage(**msg)
         except Exception:
-            print("Error sending information to monitoring channel")
+            logger.error("Error sending information to monitoring channel")
             traceback.print_exc()
 
     def monitoring_snippet(self, payload, intro=None, filename=None, filetype=None):
         if not self.monitoring_channel_id:
             return
         try:
-            print("Called with monitoring payload: {}".format(payload))
+            logger.info("Called with monitoring payload: {}".format(payload))
             r = self.web_client.files_upload(
                 initial_comment=intro,
                 channels=self.monitoring_channel_id,
@@ -70,10 +70,10 @@ class SlackOutput:
                 filename=filename,
                 filetype=filetype,
             )
-            print("Response: ")
-            pprint.pprint(r)
+            logger.info("Response: ")
+            logger.info(r)
         except Exception:
-            print("Error sending snippet to monitoring channel")
+            logger.error("Error sending snippet to monitoring channel")
             traceback.print_exc()
 
     def from_user_mention(self):

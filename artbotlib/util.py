@@ -113,6 +113,7 @@ def log_config(debug: bool = False):
         handlers=[default_handler],
         level=logging.DEBUG if debug else logging.INFO
     )
+    logging.getLogger('activemq').setLevel(logging.DEBUG)
 
 
 def ocp_version_from_release_img(release_img: str) -> str:
