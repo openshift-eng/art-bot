@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import pprint
 import signal
 import click
 import os
@@ -91,7 +92,7 @@ def respond(client, event):
         data = event
         web_client = client
 
-        logger.info(data)
+        logger.info(pprint.pformat(data))
 
         # Channel we were contacted from.
         from_channel = data['channel']
@@ -123,7 +124,7 @@ def respond(client, event):
 
         plain_text = extract_plain_text({"data": data}, alt_username)
 
-        logger.info(f"Gating {from_channel}")
+        logger.debug(f"Gating {from_channel}")
         logger.info(f"Query was: {plain_text}")
 
         so = SlackOutput(
