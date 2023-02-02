@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import logging
 import os
 import shlex
 import subprocess
@@ -11,7 +12,7 @@ from typing import Union, List, Tuple
 from artbotlib import variables as variables
 from artbotlib.formatting import extract_plain_text
 
-from artbotlib.util import logger
+logger = logging.getLogger(__name__)
 
 
 async def cmd_gather_async(cmd: Union[List[str], str], check: bool = True, **kwargs) -> Tuple[int, str, str]:
@@ -101,7 +102,7 @@ def cmd_gather(cmd, set_env=None, cwd=None, realtime=False):
     # Make sure output of launched commands is utf-8
     env['LC_ALL'] = 'en_US.UTF-8'
 
-    logger.debug("Executing:cmd_gather {}".format(cmd_info))
+    logger.info("Executing:cmd_gather {}".format(cmd_info))
     try:
         proc = subprocess.Popen(
             cmd_list, cwd=cwd, env=env,
@@ -152,7 +153,7 @@ def cmd_gather(cmd, set_env=None, cwd=None, realtime=False):
     # We read in bytes representing utf-8 output; decode so that python recognizes them as unicode strings
     out = out.decode('utf-8')
     err = err.decode('utf-8')
-    logger.debug(
+    logger.info(
         "Process {}: exited with: {}\nstdout>>{}<<\nstderr>>{}<<\n".
         format(cmd_info, rc, out, err))
     return rc, out, err
