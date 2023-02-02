@@ -14,6 +14,8 @@ class KernelInfo:
 
     async def run(self):
         self.so.say(f'Gathering image info for `{self.release_img}`...')
+        self.logger.info('Gathering image info for %s with arch %s',
+                         self.release_img, self.arch)
 
         results = await asyncio.gather(
             *[
@@ -41,10 +43,17 @@ class KernelInfo:
             return None
 
         labels = build_info["config"]["config"]["Labels"]
-        name = labels["com.redhat.component"]
-        version = labels["version"]
-        release = labels["release"]
+
+        try:
+            name = labels["com.redhat.component"]
+            version = labels["version"]
+            release = labels["release"]
+        except KeyError:
+            self.logger.error('Not all needed labels were found: %s', labels)
+            return None
+
         build_nvr = f"{name}-{version}-{release}"
+        self.logger.info('Found build nvr: %s', build_nvr)
 
         # Get rpms version
         matched = brew_list.list_specific_rpms_for_image(['kernel-core', 'kernel-rt'], build_nvr)
@@ -61,6 +70,7 @@ class KernelInfo:
         # Fetch release info from Release Controller to get RHCOS build ID
         rhcos_build_id = await rhcos.get_rhcos_build_id_from_release(self.release_img, self.arch)
         if not rhcos_build_id:
+            self.logger.error('Couldn\'t find release %s on RC', self.release_img)
             self.so.say(f'Couldn\'t find release `{self.release_img}` on Release Controller')
             return None
 
