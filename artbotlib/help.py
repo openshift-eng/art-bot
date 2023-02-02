@@ -29,6 +29,7 @@ _*ART build info:*_
 * Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
 * pr info `GitHub PR URL` [component `name`] in `major.minor` [for `arch`]
 * Alert when build `Brew build URL|Brew build ID` completes
+* (go|golang) version (for|of) `nvr'
 
 _*misc:*_
 * How can I get ART to build a new image?
