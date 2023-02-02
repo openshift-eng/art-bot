@@ -347,6 +347,7 @@ def test_image_list_advisory(image_list_mock):
     so_mock.should_receive('say').never()
     map_command_to_regex(so_mock, query, None)
 
+
 @patch('artbotlib.elliott.go_nvrs')
 def test_go_nvrs(go_nvrs_mock):
     """
