@@ -21,10 +21,10 @@ def process_data(response_data: dict) -> str:
                    f"<{distgit['brew']['brew_build_url']}|" \
                    f"*{distgit['brew']['brew_package_name']}*>\n"
 
-        if distgit['brew']['bundle_component'] != "None":
+        if distgit['brew']['bundle_component']:
             payload += f"Bundle Component: *{distgit['brew']['bundle_component']}*\n"
 
-        if distgit['brew']['bundle_distgit'] != "None":
+        if distgit['brew']['bundle_distgit']:
             payload += f"Bundle Component: *{distgit['brew']['bundle_distgit']}*\n"
 
         # Tag
