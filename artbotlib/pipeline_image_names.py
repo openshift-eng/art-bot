@@ -5,7 +5,7 @@ from artbotlib import constants
 logger = logging.getLogger(__name__)
 
 
-def process_data(response_data):
+def process_data(response_data: dict) -> str:
     payload = ""
     payload += f"Upstream GitHub repository: " \
                f"<{response_data.get('upstream_github_url')}|*openshift/{response_data['github_repo']}*>\n"
@@ -21,11 +21,15 @@ def process_data(response_data):
                    f"<{distgit['brew']['brew_build_url']}|" \
                    f"*{distgit['brew']['brew_package_name']}*>\n"
 
-        if distgit['brew']['bundle_component'] != "None":
+        if distgit['brew']['bundle_component']:
             payload += f"Bundle Component: *{distgit['brew']['bundle_component']}*\n"
 
-        if distgit['brew']['bundle_distgit'] != "None":
+        if distgit['brew']['bundle_distgit']:
             payload += f"Bundle Component: *{distgit['brew']['bundle_distgit']}*\n"
+
+        # Tag
+        if distgit["brew"]["payload_tag"]:
+            payload += f"Payload tag: *{distgit['brew']['payload_tag']}* \n"
 
         cdns = distgit['brew']['cdn']
         if len(cdns) > 1:
@@ -49,16 +53,27 @@ def handle_request(so, version, content_name, image_type):
     logger.debug("URL to server: ", url)
     response = requests.get(url)
 
+    if response.status_code != 200:
+        logger.error(f"API Server error. Status code: {response.status_code}")
+        so.say("API server error. Contact ART Team.")
+        so.monitoring_say("ERROR: API server error.")
+        return
+
     try:
-        if response.status_code == 200 and response.json().get("status") == "success":
-            payload = process_data(response.json().get("payload"))
-            so.say(payload)
-        else:
-            raise Exception(response.json().get("payload"))
+        json_data = response.json()
     except Exception as e:
-        logger.error(e)
+        logger.error(f"JSON Error: {e}")
         so.say("Error. Contact ART Team")
-        so.monitoring_say(f"Error: {e}")
+        so.monitoring_say(f"JSON Error: {e}")
+        return
+
+    try:
+        payload = process_data(json_data["payload"])
+        so.say(payload)
+    except KeyError as e:
+        logger.error(f"JSON Key Error: {e}")
+        so.say("Error. Contact ART Team")
+        so.monitoring_say(f"JSON Key Error: {e}")
 
 
 # Driver functions
