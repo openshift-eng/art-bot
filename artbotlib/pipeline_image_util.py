@@ -2,6 +2,7 @@ import requests
 import yaml
 import artbotlib.exectools
 from artbotlib import exceptions
+from typing import Union
 
 
 def github_distgit_mappings(version: str) -> dict:
@@ -34,7 +35,7 @@ def github_distgit_mappings(version: str) -> dict:
     return mappings
 
 
-def get_image_stream_tag(distgit_name: str, version: str) -> str:
+def get_image_stream_tag(distgit_name: str, version: str) -> Union[str, None]:
     """
     Function to get the image stream tag if the image is a payload image.
     The for_payload flag would be set to True in the yml file
@@ -49,3 +50,4 @@ def get_image_stream_tag(distgit_name: str, version: str) -> str:
     if yml_file.get('for_payload', False):  # Check if the image is in the payload
         tag = yml_file['name'].split("/")[1]
         return tag[4:] if tag.startswith("ose-") else tag  # remove 'ose-' if present
+    return None
