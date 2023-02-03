@@ -31,7 +31,7 @@ def pipeline_from_github(so, github_repo, version):
 
     if not pipeline_image_util.github_repo_is_available(github_repo):  # Check if the given GitHub repo actually exists
         # If incorrect GitHub name provided, no need to proceed.
-        logger.warning(f'No repo named %s found, giving up', github_repo)
+        logger.warning('No repo named %s found, giving up', github_repo)
         payload = f"No GitHub repo with name *{github_repo}* exists. Try again.\n"
         payload += "Example format: *what is the image pipeline for github `ironic-image`*"
         so.say(payload)
