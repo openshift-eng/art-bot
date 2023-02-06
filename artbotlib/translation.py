@@ -16,11 +16,10 @@ def translate_names(so, _, name, name_type2, major=None, minor=None):
 
     cmd = f"doozer --disable-gssapi --group openshift-{major_minor} --images {name} images:print \'{{{query_name}}}\'" \
           f" --show-base --show-non-release --short"
-    logger.debug(f"Command: {cmd}")
 
     rc, stdout, stderr = artbotlib.exectools.cmd_gather(cmd)
     if rc:
-        logger.error(rc)
+        logger.warning(rc)
         so.say(f"Sorry, there is no image dist-git {name} in version {major_minor}.")
     else:
         so.say(f"Image dist-git {name} has {name_type2} '{stdout.strip()}' in version {major_minor}.")
