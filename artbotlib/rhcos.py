@@ -21,15 +21,22 @@ async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
 
     async with aiohttp.ClientSession() as session:
         url = f'{constants.RELEASE_CONTROLLER_URL.substitute(arch=arch)}/releasetag/{release_img}/json'
-        logger.debug('Fetching URL %s', url)
+        logger.info('Fetching URL %s', url)
 
         async with session.get(url) as resp:
             try:
                 release_info = await resp.json()
             except aiohttp.client_exceptions.ContentTypeError:
+                logger.warning('Failed fetching url %s', url)
                 return None
 
-    return release_info['displayVersions']['machine-os']['Version']
+    try:
+        release_info = release_info['displayVersions']['machine-os']['Version']
+        logger.info('Retrieved release info: %s', release_info)
+        return release_info
+    except KeyError:
+        logger.error('Failed retrieving release info')
+        raise
 
 
 async def rhcos_build_metadata(build_id, ocp_version, arch):
@@ -49,22 +56,28 @@ async def rhcos_build_metadata(build_id, ocp_version, arch):
                        f'{build_id}/{arch}/commitmeta.json'
     try:
         async with aiohttp.ClientSession() as session:
-            logger.debug('Fetching URL %s', old_pipeline_url)
+            logger.info('Fetching URL %s', old_pipeline_url)
             async with session.get(old_pipeline_url) as resp:
                 metadata = await resp.json()
         return metadata
+
     except aiohttp.client_exceptions.ContentTypeError:
         # This build belongs to the new pipeline
+        logger.info('Failed fetching data for build %s, trying with the new pipeline...', build_id)
         pass
 
     # New pipeline
     new_pipeline_url = f'{constants.RHCOS_BASE_URL}/storage/prod/streams/{ocp_version}/builds/' \
                        f'{build_id}/{arch}/commitmeta.json'
-    async with aiohttp.ClientSession() as session:
-        logger.debug('Fetching URL %s', new_pipeline_url)
-        async with session.get(new_pipeline_url) as resp:
-            metadata = await resp.json()
-    return metadata
+    try:
+        async with aiohttp.ClientSession() as session:
+            logger.info('Fetching URL %s', new_pipeline_url)
+            async with session.get(new_pipeline_url) as resp:
+                metadata = await resp.json()
+            return metadata
+    except aiohttp.client_exceptions.ContentTypeError:
+        logger.error('Failed fetching data from url %s', new_pipeline_url)
+        raise
 
 
 def rhcos_build_urls(build_id, arch="x86_64"):
@@ -86,4 +99,5 @@ def rhcos_build_urls(build_id, arch="x86_64"):
     contents = f"{constants.RHCOS_BASE_URL}/" \
                f"contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
     stream = f"{constants.RHCOS_BASE_URL}/?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}#{build_id}"
+    logger.info('Found urls for rhcos build %s:\n%s\n%s', build_id, contents, stream)
     return contents, stream
