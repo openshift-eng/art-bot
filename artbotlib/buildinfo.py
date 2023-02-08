@@ -34,12 +34,15 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
     logger.info(f'Getting image info for {name}')
 
     if ".ci." in re.sub(".*:", "", release_img):
+        logger.error("Sorry, no ART build info for a CI image.")
         so.say("Sorry, no ART build info for a CI image.")
         return None, None, None
 
     # Get release image pullspec
+    logger.info('Retrieving pullspec for release image %s', release_img)
     release_img_pullspec, release_img_text = get_img_pullspec(release_img)
     if not release_img_pullspec:
+        logger.error('Only pullspecs for quay.io or registry.ci.openshift.org can be looked up')
         so.say("Sorry, I can only look up pullspecs for quay.io or registry.ci.openshift.org")
         return None, None, None
 
@@ -49,21 +52,27 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
         check=False
     )
     if rc:
+        logger.error('oc failed with rc %s: %s', rc, stderr)
         so.say(f"Sorry, I wasn't able to query the release image pullspec {release_img_pullspec}.")
         return None, None, None
+
     pullspec = stdout.strip()
+    logger.info('Found image pullspec: %s', pullspec)
 
     # Get image info
     rc, stdout, stderr = await exectools.cmd_gather_async(f"oc image info {pullspec} -o json")
     if rc:
+        logger.error('oc failed with rc %s: %s', rc, stderr)
         so.say(f"Sorry, I wasn't able to query the component image pullspec {pullspec}.")
         util.please_notify_art_team_of_error(so, stderr)
         return None, None, None
 
     # Parse JSON response
+    logger.info('Parsing JSON response')
     try:
         data = json.loads(stdout)
     except Exception as exc:
+        logger.error('Failed decoding the JSON info for pullspec %s', pullspec)
         so.say(f"Sorry, I wasn't able to decode the JSON info for pullspec {pullspec}.")
         util.please_notify_art_team_of_error(so, str(exc))
         return None, None, None
@@ -91,10 +100,13 @@ def buildinfo_for_release(so, name, release_img):
     # Parse image build info
     if img_name == "machine-os-content":
         # always a special case... not a brew build
+        logger.info('Parsing RHCOS build info')
+
         try:
             rhcos_build = build_info["config"]["config"]["Labels"]["version"]
             arch = build_info["config"]["architecture"]
         except KeyError:
+            logger.error("no 'version' or 'architecture' labels found: %s", build_info['config'])
             so.say(f"Sorry, I expected a 'version' label and architecture for pullspec "
                    f"{pullspec_text} but didn't see one. Weird huh?")
             return
@@ -102,52 +114,64 @@ def buildinfo_for_release(so, name, release_img):
         contents_url, stream_url = rhcos_build_urls(rhcos_build, arch)
         if contents_url:
             rhcos_build = f"<{contents_url}|{rhcos_build}> (<{stream_url}|stream>)"
+            logger.info('Found RHCOS build: %s', stream_url)
+        else:
+            logger.warning('No RHCOS build URLs found')
 
         so.say(f"{release_img_text} `{img_name}` image {pullspec_text} came from RHCOS build {rhcos_build}")
         return
 
     try:
+        logger.info('Parsing build info')
         labels = build_info["config"]["config"]["Labels"]
         name = labels["com.redhat.component"]
         version = labels["version"]
         release = labels["release"]
+        source_commit = labels.get("io.openshift.build.commit.id", "None")[:8]
+        source_commit_url = labels.get("io.openshift.build.commit.url")
     except KeyError:
-        so.say(f"Sorry, one of the component, version, or release labels is missing "
-               f"for pullspec {pullspec_text}. Weird huh?")
+        logger.error('Some of the expected labels were not found: %s', labels)
+        so.say(f"Some labels are missing for pullspec {pullspec_text}. Weird huh?")
         return
 
     nvr = f"{name}-{version}-{release}"
+    logger.info('Found nvr: %s', nvr)
+
     url = brew_build_url(nvr)
+    if not url:
+        so.say(f'Sorry, I encountered an error searching for image {nvr} components in brew')
+        return
+    logger.info('Found brew build URL: %s', url)
     nvr_text = f"<{url}|{nvr}>" if url else nvr
 
-    source_commit = labels.get("io.openshift.build.commit.id", "None")[:8]
-    source_commit_url = labels.get("io.openshift.build.commit.url")
     source_text = f" from commit <{source_commit_url}|{source_commit}>" if source_commit_url else ""
-
     so.say(f"{release_img_text} `{img_name}` image {pullspec_text} came from brew build {nvr_text}{source_text}")
-    return
 
 
 def get_img_pullspec(release_img: str) -> Union[Tuple[None, None], Tuple[str, str]]:
     release_img_pullspec = release_img
+
     if ":" in release_img:
         # assume it's a pullspec already; make sure it's a known domain
         if not re.match(r"(quay.io|registry.ci.openshift.org)/", release_img):
+            logger.warning('%s is not a known domain: giving up', release_img)
             return None, None
         release_img = re.sub(r".*/", "", release_img)
+
     elif "nightly" in release_img:
         suffix = "-s390x" if "s390x" in release_img else "-ppc64le" if "ppc64le" in release_img \
             else "-arm64" if "arm64" in release_img else ""
         release_img_pullspec = f"registry.ci.openshift.org/ocp{suffix}/release{suffix}:{release_img}"
+
     else:
         # assume public release name
         release_img_pullspec = f"quay.io/openshift-release-dev/ocp-release:{release_img}"
         if not re.search(r"-(s390x|ppc64le|x86_64)$", release_img_pullspec):
             # assume x86_64 if not specified; TODO: handle older images released without -x86_64 in pullspec
             release_img_pullspec = f"{release_img_pullspec}-x86_64"
-    release_img_text = f"<docker://{release_img_pullspec}|{release_img}>"
 
-    return release_img_pullspec, release_img_text
+    logger.info('Found pullspec for image %s: %s', release_img, release_img_pullspec)
+    return release_img_pullspec, f"<docker://{release_img_pullspec}|{release_img}>"
 
 
 def brew_build_url(nvr):
@@ -155,10 +179,12 @@ def brew_build_url(nvr):
         build = util.koji_client_session().getBuild(nvr, strict=True)
     except Exception as e:
         # not clear how we'd like to learn about this... shouldn't happen much
-        logger.info(f"error searching for image {nvr} components in brew: {e}")
+        logger.error(f"error searching for image {nvr} components in brew: {e}")
         return None
 
-    return f"{constants.BREW_URL}/buildinfo?buildID={build['id']}"
+    url = f"{constants.BREW_URL}/buildinfo?buildID={build['id']}"
+    logger.info('Found brew build URL for %s: %s', nvr, url)
+    return url
 
 
 def alert_on_build_complete(so, user_id, build_id):
@@ -168,8 +194,8 @@ def alert_on_build_complete(so, user_id, build_id):
     try:
         # Has the build passed in by ID?
         build_id = int(build_id)
-    except ValueError: \
-            # No, by URL
+    except ValueError:
+        # No, by URL
         build_id = int(build_id.split('=')[-1])
 
     while True:
@@ -186,13 +212,14 @@ def alert_on_build_complete(so, user_id, build_id):
 
         except ValueError:
             # Failed to convert the build state to a valid BuildState enum
-            logger.info(f'Unexpected status {build.state} for build {build_id}')
+            logger.warning(f'Unexpected status {build.state} for build {build_id}')
             so.say(f'Build {build_id} has unhandled status {state.name}. '
                    f'Check {constants.BREW_URL}/buildinfo?buildID={build_id} for details')
             return
 
         except koji.GenericError:
             # No such build
+            logger.error('No such build %s', build_id)
             message = f"Build {build_id} does not exist"
             so.say(message)
             return
@@ -200,6 +227,7 @@ def alert_on_build_complete(so, user_id, build_id):
         except Exception as e:
             # What else can happen?
             message = f"error getting information for build {build_id}: {e}"
+            logger.error(message)
             so.say(message)
             return
 

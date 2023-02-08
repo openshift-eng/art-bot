@@ -37,6 +37,7 @@ async def get_job_state(job_path: str) -> str:
 
     # Fetch job data
     async with aiohttp.ClientSession() as session:
+        logger.info('Fetching url %s', prow_job_json_url)
         async with session.get(prow_job_json_url) as response:
             try:
                 response.raise_for_status()
@@ -77,6 +78,7 @@ def prow_job_status(so, user_id: str, job_path: str):
         # Timeout after 12 hrs.
         now = time.time()
         if now - start > TWELVE_HOURS:  # Timeout after 12 hrs.
+            logger.warning('Prow job %s did not complete within 12 hours, giving up', job_path)
             so.say(f"<@{user_id}> job {job_path} didn't complete even after 12 hrs :(")
             return
         logger.info('Checking state for job %s', job_path)
@@ -84,15 +86,23 @@ def prow_job_status(so, user_id: str, job_path: str):
         # Retrieve job state
         try:
             job_state = loop.run_until_complete(get_job_state(job_path))
+            logger.info('Job %s is in state %s', job_path, job_state)
+
         except aiohttp.client_exceptions.ClientResponseError:
-            so.say(f'Failed fetching job data from {job_path}')
+            msg = f'Failed fetching job data from {job_path}'
+            logger.error(msg)
+            so.say(msg)
             return
+
         except KeyError:
-            so.say(f'Failed parsing job data from {job_path}')
+            msg = f'Failed parsing job data from {job_path}'
+            logger.error(msg)
+            so.say(msg)
             return
 
         # Check state and possibly notify user
         if job_state != ProwJobState.PENDING.value:
+            logger.info('Prow job %s completed with status %s', job_path, job_state)
             so.say(f'<@{user_id}> prow job `{job_path}` completed with status `{job_state}`')
             return
 
@@ -128,8 +138,10 @@ def first_prow_job_succeeds(so, user_id: str, job_paths: str):
         # Timeout after 12 hrs.
         now = time.time()
         if now - start > TWELVE_HOURS:  # Timeout after 12 hrs.
+            logger.warning('No job in %s completed within 12 hours', paths)
             so.say(f"<@{user_id}> no job in {job_paths} completed within 12 hrs :(")
             break
+
         logger.info('Checking states for jobs %s', job_paths)
 
         tasks = [get_job_state(path) for path in paths]
@@ -138,7 +150,9 @@ def first_prow_job_succeeds(so, user_id: str, job_paths: str):
         # If all tasks failed, give up after 3 attempts
         if all([isinstance(result, Exception) for result in results]):
             if fail_count >= max_attempts:
-                so.say('Sorry, failed checking all provided Prow jobs')
+                msg = 'Sorry, failed checking all provided Prow jobs'
+                logger.warning(msg)
+                so.say(msg)
                 break
 
             time.sleep(FIVE_MINUTES)
@@ -150,6 +164,7 @@ def first_prow_job_succeeds(so, user_id: str, job_paths: str):
         for index, result in enumerate(results):
             if isinstance(result, Exception):
                 failed_indexes.append(index)
+
         failed_indexes.sort(reverse=True)
         for index in failed_indexes:
             results.pop(index)
@@ -157,12 +172,14 @@ def first_prow_job_succeeds(so, user_id: str, job_paths: str):
 
         # If all jobs failed, notify the user
         if all([result == ProwJobState.FAILURE.value for result in results]):
+            logger.warning('All jobs in %s failed', job_paths)
             so.say(f"<@{user_id}> all jobs failed!")
             break
 
         # If at least one job passed, notify the user
         for index, result in enumerate(results):
             if result == ProwJobState.SUCCESS.value:
+                logger.info('Prow job %s completed successfully', paths[index])
                 so.say(f"<@{user_id}> prow job {paths[index]} completed successfully!")
                 break
 
