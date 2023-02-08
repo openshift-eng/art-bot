@@ -93,6 +93,8 @@ def pipeline_from_github(so, github_repo, version):
                                                             https://github.com/openshift/ironic-image
     :version: OCP version
     """
+
+    logger.info('Retrieving pipeline from github repo %s', github_repo)
     handle_request(so, version, content_name=github_repo, image_type="github")
 
 
@@ -106,6 +108,8 @@ def pipeline_from_distgit(so, distgit_repo_name, version):
     :distgit_repo_name: Name of the distgit repo we get as input
     :version: OCP version
     """
+
+    logger.info('Retrieving pipeline from distgit repo %s', distgit_repo_name)
     handle_request(so, version, content_name=distgit_repo_name, image_type="distgit")
 
 
@@ -119,6 +123,8 @@ def pipeline_from_brew(so, brew_name, version):
     :brew_name: Name of the brew repo we get as input
     :version: OCP version
     """
+
+    logger.info('Retrieving pipeline from brew package %s', brew_name)
     handle_request(so, version, content_name=brew_name, image_type="brew")
 
 
@@ -132,6 +138,8 @@ def pipeline_from_cdn(so, cdn_repo_name, version):
     :cdn_repo_name: Name of the CDN repo we get as input
     :version: OCP version
     """
+
+    logger.info('Retrieving pipeline from cdn %s', cdn_repo_name)
     handle_request(so, version, content_name=cdn_repo_name, image_type="cdn")
 
 
@@ -148,4 +156,6 @@ def pipeline_from_delivery(so, delivery_repo_name, version):
                                                     ose-ironic-rhel8
     :version: OCP version
     """
+
+    logger.info('Retrieving pipeline from delivery repo %s', delivery_repo_name)
     handle_request(so, version, content_name=delivery_repo_name, image_type="delivery")
