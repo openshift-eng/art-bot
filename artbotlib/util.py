@@ -125,3 +125,14 @@ def ocp_version_from_release_img(release_img: str) -> str:
     """
 
     return '.'.join(release_img.split('-')[0].split('.')[:2])
+
+
+def get_build_nvr(build_id):
+    """
+    Get the NVR from the build ID
+    """
+    koji_api = koji_client_session()
+    build = koji_api.getBuild(build_id)
+    nvr = build['nvr']
+    logger.debug(f"NVR: {nvr}")
+    return nvr

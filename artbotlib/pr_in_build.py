@@ -10,7 +10,7 @@ import artbotlib.exectools
 from artbotlib import util, pipeline_image_util
 from artbotlib.exceptions import NullDataReturned
 from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT, ART_DASH_API_ROUTE, \
-    RELEASE_CONTROLLER_URL
+    RELEASE_CONTROLLER_URL, RELEASE_CONTROLLER_PAGE_URL
 
 
 class PrInfo:
@@ -232,7 +232,7 @@ class PrInfo:
         """
 
         url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/pulls/{self.pr_id}"
-        self.lopgger.info('Fetching url %s', url)
+        self.logger.info('Fetching url %s', url)
 
         response = requests.get(url)
         if response.status_code != 200:
@@ -296,9 +296,9 @@ class PrInfo:
         if successful_builds:
             self.logger.info("Found successful builds for given PR")
             first_success = successful_builds[0]
+            nvr = util.get_build_nvr(first_success)
             self.so.say(
-                f"First successful build: <{BREW_URL}/buildinfo?buildID={first_success}|{first_success}>. "
-                "All consecutive builds will include this PR.")
+                f"First successful build: <{BREW_URL}/buildinfo?buildID={first_success}|{nvr}>. All consecutive builds will include this PR.")
             return
 
         self.logger.info("No successful builds found given PR")
@@ -391,13 +391,13 @@ class PrInfo:
 
             if earliest_nightly:
                 self.so.say(f'<{self.pr_url}|PR> has been included starting from '
-                            f'<{earliest_nightly["downloadURL"]}|{earliest_nightly["name"]}>')
+                            f'<{RELEASE_CONTROLLER_PAGE_URL.substitute(arch=self.arch, type=f"{self.version}.0-0.nightly", name=earliest_nightly["name"])}|{earliest_nightly["name"]}>')
             else:
                 self.so.say(f'<{self.pr_url}|PR> has not been found in any `{self.version}` nightly')
 
             if earliest_release:
                 self.so.say(f'<{self.pr_url}|PR> has been included starting from '
-                            f'<{earliest_release["downloadURL"]}|{earliest_release["name"]}>')
+                            f'<{RELEASE_CONTROLLER_PAGE_URL.substitute(arch=self.arch, type=f"{self.version[0]}-stable", name=earliest_release["name"])}|{earliest_release["name"]}>')
             else:
                 self.so.say(f'<{self.pr_url}|PR> has not been found in any `{self.version}` release')
 
