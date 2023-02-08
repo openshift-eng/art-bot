@@ -323,7 +323,7 @@ def respond(client, event):
             alt_username=alt_username,
         )
 
-        so.monitoring_say(f"<@{user_id}> asked: {plain_text}")
+        so.monitoring_say(f"{user_id} asked: {plain_text}")
 
         try:
             map_command_to_regex(so, plain_text, user_id)
