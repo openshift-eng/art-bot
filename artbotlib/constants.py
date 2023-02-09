@@ -29,8 +29,7 @@ ART_DASH_API_ROUTE = "http://art-dash-server-aos-art-web.apps.ocp4.prod.psi.redh
 
 RELEASE_CONTROLLER_URL = Template('https://${arch}.ocp.releases.ci.openshift.org')
 
-RELEASE_CONTROLLER_PAGE_URL = Template(
-    "https://${arch}.ocp.releases.ci.openshift.org/releasestream/${type}/release/${name}")
+RELEASE_CONTROLLER_STREAM_PATH = Template("/releasestream/${type}/release/${name}")
 
 PROW_BASE_URL = 'https://prow.ci.openshift.org'
 

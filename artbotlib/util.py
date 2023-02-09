@@ -3,7 +3,7 @@ import datetime
 import koji
 import logging
 from threading import RLock
-
+from artbotlib.exceptions import BrewNVRNotFound
 from artbotlib.kerberos import do_kinit
 import functools
 
@@ -131,8 +131,11 @@ def get_build_nvr(build_id):
     """
     Get the NVR from the build ID
     """
-    koji_api = koji_client_session()
-    build = koji_api.getBuild(build_id)
-    nvr = build['nvr']
-    logger.debug(f"NVR: {nvr}")
-    return nvr
+    try:
+        koji_api = koji_client_session()
+        build = koji_api.getBuild(build_id)
+        nvr = build['nvr']
+        logger.debug(f"NVR: {nvr}")
+        return nvr
+    except Exception as e:
+        raise BrewNVRNotFound(e)

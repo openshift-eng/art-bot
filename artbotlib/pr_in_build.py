@@ -8,9 +8,9 @@ import requests
 
 import artbotlib.exectools
 from artbotlib import util, pipeline_image_util
-from artbotlib.exceptions import NullDataReturned
+from artbotlib.exceptions import NullDataReturned, BrewNVRNotFound
 from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT, ART_DASH_API_ROUTE, \
-    RELEASE_CONTROLLER_URL, RELEASE_CONTROLLER_PAGE_URL
+    RELEASE_CONTROLLER_URL, RELEASE_CONTROLLER_STREAM_PATH
 
 
 class PrInfo:
@@ -296,7 +296,12 @@ class PrInfo:
         if successful_builds:
             self.logger.info("Found successful builds for given PR")
             first_success = successful_builds[0]
-            nvr = util.get_build_nvr(first_success)
+            try:
+                nvr = util.get_build_nvr(first_success)
+            except BrewNVRNotFound as e:
+                self.logger.error(f"Could not find NVR from build: {e}")
+                self.so.say("Could not find NVR from build")
+                return
             self.so.say(
                 f"First successful build: <{BREW_URL}/buildinfo?buildID={first_success}|{nvr}>. All consecutive builds will include this PR.")
             return
@@ -391,13 +396,13 @@ class PrInfo:
 
             if earliest_nightly:
                 self.so.say(f'<{self.pr_url}|PR> has been included starting from '
-                            f'<{RELEASE_CONTROLLER_PAGE_URL.substitute(arch=self.arch, type=f"{self.version}.0-0.nightly", name=earliest_nightly["name"])}|{earliest_nightly["name"]}>')
+                            f'<{RELEASE_CONTROLLER_URL.substitute(arch=self.arch) + RELEASE_CONTROLLER_STREAM_PATH.substitute(type=f"{self.version}.0-0.nightly", name=earliest_nightly["name"])}|{earliest_nightly["name"]}>')
             else:
                 self.so.say(f'<{self.pr_url}|PR> has not been found in any `{self.version}` nightly')
 
             if earliest_release:
                 self.so.say(f'<{self.pr_url}|PR> has been included starting from '
-                            f'<{RELEASE_CONTROLLER_PAGE_URL.substitute(arch=self.arch, type=f"{self.version[0]}-stable", name=earliest_release["name"])}|{earliest_release["name"]}>')
+                            f'<{RELEASE_CONTROLLER_URL.substitute(arch=self.arch) + RELEASE_CONTROLLER_STREAM_PATH.substitute(type=f"{self.version[0]}-stable", name=earliest_release["name"])}|{earliest_release["name"]}>')
             else:
                 self.so.say(f'<{self.pr_url}|PR> has not been found in any `{self.version}` release')
 
