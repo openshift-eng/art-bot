@@ -1,5 +1,9 @@
-import subprocess
+import logging
 import os
+
+from artbotlib import exectools
+
+logger = logging.getLogger(__name__)
 
 
 def do_kinit():
@@ -8,11 +12,13 @@ def do_kinit():
     This function is executed only in production
     :return: None
     """
+
     if "NEEDS_KINIT" in os.environ:  # check to see if the code is in production environment
-        keytab_file = "/tmp/keytab/keytab"
-        kinit_request = subprocess.Popen(
-            ["kinit", "-kt", keytab_file, "ocp-build/buildvm.openshift.eng.bos.redhat.com@IPA.REDHAT.COM"],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, error = kinit_request.communicate()
-        if error:
-            print(f"Kerberos error: {error}")
+        logger.info('Running kinit')
+        cmd = 'kinit -kt /tmp/keytab/keytab ocp-build/buildvm.openshift.eng.bos.redhat.com@IPA.REDHAT.COM'
+        rc, stdout, stderr = exectools.cmd_gather(cmd)
+        if rc:
+            logger.error('Kerberos error: %s', stderr)
+
+    else:
+        logger.info('This is not a production environment, kinit is not required')

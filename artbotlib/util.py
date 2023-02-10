@@ -3,7 +3,7 @@ import datetime
 import koji
 import logging
 from threading import RLock
-
+from artbotlib.exceptions import BrewNVRNotFound
 from artbotlib.kerberos import do_kinit
 import functools
 
@@ -113,6 +113,7 @@ def log_config(debug: bool = False):
         handlers=[default_handler],
         level=logging.DEBUG if debug else logging.INFO
     )
+    logging.getLogger('activemq').setLevel(logging.DEBUG)
 
 
 def ocp_version_from_release_img(release_img: str) -> str:
@@ -124,3 +125,17 @@ def ocp_version_from_release_img(release_img: str) -> str:
     """
 
     return '.'.join(release_img.split('-')[0].split('.')[:2])
+
+
+def get_build_nvr(build_id):
+    """
+    Get the NVR from the build ID
+    """
+    try:
+        koji_api = koji_client_session()
+        build = koji_api.getBuild(build_id)
+        nvr = build['nvr']
+        logger.debug(f"NVR: {nvr}")
+        return nvr
+    except Exception as e:
+        raise BrewNVRNotFound(e)

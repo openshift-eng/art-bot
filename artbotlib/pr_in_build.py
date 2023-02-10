@@ -8,9 +8,9 @@ import requests
 
 import artbotlib.exectools
 from artbotlib import util, pipeline_image_util
-from artbotlib.exceptions import NullDataReturned
+from artbotlib.exceptions import NullDataReturned, BrewNVRNotFound
 from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT, ART_DASH_API_ROUTE, \
-    RELEASE_CONTROLLER_URL
+    RELEASE_CONTROLLER_URL, RELEASE_CONTROLLER_STREAM_PATH
 
 
 class PrInfo:
@@ -53,19 +53,23 @@ class PrInfo:
         if len(repo_mappings) > 1:
             # The user must explicitly provide the component name
             if not self.component:
+                self.logger.warning('Multiple components build from %s: one must be specified', self.repo_name)
                 self.so.say(f'Multiple components build from `{self.repo_name}`: '
                             f'please specify the one you\'re interested in and try again')
                 return None
 
             # Does the component exist?
             if self.component not in repo_mappings:
+                self.logger.warning('No distgit "%s" found', self.component)
                 self.so.say(f'No distgit named `{self.component}` has been found: '
                             f'please check the query and try again')
                 return None
             return self.component
 
         # No ambiguity: return the one and only mapped distgit
-        return repo_mappings[0]
+        mapping = repo_mappings[0]
+        self.logger.info('Found mapped distgit %s', mapping)
+        return mapping
 
     def get_imagestream_tag(self):
         """
@@ -91,6 +95,7 @@ class PrInfo:
         The nightlies will be ordered from the most recent one to the oldest one
         """
 
+        self.logger.info('Fetching nightlies for %s', self.version)
         major, minor = self.version.split('.')
 
         if self.arch == 'amd64':
@@ -98,9 +103,12 @@ class PrInfo:
         else:
             nightly_endpoint = f'{self.releasestream_api_endpoint}/{major}.{minor}.0-0.nightly-{self.arch}/tags'
 
+        self.logger.info('Fetching endpoint %s', nightly_endpoint)
         response = requests.get(nightly_endpoint)
         if response.status_code != 200:
-            self.so.say(f'{major}.{minor} nightlies not available on RC')
+            msg = f'{major}.{minor} nightlies not available on RC'
+            self.logger.warning(msg)
+            self.so.say(msg)
             return []
 
         data = response.json()
@@ -121,6 +129,7 @@ class PrInfo:
         The versions will be ordered from the most recent one to the oldest one
         """
 
+        self.logger.info('Fetching releases for %s', self.version)
         major, minor = self.version.split('.')
 
         if self.arch == 'amd64':
@@ -128,9 +137,12 @@ class PrInfo:
         else:
             release_endpoint = f'{self.releasestream_api_endpoint}/{major}-stable-{self.arch}/tags'
 
+        self.logger.info('Fetching endpoint %s', release_endpoint)
         response = requests.get(release_endpoint)
         if response.status_code != 200:
-            self.so.say(f'OCP{major} not available on RC')
+            msg = f'OCP{major} not available on RC'
+            self.logger.warning(msg)
+            self.so.say(msg)
             return []
 
         data = response.json()
@@ -151,10 +163,12 @@ class PrInfo:
         """
 
         url = f'{GITHUB_API_OPENSHIFT}/{self.repo_name}/branches'
+        self.logger.info('Fetching url %s', url)
+
         response = requests.get(url)
         if response.status_code != 200:
             msg = f'Request to {url} returned with status code {response.status_code}'
-            self.logger.warning(msg)
+            self.logger.error(msg)
             raise RuntimeError(msg)
         return response.json()
 
@@ -166,15 +180,30 @@ class PrInfo:
         branches = self.get_branches()
         for data in branches:
             if data['name'] == f"release-{self.version}":
-                return data['commit']['sha']
+                sha = data['commit']['sha']
+                self.logger.info('Using branch ref %s', sha)
+                return sha
 
     def get_commit_time(self, commit) -> str:
         """
         Return the timestamp associated with a commit: e.g. "2022-10-21T19:48:29Z"
         """
 
-        response = requests.get(f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits/{commit}")
-        return response.json()['commit']['committer']['date']
+        url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits/{commit}"
+        self.logger.info('Fetching url %s', url)
+        response = requests.get(url)
+        if response.status_code != 200:
+            msg = f'Request to {url} returned with status code {response.status_code}'
+            self.logger.error(msg)
+            raise RuntimeError(msg)
+
+        json_data = response.json()
+        try:
+            commit_time = json_data['commit']['committer']['date']
+            return commit_time
+        except KeyError:
+            self.logger.error('Could not find commit time in json data: %s', json_data)
+            raise
 
     def get_commits_after(self, commit) -> list:
         """
@@ -183,8 +212,14 @@ class PrInfo:
 
         branch_ref = self.get_branch_ref()
         datetime = self.get_commit_time(commit)
-        response = requests.get(
-            f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits?sha={branch_ref}&since={datetime}")
+        url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits?sha={branch_ref}&since={datetime}"
+
+        self.logger.info('Fetching url %s', url)
+        response = requests.get(url)
+        if response.status_code != 200:
+            msg = f'Request to {url} returned with status code {response.status_code}'
+            self.logger.error(msg)
+            raise RuntimeError(msg)
 
         result = []
         for data in response.json():
@@ -196,47 +231,79 @@ class PrInfo:
         Return the merge commit SHA associated with a PR
         """
 
-        response = requests.get(f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/pulls/{self.pr_id}")
-        sha = response.json().get("merge_commit_sha")
-        self.logger.debug('Found merge commit SHA: %s', sha)
-        return sha
+        url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/pulls/{self.pr_id}"
+        self.logger.info('Fetching url %s', url)
+
+        response = requests.get(url)
+        if response.status_code != 200:
+            msg = f'Request to {url} returned with status code {response.status_code}'
+            self.logger.error(msg)
+            raise RuntimeError(msg)
+
+        json_data = response.json()
+        try:
+            sha = json_data["merge_commit_sha"]
+            self.logger.info('Found merge commit SHA: %s', sha)
+            return sha
+        except KeyError:
+            self.logger.error('Commit SHA not found in json data: %s', json_data)
+            raise
 
     def get_builds_from_db(self, commit, task_state):
         """
         Function to find the build using commit, from API, which queries the database.
         """
+
         params = {
             "group": f"openshift-{self.version}",
             "label_io_openshift_build_commit_id": commit,
             "brew_task_state": task_state
         }
         url = f"{ART_DASH_API_ROUTE}/builds/"
+        self.logger.info('Fetching url %s', url)
+
         response = requests.get(url, params=params)
-        if response.status_code == 200:
-            return response.json()
+        if response.status_code != 200:
+            msg = f'Request to {url} returned with status code {response.status_code}'
+            self.logger.error(msg)
+            raise RuntimeError(msg)
+
+        return response.json()
 
     def build_from_commit(self, task_state):
         """
         Function to get all the build ids associated with a list of commits
         """
+
         for commit in self.commits:
             response_data = self.get_builds_from_db(commit, task_state)
-            if response_data and response_data["count"] > 0:
+            count = response_data["count"]
+
+            if response_data and count > 0:
+                self.logger.info('Found %s builds from commit %s', count, commit)
                 builds = response_data["results"]
                 build_ids = [x["build_0_id"] for x in builds]
                 return sorted(build_ids)
+            self.logger.info('Found no builds from commit %s', commit)
 
     def find_builds(self):
         """
         Find successful or failed builds for the PR/merge commit. If none, report back to the user that the build
         hasn't started yet.
         """
+
         successful_builds = self.build_from_commit(BREW_TASK_STATES["Success"])
         if successful_builds:
             self.logger.info("Found successful builds for given PR")
             first_success = successful_builds[0]
+            try:
+                nvr = util.get_build_nvr(first_success)
+            except BrewNVRNotFound as e:
+                self.logger.error(f"Could not find NVR from build: {e}")
+                self.so.say("Could not find NVR from build")
+                return
             self.so.say(
-                f"First successful build: <{BREW_URL}/buildinfo?buildID={first_success}|{first_success}>. All consecutive builds will include this PR.")
+                f"First successful build: <{BREW_URL}/buildinfo?buildID={first_success}|{nvr}>. All consecutive builds will include this PR.")
             return
 
         self.logger.info("No successful builds found given PR")
@@ -284,9 +351,11 @@ class PrInfo:
     async def run(self):
         # Check arch
         if self.arch not in self.valid_arches:
+            self.logger.warning('Arch %s is not valid', self.arch)
             self.so.say(f'`{self.arch}` is not a valid architecture: '
                         f'please select one in one in {self.valid_arches} and try again')
             return
+
         self.logger.info('Using arch %s', self.arch)
 
         # Check distgit
@@ -294,6 +363,7 @@ class PrInfo:
         self.logger.info('Found distgit: %s', self.distgit)
         if not self.distgit:
             # Reason has already been told to the user...
+            self.logger.warning('No distgit found')
             return
 
         msg = 'Gathering PR info...'
@@ -319,19 +389,20 @@ class PrInfo:
             try:
                 earliest_nightly, earliest_release = await asyncio.gather(*tasks, return_exceptions=False)
             except Exception as e:
+                self.logger.error('Raised exception: %s', e)
                 self.so.say(f'Sorry, an error was raised during the handling of the request: {e}'
                             f'Please try again')
                 return
 
             if earliest_nightly:
                 self.so.say(f'<{self.pr_url}|PR> has been included starting from '
-                            f'<{earliest_nightly["downloadURL"]}|{earliest_nightly["name"]}>')
+                            f'<{RELEASE_CONTROLLER_URL.substitute(arch=self.arch) + RELEASE_CONTROLLER_STREAM_PATH.substitute(type=f"{self.version}.0-0.nightly", name=earliest_nightly["name"])}|{earliest_nightly["name"]}>')
             else:
                 self.so.say(f'<{self.pr_url}|PR> has not been found in any `{self.version}` nightly')
 
             if earliest_release:
                 self.so.say(f'<{self.pr_url}|PR> has been included starting from '
-                            f'<{earliest_release["downloadURL"]}|{earliest_release["name"]}>')
+                            f'<{RELEASE_CONTROLLER_URL.substitute(arch=self.arch) + RELEASE_CONTROLLER_STREAM_PATH.substitute(type=f"{self.version[0]}-stable", name=earliest_release["name"])}|{earliest_release["name"]}>')
             else:
                 self.so.say(f'<{self.pr_url}|PR> has not been found in any `{self.version}` release')
 

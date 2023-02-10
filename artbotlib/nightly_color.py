@@ -1,9 +1,13 @@
+import logging
+
 import requests
 import time
 from typing import Union
 import json
 import artbotlib.variables as variables
 from artbotlib.constants import COLOR_MAPS, TWELVE_HOURS, FIVE_MINUTES
+
+logger = logging.getLogger(__name__)
 
 
 def get_release_data(release_url, release_browser) -> json:
@@ -14,8 +18,14 @@ def get_release_data(release_url, release_browser) -> json:
     :param release_browser: release browser eg: ppc64le/arm64/s390x/amd64
     :return: JSON object
     """
+
     url = f"https://{release_browser}.ocp.releases.ci.openshift.org/api/v1{release_url}"
+    logger.info('Fetching URL %s', url)
+
     response = requests.get(url)  # query API to get the status
+    status_code = response.status_code
+    if status_code != 200:
+        logger.error('Server responded with status code %s', status_code)
 
     return response.json()
 
@@ -28,6 +38,7 @@ def get_nightly_color(release_url, release_browser) -> Union[str, None]:
     :param release_browser: release browser eg: ppc64le/arm64/s390x/amd64
     :return: Green/Red/None
     """
+
     status = get_release_data(release_url, release_browser)['phase']
     return COLOR_MAPS.get(status, None)
 
@@ -40,6 +51,7 @@ def get_failed_jobs(release_url, release_browser) -> str:
     :param release_browser: release browser eg: ppc64le/arm64/s390x/amd64
     :return: Newline separated strings
     """
+
     status = get_release_data(release_url, release_browser)
 
     payload = "Jobs pending/failed:\n"
@@ -60,6 +72,7 @@ def nightly_color_status(so, user_id, release_url, release_browser) -> None:
     :param release_browser: release browser eg: ppc64le/arm64/s390x/amd64
     :return: None
     """
+
     slack_url_payload = f"<https://{release_browser}.ocp.releases.ci.openshift.org{release_url}|{release_url.split('/')[-1]}>"
     color = get_nightly_color(release_url, release_browser)
     if color:  # if color is not blue return the current color and exit

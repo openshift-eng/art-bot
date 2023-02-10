@@ -1,8 +1,13 @@
+import logging
+
 import requests
+from typing import Union
 import yaml
+
 import artbotlib.exectools
 from artbotlib import exceptions
-from typing import Union
+
+logger = logging.getLogger(__name__)
 
 
 def github_distgit_mappings(version: str) -> dict:
@@ -17,7 +22,11 @@ def github_distgit_mappings(version: str) -> dict:
 
     if rc != 0:
         if "koji.GSSAPIAuthError" in err:
-            raise exceptions.KerberosAuthenticationError("Kerberos authentication failed for doozer")
+            msg = "Kerberos authentication failed for doozer"
+            logger.error(msg)
+            raise exceptions.KerberosAuthenticationError(msg)
+
+        logger.error('Doozer returned status %s: %s', rc, err)
         raise RuntimeError(f'doozer returned status {rc}')
 
     mappings = {}
@@ -31,6 +40,7 @@ def github_distgit_mappings(version: str) -> dict:
             mappings[reponame].append(distgit)
 
     if not mappings:
+        logger.warning('No github-distgit mapping found in %s', version)
         raise exceptions.NullDataReturned("No data from doozer command for github-distgit mapping")
     return mappings
 
@@ -43,11 +53,20 @@ def get_image_stream_tag(distgit_name: str, version: str) -> Union[str, None]:
     :distgit_name: Name of the distgit repo
     :version: OCP version
     """
+
     url = f"https://raw.githubusercontent.com/openshift/ocp-build-data/openshift-{version}/images/{distgit_name}.yml"
+    logger.info('Fetching url %s', url)
     response = requests.get(url)
 
     yml_file = yaml.safe_load(response.content)
-    if yml_file.get('for_payload', False):  # Check if the image is in the payload
+
+    # Check if the image is in the payload
+    if yml_file.get('for_payload', False):
         tag = yml_file['name'].split("/")[1]
-        return tag[4:] if tag.startswith("ose-") else tag  # remove 'ose-' if present
+        result = tag[4:] if tag.startswith("ose-") else tag  # remove 'ose-' if present
+        logger.info('Found imagestream tag %s for component %s', result, distgit_name)
+        return result
+
+    # The image is not in the payload
+    logger.info('Component %s does not belong to the OCP payload', distgit_name)
     return None

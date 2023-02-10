@@ -29,6 +29,11 @@ class BrewIdNotFound(ArtBotExceptions):
     pass
 
 
+class BrewNVRNotFound(ArtBotExceptions):
+    """Exception raised if brew id not found for the given brew package name"""
+    pass
+
+
 class VariantIdNotFound(ArtBotExceptions):
     """Exception raised if variant id not found for a CDN repo"""
     pass
