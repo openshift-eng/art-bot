@@ -146,7 +146,7 @@ class PrInfo:
             return []
 
         data = response.json()
-        pattern = re.compile(rf'{major}\.{minor}\.[0-9]+.+$')
+        pattern = re.compile(rf'{major}\.{minor}\.[0-9]+.*$')
         return filter(lambda x: re.match(pattern, x['name']), data['tags'])
 
     def get_branches(self) -> list:
