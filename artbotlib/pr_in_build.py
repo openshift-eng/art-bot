@@ -2,6 +2,7 @@ import asyncio
 import json
 import re
 import logging
+import os
 from collections.abc import Iterable
 
 import requests
@@ -11,6 +12,8 @@ from artbotlib import util, pipeline_image_util
 from artbotlib.exceptions import NullDataReturned, BrewNVRNotFound
 from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT, ART_DASH_API_ROUTE, \
     RELEASE_CONTROLLER_URL, RELEASE_CONTROLLER_STREAM_PATH
+
+HEADERS = {"Authorization": f"token {os.environ['GITHUB_PERSONAL_ACCESS_TOKEN']}"}
 
 
 class PrInfo:
@@ -164,8 +167,7 @@ class PrInfo:
 
         url = f'{GITHUB_API_OPENSHIFT}/{self.repo_name}/branches'
         self.logger.info('Fetching url %s', url)
-
-        response = requests.get(url)
+        response = requests.get(url, headers=HEADERS)
         if response.status_code != 200:
             msg = f'Request to {url} returned with status code {response.status_code}'
             self.logger.error(msg)
@@ -191,7 +193,8 @@ class PrInfo:
 
         url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits/{commit}"
         self.logger.info('Fetching url %s', url)
-        response = requests.get(url)
+
+        response = requests.get(url, headers=HEADERS)
         if response.status_code != 200:
             msg = f'Request to {url} returned with status code {response.status_code}'
             self.logger.error(msg)
@@ -215,7 +218,7 @@ class PrInfo:
         url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits?sha={branch_ref}&since={datetime}"
 
         self.logger.info('Fetching url %s', url)
-        response = requests.get(url)
+        response = requests.get(url, headers=HEADERS)
         if response.status_code != 200:
             msg = f'Request to {url} returned with status code {response.status_code}'
             self.logger.error(msg)
@@ -234,7 +237,7 @@ class PrInfo:
         url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/pulls/{self.pr_id}"
         self.logger.info('Fetching url %s', url)
 
-        response = requests.get(url)
+        response = requests.get(url, headers=HEADERS)
         if response.status_code != 200:
             msg = f'Request to {url} returned with status code {response.status_code}'
             self.logger.error(msg)
