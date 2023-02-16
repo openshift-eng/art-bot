@@ -65,7 +65,6 @@ def prow_job_status(so, user_id: str, job_path: str):
     """
 
     loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
 
     # Supposed initial state
     job_state = ProwJobState.PENDING.value
@@ -122,7 +121,6 @@ def first_prow_job_succeeds(so, user_id: str, job_paths: str):
     job_paths = job_paths.replace(f'{PROW_BASE_URL}/view/gs', '')
 
     loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     start = time.time()
 
     paths = [job.strip().replace(F'{PROW_BASE_URL}/view/gs/', '') for job in job_paths.split()]

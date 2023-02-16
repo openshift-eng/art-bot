@@ -150,8 +150,12 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
     release_info = json.loads(stdout)
     tag_specs = list(release_info['references']['spec']['tags'])
 
-    results = asyncio.get_event_loop().run_until_complete(
-        asyncio.gather(*[get_tag_specs(so, tag_spec, data_type) for tag_spec in sorted(tag_specs, key=lambda x: x['name'])]))
+    loop = asyncio.new_event_loop()
+    results = loop.run_until_complete(
+        asyncio.gather(
+            *[get_tag_specs(so, tag_spec, data_type) for tag_spec in sorted(tag_specs, key=lambda x: x['name'])]
+        )
+    )
     payload += '\n'.join(results)
 
     so.snippet(payload=payload,
