@@ -106,7 +106,7 @@ def refresh_krb_auth(func):
 
 
 def log_config(debug: bool = False):
-    default_formatter = logging.Formatter('%(name)s %(asctime)s %(levelname)s %(message)s')
+    default_formatter = logging.Formatter('%(asctime)s [%(levelname)s] {%(filename)s:%(lineno)d} %(message)s')
     default_handler = logging.StreamHandler()
     default_handler.setFormatter(default_formatter)
     logging.basicConfig(
