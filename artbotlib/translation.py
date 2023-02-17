@@ -14,7 +14,7 @@ def translate_names(so, _, name, name_type2, major=None, minor=None):
     major_minor = f"{major}.{minor}" if major and minor else "4.5"
     logger.debug(f"major minor: {major_minor}")
 
-    cmd = f"doozer --disable-gssapi --group openshift-{major_minor} --images {name} images:print \'{{{query_name}}}\'" \
+    cmd = f"doozer --disable-gssapi --group openshift-{major_minor} --assembly stream --images {name} images:print \'{{{query_name}}}\'" \
           f" --show-base --show-non-release --short"
 
     rc, stdout, stderr = artbotlib.exectools.cmd_gather(cmd)

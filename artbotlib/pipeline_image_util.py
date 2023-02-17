@@ -18,7 +18,7 @@ def github_distgit_mappings(version: str) -> dict:
     """
 
     rc, out, err = artbotlib.exectools.cmd_gather(
-        f"doozer --disable-gssapi -g openshift-{version} images:print --short '{{upstream_public}}: {{name}}'")
+        f"doozer --disable-gssapi -g openshift-{version} --assembly stream images:print --short '{{upstream_public}}: {{name}}'")
 
     if rc != 0:
         if "koji.GSSAPIAuthError" in err:
