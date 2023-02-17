@@ -4,10 +4,15 @@ import json
 import logging
 import re
 import urllib.request
+from typing import cast
+from urllib.parse import quote
 
 import koji
+import requests
+import yaml
 
 import artbotlib.exectools
+
 from . import util
 from .constants import RHCOS_BASE_URL
 
@@ -420,11 +425,27 @@ def _rhcos_release_url(major_minor, arch="x86_64"):
     return f"{RHCOS_BASE_URL}/storage/releases/rhcos-{major_minor}{arch_suffix}"
 
 
+def _get_raw_group_config(group):
+    response = requests.get(f"https://raw.githubusercontent.com/openshift/ocp-build-data/{quote(group)}/group.yml")
+    response.raise_for_status()
+    raw_group_config = cast(dict, yaml.safe_load(response.text))
+    return raw_group_config
+
+
+def _get_et_config(group: str, replace_vars: dict[str, str]):
+    response = requests.get(f"https://raw.githubusercontent.com/openshift/ocp-build-data/{quote(group)}/erratatool.yml")
+    response.raise_for_status()
+    et_config = cast(dict, yaml.safe_load(response.text.format(**replace_vars)))
+    return et_config
+
+
 def _tags_for_version(major_minor):
-    tags = [f"rhaos-{major_minor}-rhel-7-candidate"]
-    if not major_minor.startswith("3."):
-        tags.append(f"rhaos-{major_minor}-rhel-8-candidate")
-    return tags
+    group = f"openshift-{major_minor}"
+    raw_group_config = _get_raw_group_config(group)
+    replace_vars = raw_group_config.get("vars", {})
+    et_config = _get_et_config(group, replace_vars=replace_vars)
+    tag_pv_mapping = et_config.get("brew_tag_product_version_mapping", {})
+    return list(tag_pv_mapping.keys())
 
 
 def list_images_in_major_minor(so, major, minor):

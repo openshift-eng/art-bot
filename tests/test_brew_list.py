@@ -1,4 +1,5 @@
 import flexmock
+from mock import Mock
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -27,15 +28,43 @@ def test_rhcos_build_url(params, expected):
     assert expected == brew_list._rhcos_build_url(*params)
 
 
-@pytest.mark.parametrize("param, expected",
-                         [
-                             ("3.11", ["rhaos-3.11-rhel-7-candidate"]),
-                             ("4.1", ["rhaos-4.1-rhel-7-candidate", "rhaos-4.1-rhel-8-candidate"]),
-                             ("spam", ["rhaos-spam-rhel-7-candidate", "rhaos-spam-rhel-8-candidate"]),
-                         ]
-                         )
-def test_tags_for_version(param, expected):
-    assert expected == brew_list._tags_for_version(param)
+@patch("requests.get")
+def test_get_raw_group_config(get):
+    get.return_value.text = '{"vars": {"MAJOR": 4, "MINOR": 10 }}'
+    assert brew_list._get_raw_group_config("4.10") == {"vars": {"MAJOR": 4, "MINOR": 10}}
+
+
+@patch("requests.get")
+def test_get_et_config(get):
+    get.return_value.text = """
+    brew_tag_product_version_mapping:
+        rhaos-{MAJOR}.{MINOR}-rhel-7-candidate: RHEL-7-OSE-{MAJOR}.{MINOR}
+        rhaos-{MAJOR}.{MINOR}-rhel-8-candidate: OSE-{MAJOR}.{MINOR}-RHEL-8
+    """
+    replace_vars = {"MAJOR": 4, "MINOR": 10}
+    assert brew_list._get_et_config("4.10", replace_vars=replace_vars) == {
+        "brew_tag_product_version_mapping": {
+            "rhaos-4.10-rhel-7-candidate": "RHEL-7-OSE-4.10",
+            "rhaos-4.10-rhel-8-candidate": "OSE-4.10-RHEL-8",
+        }
+    }
+
+
+@patch("artbotlib.brew_list._get_et_config")
+@patch("artbotlib.brew_list._get_raw_group_config")
+def test_tags_for_version(_get_raw_group_config: Mock, _get_et_config: Mock):
+    major, minor = 4, 10
+    _get_raw_group_config.return_value = {"vars": {"MAJOR": major, "MINOR": minor}}
+    replace_vars = _get_raw_group_config.return_value["vars"]
+    _get_et_config.return_value = {
+        "brew_tag_product_version_mapping": {
+            f"rhaos-{major}.{minor}-rhel-7-candidate": f"RHEL-7-OSE-{major}.{minor}",
+            f"rhaos-{major}.{minor}-rhel-8-candidate": f"OSE-{major}.{minor}-RHEL-8",
+        }
+    }
+    assert sorted(["rhaos-4.10-rhel-8-candidate", "rhaos-4.10-rhel-7-candidate"]) == sorted(brew_list._tags_for_version("4.10"))
+    _get_raw_group_config.assert_called_once_with("openshift-4.10")
+    _get_et_config.assert_called_once_with("openshift-4.10", replace_vars=replace_vars)
 
 
 def _urlopen_cm(mock_urlopen, content, rc=200):
