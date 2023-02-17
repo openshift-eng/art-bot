@@ -171,7 +171,7 @@ def latest_images_for_version(so, major_minor):
     try:
         logger.info('Determining images for %s', major_minor)
         rc, stdout, stderr = artbotlib.exectools.cmd_assert(
-            so, f"doozer --disable-gssapi --group openshift-{major_minor} images:print "
+            so, f"doozer --disable-gssapi --group openshift-{major_minor} --assembly stream images:print "
             f"'{{component}}-{{version}}-{{release}}' --show-base --show-non-release --short"
         )
 
@@ -431,7 +431,7 @@ def list_images_in_major_minor(so, major, minor):
     major_minor = f'{major}.{minor}'
     logger.info('Fetching image list for %s', major_minor)
     rc, stdout, stderr = artbotlib.exectools.cmd_assert(
-        so, f'doozer --disable-gssapi --group openshift-{major_minor} images:print '
+        so, f'doozer --disable-gssapi --group openshift-{major_minor} --assembly stream images:print '
             f'\'{{image_name_short}}\' --show-base --show-non-release --short'
     )
 
