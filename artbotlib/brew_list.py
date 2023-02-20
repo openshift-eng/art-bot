@@ -4,7 +4,7 @@ import json
 import logging
 import re
 import urllib.request
-from typing import cast
+from typing import cast, Dict
 from urllib.parse import quote
 
 import koji
@@ -438,7 +438,7 @@ def _get_raw_group_config(group):
     return raw_group_config
 
 
-def _get_et_config(group: str, replace_vars: dict[str, str]):
+def _get_et_config(group: str, replace_vars: Dict[str, str]):
     response = requests.get(f"https://raw.githubusercontent.com/openshift/ocp-build-data/{quote(group)}/erratatool.yml")
     response.raise_for_status()
     et_config = cast(dict, yaml.safe_load(response.text.format(**replace_vars)))
