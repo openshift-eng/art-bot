@@ -14,7 +14,7 @@ import yaml
 import artbotlib.exectools
 
 from . import util
-from .constants import RHCOS_BASE_URL
+from .constants import RHCOS_BASE_URL, CONCURRENCY_LIMIT
 
 logger = logging.getLogger(__name__)
 
@@ -84,46 +84,46 @@ def specific_rpms_for_image(so, rpms, nvr):
                    filename='{}-rpms.txt'.format(nvr))
 
 
-@artbotlib.exectools.limit_concurrency(100)
-async def get_tag_specs(so, tag_spec, data_type) -> str:
+async def get_tag_specs(so, tag_spec, data_type, sem) -> str:
     """
     Fetches tag information by running 'oc image info'
     and returns the appropriate field depending on the data type provided
     """
+    async with sem:
+        release_component_name = tag_spec['name']
+        release_component_image = tag_spec['from']['name']
+        rc, stdout, stderr = await artbotlib.exectools.cmd_gather_async(
+            f'oc image info -o=json {release_component_image}')
+        if rc:
+            logger.error('Command failed with status code %s:\n%s', rc, stderr)
+            util.please_notify_art_team_of_error(so, stderr)
+            return ''
 
-    release_component_name = tag_spec['name']
-    release_component_image = tag_spec['from']['name']
-    rc, stdout, stderr = await artbotlib.exectools.cmd_gather_async(f'oc image info -o=json {release_component_image}')
-    if rc:
-        logger.error('Command failed with status code %s:\n%s', rc, stderr)
-        util.please_notify_art_team_of_error(so, stderr)
-        return ''
+        logger.debug('Image info for %s:\n%s', release_component_image, stdout)
+        release_component_image_info = json.loads(stdout)
+        component_labels = release_component_image_info['config']['config']['Labels']
+        component_name = component_labels.get('com.redhat.component', 'UNKNOWN')
+        component_version = component_labels.get('version', 'v?')
+        component_release = component_labels.get('release', '?')
+        component_upstream_commit_url = component_labels.get('io.openshift.build.commit.url', '?')
+        component_distgit_commit = component_labels.get('vcs-ref', '?')
+        component_rhcc_url = component_labels.get('url', '?')
 
-    logger.debug('Image info for %s:\n%s', release_component_image, stdout)
-    release_component_image_info = json.loads(stdout)
-    component_labels = release_component_image_info['config']['config']['Labels']
-    component_name = component_labels.get('com.redhat.component', 'UNKNOWN')
-    component_version = component_labels.get('version', 'v?')
-    component_release = component_labels.get('release', '?')
-    component_upstream_commit_url = component_labels.get('io.openshift.build.commit.url', '?')
-    component_distgit_commit = component_labels.get('vcs-ref', '?')
-    component_rhcc_url = component_labels.get('url', '?')
+        result = f'{release_component_name}='
+        if data_type.startswith('nvr'):
+            result += f'{component_name}-{component_version}-{component_release}'
+        elif data_type.startswith('distgit'):
+            distgit_name = component_name.rstrip('-container')
+            result += f'http://pkgs.devel.redhat.com/cgit/{distgit_name}/commit/?id={component_distgit_commit}'
+        elif data_type.startswith('commit'):
+            result += f'{component_upstream_commit_url}'
+        elif data_type.startswith('catalog'):
+            result += f'{component_rhcc_url}'
+        elif data_type.startswith('image'):
+            result += release_component_image
 
-    result = f'{release_component_name}='
-    if data_type.startswith('nvr'):
-        result += f'{component_name}-{component_version}-{component_release}'
-    elif data_type.startswith('distgit'):
-        distgit_name = component_name.rstrip('-container')
-        result += f'http://pkgs.devel.redhat.com/cgit/{distgit_name}/commit/?id={component_distgit_commit}'
-    elif data_type.startswith('commit'):
-        result += f'{component_upstream_commit_url}'
-    elif data_type.startswith('catalog'):
-        result += f'{component_rhcc_url}'
-    elif data_type.startswith('image'):
-        result += release_component_image
-
-    logger.debug('Tag specs for %s: %s', data_type, result)
-    return result
+        logger.debug('Tag specs for %s: %s', data_type, result)
+        return result
 
 
 def list_component_data_for_release_tag(so, data_type, release_tag):
@@ -155,8 +155,14 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
     release_info = json.loads(stdout)
     tag_specs = list(release_info['references']['spec']['tags'])
 
-    results = asyncio.get_event_loop().run_until_complete(
-        asyncio.gather(*[get_tag_specs(so, tag_spec, data_type) for tag_spec in sorted(tag_specs, key=lambda x: x['name'])]))
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    sem = asyncio.Semaphore(CONCURRENCY_LIMIT)
+
+    # Send semaphore along with the get_tag_specs function to make sure that the semaphore uses the same event loop
+    results = loop.run_until_complete(
+        asyncio.gather(
+            *[get_tag_specs(so, tag_spec, data_type, sem) for tag_spec in sorted(tag_specs, key=lambda x: x['name'])]))
     payload += '\n'.join(results)
 
     so.snippet(payload=payload,

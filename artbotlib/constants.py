@@ -48,3 +48,5 @@ RHCOS_ARCH_TO_RC_ARCH = {
     'ppc64le': 'ppc64le',
     's390x': 's390x'
 }
+
+CONCURRENCY_LIMIT = 100
