@@ -50,28 +50,6 @@ async def cmd_gather_async(cmd: Union[List[str], str], check: bool = True, **kwa
     return proc.returncode, stdout, stderr
 
 
-def limit_concurrency(limit=5):
-    """A decorator to limit the number of parallel tasks with asyncio.
-
-    It should be noted that when the decorator function is executed, the created Semaphore is bound to the default event loop.
-    https://stackoverflow.com/a/66289885
-    """
-
-    # use asyncio.BoundedSemaphore(5) instead of Semaphore to prevent
-    # accidentally increasing the original limit (stackoverflow.com/a/48971158/6687477)
-    sem = asyncio.BoundedSemaphore(limit)
-
-    def executor(func):
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
-            async with sem:
-                return await func(*args, **kwargs)
-
-        return wrapper
-
-    return executor
-
-
 def cmd_gather(cmd, set_env=None, cwd=None, realtime=False):
     """
     Runs a command and returns rc,stdout,stderr as a tuple.
