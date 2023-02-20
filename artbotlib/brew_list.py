@@ -14,7 +14,7 @@ import yaml
 import artbotlib.exectools
 
 from . import util
-from .constants import RHCOS_BASE_URL, CONCURRENCY_LIMIT
+from .constants import RHCOS_BASE_URL
 
 logger = logging.getLogger(__name__)
 
