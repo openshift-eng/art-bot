@@ -157,7 +157,7 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    sem = asyncio.Semaphore(CONCURRENCY_LIMIT)
+    sem = asyncio.Semaphore(100)
 
     # Send semaphore along with the get_tag_specs function to make sure that the semaphore uses the same event loop
     results = loop.run_until_complete(
