@@ -1,4 +1,4 @@
-FROM registry.fedoraproject.org/fedora:33
+FROM registry.fedoraproject.org/fedora:36
 LABEL name="art-bot" \
   description="art-bot container image" \
   maintainer="OpenShift Automated Release Tooling (ART) Team <aos-team-art@redhat.com>"
@@ -12,7 +12,7 @@ RUN curl -o /etc/pki/ca-trust/source/anchors/RH-IT-Root-CA.crt --fail -L \
  && dnf install -y \
     # runtime dependencies
     krb5-workstation git rsync \
-    python3 python3-certifi python3-rpm python3-rhmsg \
+    python3.10 python3-certifi python3-rpm python3-rhmsg \
     # development dependencies
     gcc krb5-devel python3-devel python3-pip \
     # other tools
