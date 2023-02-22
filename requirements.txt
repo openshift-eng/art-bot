@@ -4,6 +4,5 @@ cachetools
 aiohttp>=3.7.3
 requests_kerberos
 PyYAML
-click==8.1.2
 requests
 slack_bolt==1.15.1
