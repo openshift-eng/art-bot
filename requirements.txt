@@ -1,5 +1,3 @@
-git+https://github.com/openshift/doozer.git#egg=rh-doozer
-git+https://github.com/openshift/elliott.git#egg=rh-elliott
 koji
 slack_sdk==3.19.1
 cachetools
