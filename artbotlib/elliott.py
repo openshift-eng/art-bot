@@ -27,6 +27,7 @@ def go_nvrs(so, nvr):
         so.snippet(payload=stdout, intro='Go version for nvr:', filename='go_output.txt')
 
 
+@util.refresh_krb_auth
 def go_advisory(so, advisory_id):
     rc, stdout, stderr = artbotlib.exectools.cmd_assert(so, f'elliott go -a {advisory_id}')
     if not stdout:
