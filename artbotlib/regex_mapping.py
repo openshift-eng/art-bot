@@ -95,6 +95,11 @@ def map_command_to_regex(so, plain_text, user_id):
             "flag": re.I,
             "function": elliott.go_nvrs
         },
+        {
+            "regex": r"^(go|golang) version (for|of) advisory (?P<advisory_id>\d+)$",
+            "flag": re.I,
+            "function": elliott.go_advisory
+        },
 
         # ART advisory info:
         {
