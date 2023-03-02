@@ -297,6 +297,7 @@ def test_alert_on_task_complete(alert_mock):
     so_mock.should_receive('say').never()
     map_command_to_regex(so_mock, query, None)
 
+
 @patch('artbotlib.regex_mapping.pr_info')
 def test_pr_info(pr_info_mock):
     """
