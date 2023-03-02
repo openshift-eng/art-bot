@@ -3,6 +3,7 @@ import re
 
 from artbotlib import brew_list, elliott
 from artbotlib.buildinfo import buildinfo_for_release, alert_on_build_complete
+from artbotlib.taskinfo import alert_on_task_complete
 from artbotlib.constants import PROW_BASE_URL
 from artbotlib.help import greet_user, show_help
 from artbotlib.kernel_info import kernel_info
@@ -83,6 +84,12 @@ def map_command_to_regex(so, plain_text, user_id):
             "regex": r"^alert ?(if|when|on)? build (?P<build_id>\d+|https\://brewweb.engineering.redhat.com/brew/buildinfo\?buildID=\d+) completes$",
             "flag": re.I,
             "function": alert_on_build_complete,
+            "user_id": True
+        },
+        {
+            "regex": r"^alert ?(if|when|on)? task (?P<task_id>\d+|https\://brewweb.engineering.redhat.com/brew/taskinfo\?taskID=\d+) completes$",
+            "flag": re.I,
+            "function": alert_on_task_complete,
             "user_id": True
         },
         {
