@@ -273,6 +273,31 @@ def test_alert_on_build_complete(alert_mock):
     map_command_to_regex(so_mock, query, None)
 
 
+@patch('artbotlib.regex_mapping.alert_on_task_complete')
+def test_alert_on_task_complete(alert_mock):
+    """
+    Test valid/invalid queries for alert_on_task_complete()
+    """
+
+    alert_mock.side_effect = lambda outputter, *_, **__: outputter.say('mock called')
+    so_mock = flexmock(so)
+
+    # Valid
+    query = 'alert when task 123456 completes'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Valid
+    query = 'alert if task https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=12345 completes'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Invalid - missing 'task'
+    query = 'alert if https://brewweb.engineering.redhat.com/brew/taskinfo?taskid=123456 completes'
+    so_mock.should_receive('say').never()
+    map_command_to_regex(so_mock, query, None)
+
+
 @patch('artbotlib.regex_mapping.pr_info')
 def test_pr_info(pr_info_mock):
     """
