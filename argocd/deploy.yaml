@@ -36,8 +36,10 @@ spec:
           - name: NEEDS_KINIT
             value: 'True'
           - name: ART_DASH_SERVER_ROUTE
-            value: >-
-              http://art-dash-server-aos-art-web.apps.ocp4.prod.psi.redhat.com
+            valueFrom:
+              secretKeyRef:
+                name: art-dash-server-configs
+                key: art-dash-server-route
           - name: GITHUB_PERSONAL_ACCESS_TOKEN
             valueFrom:
               secretKeyRef:
