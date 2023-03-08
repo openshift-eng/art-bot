@@ -43,6 +43,7 @@ spec:
               secretKeyRef:
                 name: github-token-powerful
                 key: github-token
+        imagePullPolicy: Always
         name: art-bot
         resources:
           limits:
