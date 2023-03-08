@@ -31,10 +31,20 @@ spec:
         - python3
         - ./art-bot.py
         env:
-        - name: KRB5CCNAME
-          value: /tmp/krb5cc
-        - name: HOME
-          value: /home/dev
+          - name: HOME
+            value: /home/dev
+          - name: NEEDS_KINIT
+            value: 'True'
+          - name: ART_DASH_SERVER_ROUTE
+            valueFrom:
+              secretKeyRef:
+                name: art-dash-server-configs
+                key: art-dash-server-route
+          - name: GITHUB_PERSONAL_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: github-token-powerful
+                key: github-token
         imagePullPolicy: Always
         name: art-bot
         resources:
