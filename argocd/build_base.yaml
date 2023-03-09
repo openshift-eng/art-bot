@@ -26,6 +26,4 @@ spec:
     type: Docker
   successfulBuildsHistoryLimit: 5
   triggers:
-  - type: ConfigChange
-  - imageChange:
-    type: ImageChange
+    - type: ConfigChange
