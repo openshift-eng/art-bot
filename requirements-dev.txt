@@ -1,4 +1,3 @@
--rrequirements.txt
 autopep8
 coverage
 flake8
