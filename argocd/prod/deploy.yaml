@@ -1,0 +1,91 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    app: art-bot
+  name: art-bot
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    app: art-bot
+    deploymentconfig: art-bot
+  strategy:
+    activeDeadlineSeconds: 21600
+    resources: { }
+    rollingParams:
+      intervalSeconds: 1
+      maxSurge: 25%
+      maxUnavailable: 25%
+      timeoutSeconds: 600
+      updatePeriodSeconds: 1
+    type: Rolling
+  template:
+    metadata:
+      labels:
+        app: art-bot
+        deploymentconfig: art-bot
+    spec:
+      containers:
+        - command:
+            - python3
+            - ./art-bot.py
+          env:
+            - name: HOME
+              value: /home/dev
+            - name: NEEDS_KINIT
+              value: 'True'
+            - name: ART_DASH_SERVER_ROUTE
+              valueFrom:
+                secretKeyRef:
+                  name: art-dash-server-configs
+                  key: art-dash-server-route
+            - name: GITHUB_PERSONAL_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-token-powerful
+                  key: github-token
+          imagePullPolicy: Always
+          name: art-bot
+          resources:
+            limits:
+              cpu: 250m
+              memory: 500Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /home/dev/.config/art-bot
+              name: art-bot-config
+            - mountPath: /tmp/keytab
+              name: art-bot-keytab
+            - mountPath: /home/dev/.docker
+              name: art-bot-docker-config
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: { }
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: art-bot-config
+          secret:
+            defaultMode: 420
+            secretName: art-bot-config
+        - name: art-bot-keytab
+          secret:
+            defaultMode: 420
+            secretName: art-bot-keytab
+        - name: art-bot-docker-config
+          secret:
+            defaultMode: 420
+            secretName: art-bot-docker-config
+  test: false
+  triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - art-bot
+        from:
+          kind: ImageStreamTag
+          name: art-bot:latest
+      type: ImageChange
