@@ -11,6 +11,6 @@ spec:
   - from:
       kind: DockerImage
       name: registry.fedoraproject.org/fedora:33
-    name: "art-bot:fedora-33"
+    name: "fedora-33"
     referencePolicy:
       type: Source
