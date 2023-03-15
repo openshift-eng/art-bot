@@ -26,6 +26,9 @@ spec:
     type: Docker
   successfulBuildsHistoryLimit: 5
   triggers:
-  - type: ConfigChange
-  - imageChange:
-    type: ImageChange
+    - type: ConfigChange
+    - imageChange:
+        from:
+          kind: ImageStreamTag
+          name: art-bot:base
+      type: ImageChange
