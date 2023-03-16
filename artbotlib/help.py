@@ -29,6 +29,7 @@ _*ART build info:*_
 * Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
 * pr info `GitHub PR URL` [component `name`] in `major.minor` [for `arch`]
 * Alert when build `Brew build URL|Brew build ID` completes
+* Alert when task `Brew task URL|Brew task ID` completes
 * (go|golang) version (for|of) `nvr'
 
 _*misc:*_
