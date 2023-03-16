@@ -43,8 +43,8 @@ spec:
             - name: GITHUB_PERSONAL_ACCESS_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: github-token-powerful
-                  key: github-token
+                  name: github-token
+                  key: token-for-rate-limiting
           imagePullPolicy: Always
           name: art-bot
           resources:
