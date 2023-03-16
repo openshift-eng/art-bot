@@ -149,7 +149,7 @@ def map_command_to_regex(so, plain_text, user_id):
             "function": pipeline_from_cdn
         },
         {
-            "regex": r"^.*(image )?pipeline \s*for \s*image \s*(registry.redhat.io/)*(openshift4/)*(?P<delivery_repo_name>[a-zA-Z0-9-]+)\s*( \s*in \s*(?P<version>\d+.\d+))?\s*$",
+            "regex": r"^.*(image )?pipeline \s*for \s*image \s*(registry.redhat.io\/)*(?P<delivery_repo_name>[a-zA-Z0-9-\/]+)\s*( \s*in \s*(?P<version>\d+.\d+))?\s*$",
             "flag": re.I,
             "function": pipeline_from_delivery
         },
