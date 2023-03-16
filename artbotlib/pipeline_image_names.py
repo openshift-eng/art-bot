@@ -125,7 +125,7 @@ def pipeline_from_brew(so, brew_name, version):
     """
 
     logger.info('Retrieving pipeline from brew package %s', brew_name)
-    handle_request(so, version, content_name=brew_name, image_type="brew")
+    handle_request(so, version, content_name=brew_name, image_type="package")
 
 
 def pipeline_from_cdn(so, cdn_repo_name, version):
@@ -158,4 +158,4 @@ def pipeline_from_delivery(so, delivery_repo_name, version):
     """
 
     logger.info('Retrieving pipeline from delivery repo %s', delivery_repo_name)
-    handle_request(so, version, content_name=delivery_repo_name, image_type="delivery")
+    handle_request(so, version, content_name=delivery_repo_name, image_type="image")
