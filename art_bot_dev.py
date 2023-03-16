@@ -17,4 +17,4 @@ if __name__ == "__main__":
                 break
             map_command_to_regex(so, command, None)
     except KeyboardInterrupt:
-        print("Exiting...")
+        print("Exiting...") 
