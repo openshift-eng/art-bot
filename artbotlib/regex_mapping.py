@@ -87,7 +87,19 @@ def map_command_to_regex(so, plain_text, user_id):
             "user_id": True
         },
         {
+            "regex": r"^Watch (?P<build_id>\d+|https\://brewweb.engineering.redhat.com/brew/buildinfo\?buildID=\d+)$",
+            "flag": re.I,
+            "function": alert_on_build_complete,
+            "user_id": True
+        },
+        {
             "regex": r"^alert ?(if|when|on)? task (?P<task_id>\d+|https\://brewweb.engineering.redhat.com/brew/taskinfo\?taskID=\d+) completes$",
+            "flag": re.I,
+            "function": alert_on_task_complete,
+            "user_id": True
+        },
+        {
+            "regex": r"^Watch (?P<task_id>\d+|https\://brewweb.engineering.redhat.com/brew/taskinfo\?taskID=\d+)$",
             "flag": re.I,
             "function": alert_on_task_complete,
             "user_id": True
@@ -162,7 +174,19 @@ def map_command_to_regex(so, plain_text, user_id):
             "user_id": True
         },
         {
+            "regex": r"^Watch https://(?P<release_browser>[\w]+).ocp.releases.ci.openshift.org(?P<release_url>[\w/.-]+)$",
+            "flag": re.I,
+            "function": nightly_color_status,
+            "user_id": True
+        },
+        {
             "regex": rf"^Alert ?(if|when|on)? prow job {PROW_BASE_URL}/view/gs/(?P<job_path>\S*) completes$",
+            "flag": re.I,
+            "function": prow_job_status,
+            "user_id": True
+        },
+        {
+            "regex": rf"^Watch {PROW_BASE_URL}/view/gs/(?P<job_path>\S*)$",
             "flag": re.I,
             "function": prow_job_status,
             "user_id": True
