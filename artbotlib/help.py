@@ -18,9 +18,14 @@ _*ART releases:*_
 * Which build of `image_name` is in `release image name or pullspec`?
 * What (commits|catalogs|distgits|nvrs|images) are associated with `release-tag`?
 * Image list advisory `advisory_id`
-* Alert if `release_url` (stops being blue|fails|is rejected|is red|is accepted|is green)
 * What kernel is used in `release image name or pullspec`?
+
+_*ART release/Brew monitoring:*_
+* Watch `release_url|brew_url|prow_job_url`
+* Alert (if|when|on) `release_url` (stops being blue|fails|is rejected|is red|is accepted|is green)
 * Alert (if|when|on) prow job `Prow job URL` completes
+* Alert (if|when|on) build `Brew build URL|Brew build ID` completes
+* Alert (if|when|on) task `Brew task URL|Brew task ID` completes
 
 _*ART build info:*_
 * Where in `major.minor` (is|are) the `name1,name2,...` (RPM|package) used?
@@ -28,8 +33,6 @@ _*ART build info:*_
 * What rpms are in image `image-nvr`?
 * Which rpm `rpm1,rpm2,...` is in image `image-nvr`?
 * pr info `GitHub PR URL` [component `name`] in `major.minor` [for `arch`]
-* Alert when build `Brew build URL|Brew build ID` completes
-* Alert when task `Brew task URL|Brew task ID` completes
 * (go|golang) version (for|of) `nvr'
 
 _*misc:*_
