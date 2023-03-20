@@ -21,7 +21,9 @@ _*ART releases:*_
 * What kernel is used in `release image name or pullspec`?
 
 _*ART release/Brew monitoring:*_
-* Watch `release_url|brew_url|prow_job_url`
+* Watch `release_url|prow_job_url`
+* Watch build `Brew build ID|Brew build URL`
+* Watch task `Brew task ID|Brew task URL`
 * Alert (if|when|on) `release_url` (stops being blue|fails|is rejected|is red|is accepted|is green)
 * Alert (if|when|on) prow job `Prow job URL` completes
 * Alert (if|when|on) build `Brew build URL|Brew build ID` completes
