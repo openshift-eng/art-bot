@@ -87,7 +87,7 @@ def map_command_to_regex(so, plain_text, user_id):
             "user_id": True
         },
         {
-            "regex": r"^Watch (?P<build_id>\d+|https\://brewweb.engineering.redhat.com/brew/buildinfo\?buildID=\d+)$",
+            "regex": r"^Watch build (?P<build_id>\d+|https\://brewweb.engineering.redhat.com/brew/buildinfo\?buildID=\d+)$",
             "flag": re.I,
             "function": alert_on_build_complete,
             "user_id": True
@@ -99,7 +99,7 @@ def map_command_to_regex(so, plain_text, user_id):
             "user_id": True
         },
         {
-            "regex": r"^Watch (?P<task_id>\d+|https\://brewweb.engineering.redhat.com/brew/taskinfo\?taskID=\d+)$",
+            "regex": r"^Watch task (?P<task_id>\d+|https\://brewweb.engineering.redhat.com/brew/taskinfo\?taskID=\d+)$",
             "flag": re.I,
             "function": alert_on_task_complete,
             "user_id": True
