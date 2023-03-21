@@ -268,27 +268,12 @@ def test_alert_on_build_complete(alert_mock):
     map_command_to_regex(so_mock, query, None)
 
     # Valid
-    query = 'watch build https://brewweb.engineering.redhat.com/brew/buildinfo?buildid=123456'
-    so_mock.should_receive('say').once()
-    map_command_to_regex(so_mock, query, None)
-
-    # Valid
-    query = 'watch build 123456'
+    query = 'watch https://brewweb.engineering.redhat.com/brew/buildinfo?buildid=123456'
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
     # Invalid - missing 'build'
     query = 'alert when https://brewweb.engineering.redhat.com/brew/buildinfo?buildid=123456 completes'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
-    # Invalid - missing 'build'
-    query = 'watch https://brewweb.engineering.redhat.com/brew/buildinfo?buildid=123456'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
-    # Invalid - 'task' instead of 'build'
-    query = 'watch task https://brewweb.engineering.redhat.com/brew/buildinfo?buildid=123456'
     so_mock.should_receive('say').never()
     map_command_to_regex(so_mock, query, None)
 
@@ -313,27 +298,12 @@ def test_alert_on_task_complete(alert_mock):
     map_command_to_regex(so_mock, query, None)
 
     # Valid
-    query = 'watch task https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=12345'
-    so_mock.should_receive('say').once()
-    map_command_to_regex(so_mock, query, None)
-
-    # Valid
-    query = 'watch task 12345'
+    query = 'watch https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=12345'
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
     # Invalid - missing 'task'
     query = 'alert if https://brewweb.engineering.redhat.com/brew/taskinfo?taskid=123456 completes'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
-    # Invalid - missing 'task'
-    query = 'watch https://brewweb.engineering.redhat.com/brew/taskinfo?taskid=123456'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
-    # Invalid - 'build' instead of 'task'
-    query = 'watch build https://brewweb.engineering.redhat.com/brew/taskinfo?taskid=123456'
     so_mock.should_receive('say').never()
     map_command_to_regex(so_mock, query, None)
 
