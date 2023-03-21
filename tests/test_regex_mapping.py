@@ -267,6 +267,11 @@ def test_alert_on_build_complete(alert_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
+    # Valid
+    query = 'watch https://brewweb.engineering.redhat.com/brew/buildinfo?buildid=123456'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
     # Invalid - missing 'build'
     query = 'alert when https://brewweb.engineering.redhat.com/brew/buildinfo?buildid=123456 completes'
     so_mock.should_receive('say').never()
@@ -289,6 +294,11 @@ def test_alert_on_task_complete(alert_mock):
 
     # Valid
     query = 'alert if task https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=12345 completes'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Valid
+    query = 'watch https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=12345'
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
