@@ -13,7 +13,7 @@ from artbotlib.exectools import sigterm_handler
 from artbotlib.regex_mapping import map_command_to_regex
 from artbotlib.util import lookup_channel, log_config
 from artbotlib.formatting import extract_plain_text
-from artbotlib.slack_output import SlackOutput 
+from artbotlib.slack_output import SlackOutput
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_bolt import App
 
