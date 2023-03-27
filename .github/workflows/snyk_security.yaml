@@ -1,21 +1,55 @@
 name: Snyk Scan
 
-on: [ push, pull_request ]
+on:
+  push: { }
+  pull_request_target:
+    types: [ opened ]
+    if: github.actor in ['jupierce', 'sosiouxme', 'thiagoalessio', 'joepvd', 'thegreyd', 'vfreex', 'locriandev', 'Ximinhan', 'ashwindasr']
 
 jobs:
-  snyk:
+  pr-job:
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_target'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v3
+      - name: Checkout head repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Run PR job specific steps
+        run: echo "This is a PR job-specific step"
       - name: Test for open source vulnerabilities and license issues.
         uses: snyk/actions/python-3.9@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
+          args: --all-projects
       - name: Test for any known security issues using Static Code Analysis.
         uses: snyk/actions/python-3.9@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: code test
+          args: --all-projects
+  push-job:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Push job specific steps
+        run: echo "This is a push job-specific step"
+      - name: Test for open source vulnerabilities and license issues.
+        uses: snyk/actions/python-3.9@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --all-projects
+      - name: Test for any known security issues using Static Code Analysis.
+        uses: snyk/actions/python-3.9@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: --all-projects
