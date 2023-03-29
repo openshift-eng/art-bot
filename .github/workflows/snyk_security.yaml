@@ -12,10 +12,6 @@ jobs:
     if: github.event_name == 'pull_request_target'
     steps:
       - uses: actions/checkout@v3
-      - name: Checkout head repository
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
       - name: Run PR job specific steps
         run: echo "This is a PR job-specific step"
       - name: Test for open source vulnerabilities and license issues.
