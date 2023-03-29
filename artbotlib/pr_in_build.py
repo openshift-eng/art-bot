@@ -151,23 +151,6 @@ class PrInfo:
         pattern = re.compile(rf'{major}\.{minor}\.[0-9]+.*$')
         return filter(lambda x: re.match(pattern, x['name']), data['tags'])
 
-    def get_branches(self) -> list:
-        """
-        Return a list of branch objects. Every branch is represented as dict like this one:
-        {
-            'name': 'release-4.8',
-            'commit': {
-                'sha': '53ebaa2b7cedbfaed56fde499e4326e313517080',
-                'url': 'https://api.github.com/repos/openshift/metallb/commits/53ebaa2b7cedbfaed56fde499e4326e313517080'
-            },
-            'protected': True
-        }
-        """
-
-        url = f'{GITHUB_API_OPENSHIFT}/{self.repo_name}/branches'
-        response_json = util.github_api_all(url)
-        return response_json
-
     def get_commit_time(self, commit) -> str:
         """
         Return the timestamp associated with a commit: e.g. "2022-10-21T19:48:29Z"
