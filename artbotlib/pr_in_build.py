@@ -165,13 +165,8 @@ class PrInfo:
         """
 
         url = f'{GITHUB_API_OPENSHIFT}/{self.repo_name}/branches'
-        self.logger.info('Fetching url %s', url)
-        response = requests.get(url, headers=self.header)
-        if response.status_code != 200:
-            msg = f'Request to {url} returned with status code {response.status_code}'
-            self.logger.error(msg)
-            raise RuntimeError(msg)
-        return response.json()
+        response_json = util.github_api_all(url)
+        return response_json
 
     def get_branch_ref(self) -> str:
         """
@@ -182,7 +177,6 @@ class PrInfo:
         for data in branches:
             if data['name'] == f"release-{self.version}":
                 sha = data['commit']['sha']
-                self.logger.info('Using branch ref %s', sha)
                 return sha
 
     def get_commit_time(self, commit) -> str:
@@ -213,6 +207,12 @@ class PrInfo:
         """
 
         branch_ref = self.get_branch_ref()
+        self.logger.info("Using branch ref %s", branch_ref)
+        if not branch_ref:
+            msg = "No branches found"
+            self.logger.error(msg)
+            raise RuntimeError(msg)
+
         datetime = self.get_commit_time(commit)
         url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits?sha={branch_ref}&since={datetime}"
 

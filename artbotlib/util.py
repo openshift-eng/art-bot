@@ -2,10 +2,12 @@ import cachetools
 import datetime
 import koji
 import logging
+import functools
+import requests
+import os
 from threading import RLock
 from artbotlib.exceptions import BrewNVRNotFound
 from artbotlib.kerberos import do_kinit
-import functools
 
 logger = logging.getLogger(__name__)
 
@@ -139,3 +141,24 @@ def get_build_nvr(build_id):
         return nvr
     except Exception as e:
         raise BrewNVRNotFound(e)
+
+
+def github_api_all(url: str):
+    """
+    GitHub API paginates results. This function goes through all the pages and returns everything.
+    """
+    logger.info("Fetching URL using function github_api_all", url)
+    params = {'per_page': 100, 'page': 1}
+    header = {"Authorization": f"token {os.environ['GITHUB_PERSONAL_ACCESS_TOKEN']}"}
+    num_requests = 1  # Guard against infinite loop
+    max_requests = 5  # Odds of having a repo having more than 500 branches is low
+
+    response = requests.get(url, params=params, headers=header)
+    results = response.json()
+
+    while "next" in response.links.keys() and num_requests <= max_requests:
+        url = response.links['next']['url']
+        response = requests.get(url, headers=header)
+        results += response.json()
+        num_requests += 1
+    return results
