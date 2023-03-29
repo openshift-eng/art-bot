@@ -168,17 +168,6 @@ class PrInfo:
         response_json = util.github_api_all(url)
         return response_json
 
-    def get_branch_ref(self) -> str:
-        """
-        Return the SHA of release-{MAJOR}.{MINOR} HEAD
-        """
-
-        branches = self.get_branches()
-        for data in branches:
-            if data['name'] == f"release-{self.version}":
-                sha = data['commit']['sha']
-                return sha
-
     def get_commit_time(self, commit) -> str:
         """
         Return the timestamp associated with a commit: e.g. "2022-10-21T19:48:29Z"
@@ -206,25 +195,13 @@ class PrInfo:
         Return commits in a repo from the given time (includes the current commit).
         """
 
-        branch_ref = self.get_branch_ref()
-        self.logger.info("Using branch ref %s", branch_ref)
-        if not branch_ref:
-            msg = "No branches found"
-            self.logger.error(msg)
-            raise RuntimeError(msg)
-
         datetime = self.get_commit_time(commit)
-        url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits?sha={branch_ref}&since={datetime}"
+        url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits?sha=release-{self.version}&since={datetime}"
 
-        self.logger.info('Fetching url %s', url)
-        response = requests.get(url, headers=self.header)
-        if response.status_code != 200:
-            msg = f'Request to {url} returned with status code {response.status_code}'
-            self.logger.error(msg)
-            raise RuntimeError(msg)
+        commits = util.github_api_all(url)
 
         result = []
-        for data in response.json():
+        for data in commits:
             result.append(data['sha'])
         return result[::-1]
 
@@ -376,6 +353,10 @@ class PrInfo:
         self.merge_commit = self.pr_merge_commit()
         # Get the commits that we need to check
         self.commits = self.get_commits_after(self.merge_commit)
+        if self.merge_commit not in self.commits:
+            self.logger.debug("This branch doesn't have this PR merge commit")
+            self.so.say(f"release-{self.version} branch does not include this PR")
+            return
         self.logger.debug(f'Found commits after {self.merge_commit}: {self.commits}')
 
         # Check if a build is associated for the merge commit

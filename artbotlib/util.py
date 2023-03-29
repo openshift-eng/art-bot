@@ -151,7 +151,7 @@ def github_api_all(url: str):
     params = {'per_page': 100, 'page': 1}
     header = {"Authorization": f"token {os.environ['GITHUB_PERSONAL_ACCESS_TOKEN']}"}
     num_requests = 1  # Guard against infinite loop
-    max_requests = 5  # Odds of having a repo having more than 500 branches is low
+    max_requests = 100
 
     response = requests.get(url, params=params, headers=header)
     results = response.json()
