@@ -146,6 +146,8 @@ def get_build_nvr(build_id):
 def github_api_all(url: str):
     """
     GitHub API paginates results. This function goes through all the pages and returns everything.
+    This function is used only for GitHub API endpoints that return a list as response. The endpoints that return
+    json are usually not paginated.
     """
     logger.info("Fetching URL using function github_api_all", url)
     params = {'per_page': 100, 'page': 1}
