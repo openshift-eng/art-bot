@@ -4,11 +4,11 @@ on:
   push: { }
   pull_request_target:
     types: [ opened ]
-    if: github.actor in ['jupierce', 'sosiouxme', 'thiagoalessio', 'joepvd', 'thegreyd', 'vfreex', 'locriandev', 'Ximinhan', 'ashwindasr']
 
 jobs:
   snyk:
     runs-on: ubuntu-latest
+    if: github.actor == 'jupierce' || github.actor == 'sosiouxme' || github.actor == 'thiagoalessio' || github.actor == 'joepvd' || github.actor == 'thegreyd' || github.actor == 'vfreex' || github.actor == 'locriandev' || github.actor == 'Ximinhan' || github.actor == 'ashwindasr'
     steps:
       - uses: actions/checkout@v3
       - name: Test for open source vulnerabilities and license issues.
