@@ -80,7 +80,7 @@ def prow_job_status(so, user_id: str, job_path: str):
         if now - start > TWELVE_HOURS:  # Timeout after 12 hrs.
             logger.warning('Prow job %s did not complete within 12 hours, giving up', job_path)
             so.say(f"<@{user_id}> job {job_path} didn't complete even after 12 hrs :(")
-            return
+            break
         logger.info('Checking state for job %s', job_path)
 
         # Retrieve job state
@@ -92,19 +92,19 @@ def prow_job_status(so, user_id: str, job_path: str):
             msg = f'Failed fetching job data from {job_path}'
             logger.error(msg)
             so.say(msg)
-            return
+            break
 
         except KeyError:
             msg = f'Failed parsing job data from {job_path}'
             logger.error(msg)
             so.say(msg)
-            return
+            break
 
         # Check state and possibly notify user
         if job_state != ProwJobState.PENDING.value:
             logger.info('Prow job %s completed with status %s', job_path, job_state)
             so.say(f'<@{user_id}> prow job `{job_path}` completed with status `{job_state}`')
-            return
+            break
 
         # If not completed yet, wait and retry
         time.sleep(FIVE_MINUTES)
