@@ -161,6 +161,10 @@ def github_api_all(url: str):
     while "next" in response.links.keys() and num_requests <= max_requests:
         url = response.links['next']['url']
         response = requests.get(url, headers=header)
+
+        if response.status_code != 200:
+            logger.error('Could not fetch data from %s', url)
+
         results += response.json()
         num_requests += 1
     return results
