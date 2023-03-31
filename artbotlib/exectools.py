@@ -164,11 +164,9 @@ def cmd_assert(so, cmd, set_env=None, cwd=None, realtime=False):
         raise
 
     if rc:
-        logger.warning(
-            f'error-id={error_id} . Non-zero return code from: {cmd}\nStdout:\n{stdout}\n\nStderr:\n{stderr}\n')
+        logger.warning(f'error-id={error_id} . Non-zero return code from: {cmd}\nStdout:\n{stdout}\n\nStderr:\n{stderr}\n')
         send_cmd_error(rc, stdout, stderr)
-        so.say(
-            f'Sorry, but I encountered an error. Details have been sent to the ART team. Mention error-id={error_id} when requesting support.')
+        so.say(f'Sorry, but I encountered an error. Details have been sent to the ART team. Mention error-id={error_id} when requesting support.')
         raise IOError(f'Non-zero return code from: {cmd}')
 
     return rc, stdout, stderr
