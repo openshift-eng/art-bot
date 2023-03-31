@@ -22,6 +22,8 @@ async def cmd_gather_async(cmd: Union[List[str], str], check: bool = True, **kwa
     :param kwargs: Other arguments passing to asyncio.subprocess.create_subprocess_exec
     :return: rc,stdout,stderr
     """
+    # Sanitize the input using shlex.quote()
+    cmd = shlex.quote(cmd)
 
     logger.info(f'Running async command: {cmd}')
 
@@ -162,9 +164,11 @@ def cmd_assert(so, cmd, set_env=None, cwd=None, realtime=False):
         raise
 
     if rc:
-        logger.warning(f'error-id={error_id} . Non-zero return code from: {cmd}\nStdout:\n{stdout}\n\nStderr:\n{stderr}\n')
+        logger.warning(
+            f'error-id={error_id} . Non-zero return code from: {cmd}\nStdout:\n{stdout}\n\nStderr:\n{stderr}\n')
         send_cmd_error(rc, stdout, stderr)
-        so.say(f'Sorry, but I encountered an error. Details have been sent to the ART team. Mention error-id={error_id} when requesting support.')
+        so.say(
+            f'Sorry, but I encountered an error. Details have been sent to the ART team. Mention error-id={error_id} when requesting support.')
         raise IOError(f'Non-zero return code from: {cmd}')
 
     return rc, stdout, stderr
