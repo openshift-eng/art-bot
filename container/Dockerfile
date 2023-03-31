@@ -1,4 +1,4 @@
-FROM registry.redhat.io/rhel9/python-39
+FROM registry.access.redhat.com/ubi9/python-39
 LABEL name="art-bot" \
   description="art-bot container image" \
   maintainer="OpenShift Automated Release Tooling (ART) Team <aos-team-art@redhat.com>"
@@ -13,6 +13,7 @@ RUN curl -o /etc/pki/ca-trust/source/anchors/RH-IT-Root-CA.crt --fail -L \
  && dnf install -y \
     # runtime dependencies
     krb5-workstation git rsync \
+    python3-rpm python3-rhmsg \
     # development dependencies
     gcc krb5-devel python3-devel python3-pip \
     # other tools
@@ -55,6 +56,7 @@ WORKDIR /workspaces/art-bot
 # install dependencies (allow even openshift's random user to see)
 ENV PATH=/home/"$USERNAME"/.local/bin:/home/"$USERNAME"/bin:"$PATH"
 COPY requirements.txt ./
+USER 0
 RUN umask a+rx && pip3 install --upgrade \
     git+https://github.com/openshift/doozer.git#egg=rh-doozer \
     git+https://github.com/openshift/elliott.git#egg=rh-elliott \
