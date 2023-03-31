@@ -1,22 +1,22 @@
-FROM registry.fedoraproject.org/fedora:33
+FROM registry.redhat.io/rhel9/python-39
 LABEL name="art-bot" \
   description="art-bot container image" \
   maintainer="OpenShift Automated Release Tooling (ART) Team <aos-team-art@redhat.com>"
 
 # the build will need to run inside the firewall to access internal resources.
 # install Red Hat IT Root CA and RCM repos
+USER 0
 RUN curl -o /etc/pki/ca-trust/source/anchors/RH-IT-Root-CA.crt --fail -L \
     https://password.corp.redhat.com/RH-IT-Root-CA.crt \
  && update-ca-trust extract \
- && curl -o /etc/yum.repos.d/rcm-tools-fedora.repo https://download.devel.redhat.com/rel-eng/RCMTOOLS/rcm-tools-fedora.repo \
+ && curl -o /etc/yum.repos.d/rcm-tools-rhel-9-baseos.repo    https://download.devel.redhat.com/rel-eng/RCMTOOLS/rcm-tools-rhel-9-baseos.repo    \
  && dnf install -y \
     # runtime dependencies
     krb5-workstation git rsync \
-    python3 python3-certifi python3-rpm python3-rhmsg \
     # development dependencies
     gcc krb5-devel python3-devel python3-pip \
     # other tools
-    bash-completion vim tmux wget curl iputils procps-ng psmisc net-tools iproute \
+    bash-completion vim wget iputils procps-ng psmisc net-tools iproute \
     # install brewkoji
     koji brewkoji \
  && dnf clean all
@@ -45,6 +45,7 @@ RUN groupadd --gid "$USER_GID" "$USERNAME" \
  && chmod -R 0755 /home/"$USERNAME" \
  && chmod -R 0777 /workspaces \
  # and allow it passwordless sudo
+ && mkdir -p /etc/sudoers.d \
  && echo "$USERNAME" ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/"$USERNAME" \
  && chmod 0440 /etc/sudoers.d/"$USERNAME"
 
