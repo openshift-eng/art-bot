@@ -22,8 +22,6 @@ async def cmd_gather_async(cmd: Union[List[str], str], check: bool = True, **kwa
     :param kwargs: Other arguments passing to asyncio.subprocess.create_subprocess_exec
     :return: rc,stdout,stderr
     """
-    # Sanitize the input using shlex.quote()
-    cmd = shlex.quote(cmd)
 
     logger.info(f'Running async command: {cmd}')
 
