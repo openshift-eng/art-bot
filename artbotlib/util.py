@@ -149,7 +149,7 @@ def github_api_all(url: str):
     This function is used only for GitHub API endpoints that return a list as response. The endpoints that return
     json are usually not paginated.
     """
-    logger.info("Fetching URL using function github_api_all", url)
+    logger.info("Fetching URL using function github_api_all %s", url)
     params = {'per_page': 100, 'page': 1}
     header = {"Authorization": f"token {os.environ['GITHUB_PERSONAL_ACCESS_TOKEN']}"}
     num_requests = 1  # Guard against infinite loop
