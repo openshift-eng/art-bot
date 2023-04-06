@@ -14,7 +14,7 @@ import yaml
 import artbotlib.exectools
 
 from . import util
-from .constants import RHCOS_BASE_URL
+from .rhcos import rhcos_build_url
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ def brew_list_components(nvr):
         for rpm in koji_api.listRPMs(imageID=archive['id']):
             components.add('{nvr}.{arch}'.format(**rpm))
 
-    logger.info('Found components in build %s:\n%s', nvr, '\n'.join(components))
+    logger.info('Found %s components in build %s', len(components), nvr)
     return components
 
 
@@ -382,7 +382,7 @@ def _find_rhcos_build_rpms(so, major_minor, arch="x86_64", build_id=None):
         return set()
 
     try:
-        meta_url = f"{_rhcos_build_url(major_minor, build_id, arch)}/commitmeta.json"
+        meta_url = f"{rhcos_build_url(major_minor, build_id, arch)}/commitmeta.json"
         logger.info('Fetching URL %s', meta_url)
 
         with urllib.request.urlopen(meta_url) as url:
@@ -418,17 +418,6 @@ def _find_latest_rhcos_build_id(so, major_minor, arch="x86_64"):
         so.say("Encountered error looking up the latest RHCOS build.")
         so.monitoring_say(f"Encountered error looking up the latest RHCOS build: {ex}")
         return None
-
-
-def _rhcos_build_url(major_minor, build_id, arch="x86_64"):
-    # path of build contents varies depending on the build schema; currently splits at 4.3
-    arch_path = "" if major_minor in ["4.1", "4.2"] else f"/{arch}"
-    return f"{_rhcos_release_url(major_minor, arch)}/{build_id}{arch_path}"
-
-
-def _rhcos_release_url(major_minor, arch="x86_64"):
-    arch_suffix = "" if arch == "x86_64" else f"-{arch}"
-    return f"{RHCOS_BASE_URL}/storage/releases/rhcos-{major_minor}{arch_suffix}"
 
 
 def _get_raw_group_config(group):

@@ -9,7 +9,7 @@ from enum import Enum
 import koji
 
 from . import util, constants, exectools
-from .rhcos import rhcos_build_urls
+from .rhcos import rhcos_browser_urls
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ def buildinfo_for_release(so, name, release_img):
                    f"{pullspec_text} but didn't see one. Weird huh?")
             return
 
-        contents_url, stream_url = rhcos_build_urls(rhcos_build, arch)
+        contents_url, stream_url = rhcos_browser_urls(rhcos_build, arch)
         if contents_url:
             rhcos_build = f"<{contents_url}|{rhcos_build}> (<{stream_url}|stream>)"
             logger.info('Found RHCOS build: %s', stream_url)

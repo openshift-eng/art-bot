@@ -3,7 +3,7 @@ from mock import Mock
 import pytest
 from unittest.mock import patch, MagicMock
 
-from artbotlib import brew_list, constants
+from artbotlib import brew_list, constants, rhcos
 
 
 @pytest.mark.parametrize("params, expected",
@@ -13,7 +13,7 @@ from artbotlib import brew_list, constants
                          ]
                          )
 def test_rhcos_release_url(params, expected):
-    assert expected == brew_list._rhcos_release_url(*params)
+    assert expected == rhcos.rhcos_release_url(*params)
 
 
 @pytest.mark.parametrize("params, expected",
@@ -25,7 +25,7 @@ def test_rhcos_release_url(params, expected):
                          ]
                          )
 def test_rhcos_build_url(params, expected):
-    assert expected == brew_list._rhcos_build_url(*params)
+    assert expected == rhcos.rhcos_build_url(*params)
 
 
 @patch("requests.get")

@@ -1,11 +1,83 @@
 import logging
 import re
-
 import aiohttp
+import subprocess
 
+from subprocess import PIPE
 from artbotlib import constants
 
 logger = logging.getLogger(__name__)
+
+
+class RHCOSBuildInfo:
+    def __init__(self, ocp_version):
+        self.ocp_version = ocp_version
+        self.stream = self._get_stream()
+
+    def _get_stream(self):
+        # doozer --quiet -g openshift-4.14 config:read-group urls.rhcos_release_base.multi --default ''
+        # https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/storage/prod/streams/4.14-9.2/builds
+        cmd = [
+            "doozer",
+            "--quiet",
+            "--group", f'openshift-{self.ocp_version}',
+            "config:read-group",
+            "urls.rhcos_release_base.multi",
+            "--default",
+            "''"
+        ]
+        result = subprocess.run(cmd, stdout=PIPE, stderr=PIPE, check=False, universal_newlines=True)
+        if result.returncode != 0:
+            raise IOError(f"Command {cmd} returned {result.returncode}: stdout={result.stdout}, stderr={result.stderr}")
+        match = re.search(r'streams/(.*)/builds', result.stdout)
+        if match:
+            stream = match[1]
+        else:
+            stream = self.ocp_version
+        return stream
+
+    def release_url(self, arch="x86_64"):
+        arch_suffix = "" if arch == "x86_64" else f"-{arch}"
+        return f'{constants.RHCOS_BASE_URL}/storage/prod/streams/{self.ocp_version}'
+
+    def build_url(self, build_id, arch="x86_64"):
+        return f"{self.release_url(arch)}/builds/{build_id}/{arch}"
+
+    def browser_urls(self, build_id, arch="x86_64"):
+        """
+        base url for a release stream in the release browser
+        @param build_id  the RHCOS build id string (e.g. "412.86.202304050931-0")
+        @param arch      architecture we are interested in (e.g. "x86_64")
+        @return 2 url strings (content_url, stream_url) or (None, None) if we can't parse the build_id
+        """
+
+        build_suffix = f"?stream=prod/streams/{self.stream}&release={build_id}&arch={arch}"
+        contents = f"{constants.RHCOS_BASE_URL}/contents.html{build_suffix}"
+        stream = f"{constants.RHCOS_BASE_URL}/{build_suffix}"
+        logger.info('Found urls for rhcos build %s:\n%s\n%s', build_id, contents, stream)
+        return contents, stream
+
+    async def build_metadata(self, build_id, arch):
+        """
+        Fetches RHCOS build metadata
+        :param build_id: e.g. '410.84.202212022239-0'
+        :param ocp_version: e.g. '4.10'
+        :param arch: one in {'x86_64', 'ppc64le', 's390x', 'aarch64'}
+        :return: tuple of (build info json data, pullspec text, release image text)
+        """
+
+        logger.info('Retrieving metadata for RHCOS build %s', build_id)
+
+        pipeline_url = f'{self.build_url(build_id, arch)}/commitmeta.json'
+        try:
+            async with aiohttp.ClientSession() as session:
+                logger.info('Fetching URL %s', pipeline_url)
+                async with session.get(pipeline_url) as resp:
+                    metadata = await resp.json()
+                return metadata
+        except aiohttp.client_exceptions.ContentTypeError:
+            logger.error('Failed fetching data from url %s', pipeline_url)
+            raise
 
 
 async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
@@ -37,67 +109,3 @@ async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
     except KeyError:
         logger.error('Failed retrieving release info')
         raise
-
-
-async def rhcos_build_metadata(build_id, ocp_version, arch):
-    """
-    Fetches RHCOS build metadata
-    :param build_id: e.g. '410.84.202212022239-0'
-    :param ocp_version: e.g. '4.10'
-    :param arch: one in {'x86_64', 'ppc64le', 's390x', 'aarch64'}
-    :return: tuple of (build info json data, pullspec text, release image text)
-    """
-
-    logger.info('Retrieving metadata for RHCOS build %s', build_id)
-
-    # Old pipeline
-    arch_suffix = '' if arch == 'x86_64' else f'-{arch}'
-    old_pipeline_url = f'{constants.RHCOS_BASE_URL}/storage/releases/rhcos-{ocp_version}{arch_suffix}/' \
-                       f'{build_id}/{arch}/commitmeta.json'
-    try:
-        async with aiohttp.ClientSession() as session:
-            logger.info('Fetching URL %s', old_pipeline_url)
-            async with session.get(old_pipeline_url) as resp:
-                metadata = await resp.json()
-        return metadata
-
-    except aiohttp.client_exceptions.ContentTypeError:
-        # This build belongs to the new pipeline
-        logger.info('Failed fetching data for build %s, trying with the new pipeline...', build_id)
-        pass
-
-    # New pipeline
-    new_pipeline_url = f'{constants.RHCOS_BASE_URL}/storage/prod/streams/{ocp_version}/builds/' \
-                       f'{build_id}/{arch}/commitmeta.json'
-    try:
-        async with aiohttp.ClientSession() as session:
-            logger.info('Fetching URL %s', new_pipeline_url)
-            async with session.get(new_pipeline_url) as resp:
-                metadata = await resp.json()
-            return metadata
-    except aiohttp.client_exceptions.ContentTypeError:
-        logger.error('Failed fetching data from url %s', new_pipeline_url)
-        raise
-
-
-def rhcos_build_urls(build_id, arch="x86_64"):
-    """
-    base url for a release stream in the release browser
-    @param build_id  the RHCOS build id string (e.g. "46.82.202009222340-0")
-    @param arch      architecture we are interested in (e.g. "s390x")
-    @return e.g.: https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/?stream=releases/rhcos-4.6&release=46.82.202009222340-0#46.82.202009222340-0
-    """
-
-    minor_version = re.match("4([0-9]+)[.]", build_id)  # 4<minor>.8#.###
-    if minor_version:
-        minor_version = f"4.{minor_version.group(1)}"
-    else:  # don't want to assume we know what this will look like later
-        return None, None
-
-    suffix = "" if arch in ["x86_64", "amd64"] else f"-{arch}"
-
-    contents = f"{constants.RHCOS_BASE_URL}/" \
-               f"contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
-    stream = f"{constants.RHCOS_BASE_URL}/?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}#{build_id}"
-    logger.info('Found urls for rhcos build %s:\n%s\n%s', build_id, contents, stream)
-    return contents, stream
