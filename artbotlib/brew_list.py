@@ -3,7 +3,6 @@ import fnmatch
 import json
 import logging
 import re
-import urllib.request
 from typing import cast, Dict
 from urllib.parse import quote
 
@@ -14,7 +13,7 @@ import yaml
 import artbotlib.exectools
 
 from . import util
-from .rhcos import rhcos_build_url
+from .rhcos import get_rhcos_build_rpms
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +226,7 @@ def list_components_for_major_minor(so, major, minor):
     )
 
 
-def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
+async def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
     """
     List all of the uses for a list of RPMs or packages,
     including in images, rhcos, and (TODO) the installer.
@@ -282,7 +281,8 @@ def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
     rpms_for_image = dict()
     rpms_seen = set()
     if int(major) > 3:
-        _index_rpms_in_rhcos(_find_rhcos_build_rpms(so, major_minor), rpms_search, rpms_for_image, rpms_seen)
+        rhcos_rpms = await get_rhcos_build_rpms(so, major_minor)
+        _index_rpms_in_rhcos(rhcos_rpms, rpms_search, rpms_for_image, rpms_seen)
     _index_rpms_in_images(image_nvrs, rpms_search, rpms_for_image, rpms_seen)
     logger.info('Usages of %s in %s:\n%s', names, major_minor, '\n'.join(rpms_for_image))
 
@@ -373,51 +373,6 @@ def _find_rpms_in_packages(koji_api, name_list, major_minor):
             rpms_for_package[package] = rpm_set
 
     return rpms_for_package
-
-
-def _find_rhcos_build_rpms(so, major_minor, arch="x86_64", build_id=None):
-    # returns a set of RPMs used in the specified or most recent build for release major_minor
-    build_id = build_id or _find_latest_rhcos_build_id(so, major_minor, arch)
-    if not build_id:
-        return set()
-
-    try:
-        meta_url = f"{rhcos_build_url(major_minor, build_id, arch)}/commitmeta.json"
-        logger.info('Fetching URL %s', meta_url)
-
-        with urllib.request.urlopen(meta_url) as url:
-            data = json.loads(url.read().decode())
-        rpms = data["rpmostree.rpmdb.pkglist"]
-        logger.info('Found rpms: %s', rpms)
-
-        return set(f"{n}-{v}-{r}" for n, e, v, r, a in rpms)
-
-    except Exception as ex:
-        logger.error('Encountered error looking up latest RHCOS build RPMs in %s: %s', major_minor, ex)
-        so.say("Encountered error looking up the latest RHCOS build RPMs.")
-        so.say_monitoring(f"Encountered error looking up the latest RHCOS build RPMs: {ex}")
-        return set()
-
-
-def _find_latest_rhcos_build_id(so, major_minor, arch="x86_64"):
-    # returns the build id string
-    # (may want to return "schema-version" also if this ever gets more complex)
-    try:
-        builds_json_url = f'{_rhcos_release_url(major_minor, arch)}/builds.json'
-        logger.info('Fetching URL %s', builds_json_url)
-
-        with urllib.request.urlopen(builds_json_url) as url:
-            data = json.loads(url.read().decode())
-        build = data["builds"][0]
-        logger.info('Found build: %s', build)
-
-        return build if isinstance(build, str) else build["id"]
-
-    except Exception as ex:
-        logger.error('Encountered error looking up the latest RHCOS build in %s: %s', major_minor, ex)
-        so.say("Encountered error looking up the latest RHCOS build.")
-        so.monitoring_say(f"Encountered error looking up the latest RHCOS build: {ex}")
-        return None
 
 
 def _get_raw_group_config(group):

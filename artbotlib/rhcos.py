@@ -2,6 +2,8 @@ import logging
 import re
 import aiohttp
 import subprocess
+import urllib
+import json
 
 from subprocess import PIPE
 from artbotlib import constants
@@ -36,48 +38,84 @@ class RHCOSBuildInfo:
             stream = self.ocp_version
         return stream
 
-    def release_url(self, arch="x86_64"):
-        arch_suffix = "" if arch == "x86_64" else f"-{arch}"
-        return f'{constants.RHCOS_BASE_URL}/storage/prod/streams/{self.ocp_version}'
+    @property
+    def _builds_base_url(self):
+        return f'{constants.RHCOS_BASE_URL}/storage/prod/streams/{self.stream}/builds'
+
+    @property
+    def builds_url(self):
+        return f'{self._builds_base_url}/builds.json'
 
     def build_url(self, build_id, arch="x86_64"):
-        return f"{self.release_url(arch)}/builds/{build_id}/{arch}"
+        return f'{self._builds_base_url}/{build_id}/{arch}'
+
+    def get_latest_build_id(self, arch="x86_64"):
+        builds_json_url = self.builds_url
+        logger.info('Fetching URL %s', builds_json_url)
+
+        with urllib.request.urlopen(builds_json_url) as url:
+            data = json.loads(url.read().decode())
+
+        for build in data["builds"]:
+            if arch in build["arches"]:
+                logger.info('Found build: %s', build)
+                return build["id"]
+
+        return None
 
     def browser_urls(self, build_id, arch="x86_64"):
         """
-        base url for a release stream in the release browser
+        release browser urls for a build_id and release stream
         @param build_id  the RHCOS build id string (e.g. "412.86.202304050931-0")
         @param arch      architecture we are interested in (e.g. "x86_64")
         @return 2 url strings (content_url, stream_url) or (None, None) if we can't parse the build_id
         """
 
         build_suffix = f"?stream=prod/streams/{self.stream}&release={build_id}&arch={arch}"
-        contents = f"{constants.RHCOS_BASE_URL}/contents.html{build_suffix}"
-        stream = f"{constants.RHCOS_BASE_URL}/{build_suffix}"
-        logger.info('Found urls for rhcos build %s:\n%s\n%s', build_id, contents, stream)
-        return contents, stream
+        content_url = f"{constants.RHCOS_BASE_URL}/contents.html{build_suffix}"
+        stream_url = f"{constants.RHCOS_BASE_URL}/{build_suffix}"
+        return content_url, stream_url
 
     async def build_metadata(self, build_id, arch):
         """
         Fetches RHCOS build metadata
         :param build_id: e.g. '410.84.202212022239-0'
-        :param ocp_version: e.g. '4.10'
         :param arch: one in {'x86_64', 'ppc64le', 's390x', 'aarch64'}
-        :return: tuple of (build info json data, pullspec text, release image text)
+        :return: parsed json metadata
         """
 
         logger.info('Retrieving metadata for RHCOS build %s', build_id)
 
-        pipeline_url = f'{self.build_url(build_id, arch)}/commitmeta.json'
+        url = f'{self.build_url(build_id, arch)}/commitmeta.json'
         try:
             async with aiohttp.ClientSession() as session:
-                logger.info('Fetching URL %s', pipeline_url)
-                async with session.get(pipeline_url) as resp:
+                logger.info('Fetching URL %s', url)
+                async with session.get(url) as resp:
                     metadata = await resp.json()
                 return metadata
         except aiohttp.client_exceptions.ContentTypeError:
-            logger.error('Failed fetching data from url %s', pipeline_url)
+            logger.error('Failed fetching data from url %s', url)
             raise
+
+
+async def get_rhcos_build_rpms(so, major_minor, arch="x86_64", build_id=None):
+    # returns a set of RPMs used in the specified or most recent rhcos build for release major_minor
+    rhcos_build_info = RHCOSBuildInfo(major_minor)
+    build_id = build_id or rhcos_build_info.get_latest_build_id(arch)
+    if not build_id:
+        return set()
+
+    try:
+        metadata = await rhcos_build_info.build_metadata(build_id, arch)
+        rpms = metadata["rpmostree.rpmdb.pkglist"]
+        logger.info('Found rpms: %s', rpms)
+        return set(f"{n}-{v}-{r}" for n, e, v, r, a in rpms)
+
+    except Exception as ex:
+        logger.error('Encountered error looking up latest RHCOS build RPMs in %s: %s', major_minor, ex)
+        so.say("Encountered error looking up the latest RHCOS build RPMs.")
+        so.say_monitoring(f"Encountered error looking up the latest RHCOS build RPMs: {ex}")
+        return set()
 
 
 async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
