@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class RHCOSBuildInfo:
-    def __init__(self, ocp_version):
+    def __init__(self, ocp_version, stream=None):
         self.ocp_version = ocp_version
-        self.stream = self._get_stream()
+        self.stream = stream or self._get_stream()
 
     def _get_stream(self):
         # doozer --quiet -g openshift-4.14 config:read-group urls.rhcos_release_base.multi --default ''

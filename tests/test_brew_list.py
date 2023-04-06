@@ -1,6 +1,6 @@
 import flexmock
-from mock import Mock
 import pytest
+from mock import Mock
 from unittest.mock import patch, MagicMock
 
 from artbotlib import brew_list, constants, rhcos
@@ -8,24 +8,16 @@ from artbotlib import brew_list, constants, rhcos
 
 @pytest.mark.parametrize("params, expected",
                          [
-                             [("4.5",), f"{constants.RHCOS_BASE_URL}/storage/releases/rhcos-4.5"],
-                             [("4.5", "s390x"), f"{constants.RHCOS_BASE_URL}/storage/releases/rhcos-4.5-s390x"],
-                         ]
-                         )
-def test_rhcos_release_url(params, expected):
-    assert expected == rhcos.rhcos_release_url(*params)
-
-
-@pytest.mark.parametrize("params, expected",
-                         [
-                             [("4.2", "spam"), f"{constants.RHCOS_BASE_URL}/storage/releases/rhcos-4.2/spam"],
-                             [("4.5", "eggs"), f"{constants.RHCOS_BASE_URL}/storage/releases/rhcos-4.5/eggs/x86_64"],
+                             [("4.2", "spam"), f"{constants.RHCOS_BASE_URL}/storage/prod/streams/4.2/builds/spam/x86_64"],
+                             [("4.5", "eggs"),
+                              f"{constants.RHCOS_BASE_URL}/storage/prod/streams/4.5/builds/eggs/x86_64"],
                              [("4.5", "bacon", "s390x"),
-                              f"{constants.RHCOS_BASE_URL}/storage/releases/rhcos-4.5-s390x/bacon/s390x"],
+                              f"{constants.RHCOS_BASE_URL}/storage/prod/streams/4.5/builds/bacon/s390x"],
                          ]
                          )
 def test_rhcos_build_url(params, expected):
-    assert expected == rhcos.rhcos_build_url(*params)
+    rhcos_build_info = rhcos.RHCOSBuildInfo(params[0], params[0])
+    assert expected == rhcos_build_info.build_url(*params[1:])
 
 
 @patch("requests.get")

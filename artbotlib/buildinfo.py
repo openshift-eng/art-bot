@@ -110,7 +110,9 @@ def buildinfo_for_release(so, name, release_img):
                    f"{pullspec_text} but didn't see one. Weird huh?")
             return
 
+        # TODO: determine this
         ocp_version = None
+
         rhcos_build_info = rhcos.RHCOSBuildInfo(ocp_version)
         contents_url, stream_url = rhcos_build_info.browser_urls(rhcos_build, arch)
         if contents_url:
