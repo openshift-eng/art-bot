@@ -4,7 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def translate_names(so, _, name, name_type2, major=None, minor=None):
+def translate_names(so, name, name_type2, major=None, minor=None, **_):
     query_name = {
         "brew-image": "image_name",
         "brew-component": "component",
