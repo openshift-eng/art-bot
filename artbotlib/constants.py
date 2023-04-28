@@ -25,7 +25,7 @@ ERRATA_TOOL_URL = 'https://errata.devel.redhat.com'
 
 GITHUB_API_OPENSHIFT = "https://api.github.com/repos/openshift"
 
-ART_DASH_API_ROUTE = "http://art-dash-server-aos-art-web.apps.ocp4.prod.psi.redhat.com/api/v1"
+ART_DASH_API_ROUTE = "https://art-dash-server-art-dashboard-server.apps.artc2023.pc3z.p1.openshiftapps.com/api/v1"
 
 RELEASE_CONTROLLER_URL = Template('https://${arch}.ocp.releases.ci.openshift.org')
 
