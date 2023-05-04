@@ -64,6 +64,7 @@ def prow_job_status(so, user_id: str, job_path: str):
     Times out after 12 hours
     """
 
+    so.say(f'Ok <@{user_id}>, I\'ll respond here when the job completes')
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
