@@ -1,11 +1,40 @@
 import logging
 import re
-
 import aiohttp
+import subprocess
+from subprocess import PIPE
 
 from artbotlib import constants
 
 logger = logging.getLogger(__name__)
+
+
+class RHCOSBuildInfo:
+    def __init__(self, ocp_version, stream=None):
+        self.ocp_version = ocp_version
+        self.stream = stream or self._get_stream()
+
+    def _get_stream(self):
+        # doozer --quiet -g openshift-4.14 config:read-group urls.rhcos_release_base.multi --default ''
+        # https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/storage/prod/streams/4.14-9.2/builds
+        cmd = [
+            "doozer",
+            "--quiet",
+            "--group", f'openshift-{self.ocp_version}',
+            "config:read-group",
+            "urls.rhcos_release_base.multi",
+            "--default",
+            "''"
+        ]
+        result = subprocess.run(cmd, stdout=PIPE, stderr=PIPE, check=False, universal_newlines=True)
+        if result.returncode != 0:
+            raise IOError(f"Command {cmd} returned {result.returncode}: stdout={result.stdout}, stderr={result.stderr}")
+        match = re.search(r'streams/(.*)/builds', result.stdout)
+        if match:
+            stream = match[1]
+        else:
+            stream = self.ocp_version
+        return stream
 
 
 async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
@@ -80,7 +109,7 @@ async def rhcos_build_metadata(build_id, ocp_version, arch):
         raise
 
 
-def rhcos_build_urls(build_id, arch="x86_64"):
+def rhcos_build_urls(ocp_version, build_id, arch="x86_64"):
     """
     base url for a release stream in the release browser
     @param build_id  the RHCOS build id string (e.g. "46.82.202009222340-0")
@@ -88,16 +117,9 @@ def rhcos_build_urls(build_id, arch="x86_64"):
     @return e.g.: https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/?stream=releases/rhcos-4.6&release=46.82.202009222340-0#46.82.202009222340-0
     """
 
-    minor_version = re.match("4([0-9]+)[.]", build_id)  # 4<minor>.8#.###
-    if minor_version:
-        minor_version = f"4.{minor_version.group(1)}"
-    else:  # don't want to assume we know what this will look like later
-        return None, None
-
-    suffix = "" if arch in ["x86_64", "amd64"] else f"-{arch}"
-
-    contents = f"{constants.RHCOS_BASE_URL}/" \
-               f"contents.html?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}"
-    stream = f"{constants.RHCOS_BASE_URL}/?stream=releases/rhcos-{minor_version}{suffix}&release={build_id}#{build_id}"
-    logger.info('Found urls for rhcos build %s:\n%s\n%s', build_id, contents, stream)
+    arch = constants.RC_ARCH_TO_RHCOS_ARCH.get(arch, arch)
+    rhcos_build_info = RHCOSBuildInfo(ocp_version)
+    build_suffix = f"?stream=prod/streams/{rhcos_build_info.stream}&release={build_id}&arch={arch}"
+    contents = f"{constants.RHCOS_BASE_URL}/contents.html{build_suffix}"
+    stream = f"{constants.RHCOS_BASE_URL}/{build_suffix}"
     return contents, stream

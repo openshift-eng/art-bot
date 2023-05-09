@@ -122,10 +122,13 @@ def ocp_version_from_release_img(release_img: str) -> str:
     """
     Given a nightly or release name, return the OCP version
 
-    :param release_img: e.g. '4.12.0-0.nightly-2022-12-20-034740', '4.10.10'
+    :param release_img: e.g. '4.12.0-0.nightly-2022-12-20-034740', '4.10.10', quay.io/openshift-release-dev/ocp-release:4.12.12-x86_64
     :return: e.g. '4.10'
     """
 
+    # is it a pullspec?
+    if ':' in release_img:
+        release_img = release_img.split(':')[1]
     return '.'.join(release_img.split('-')[0].split('.')[:2])
 
 
