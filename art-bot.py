@@ -106,17 +106,17 @@ def respond(client, event):
             # things like snippets may look like they are from normal users; if it is from us, ignore it.
             return
 
-        response = web_client.conversations_open(users=user_id)
-        direct_message_channel_id = response["channel"]["id"]
-
-        target_channel_id = direct_message_channel_id
-        if from_channel in bot_config["friendly_channel_ids"]:
-            # in these channels we allow the bot to respond directly instead of DM'ing user back
+        if from_channel in bot_config["friendly_channel_ids"] or data.get('bot_id'):
+            # in these channels we allow the bot to respond directly instead of DM'ing user back, or it was invoked by another bot
             target_channel_id = from_channel
-
-        # If we're changing channels, we cannot target the initial message to create a thread
-        if target_channel_id != from_channel:
-            thread_ts = None
+        else:
+            # we don't support respond directly in the channel
+            response = web_client.conversations_open(users=user_id)
+            direct_message_channel_id = response["channel"]["id"]
+            target_channel_id = direct_message_channel_id
+            # If we're changing channels, we cannot target the initial message to create a thread
+            if target_channel_id != from_channel:
+                thread_ts = None
 
         alt_username = None
         if bot_config["self"]["name"] != bot_config["username"]:
