@@ -103,7 +103,7 @@ def buildinfo_for_release(so, name, release_img):
         return
 
     # Parse image build info
-    # TODO: This needs to be all tags in "rhcos: payload_tags"
+    # TODO: This needs to be all tags in "rhcos: payload_tags" group.yml file
     if img_name == "machine-os-content":
         # always a special case... not a brew build
         logger.info('Parsing RHCOS build info')
