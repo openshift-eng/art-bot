@@ -53,7 +53,12 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
     )
     if rc:
         logger.error('oc failed with rc %s: %s', rc, stderr)
-        so.say(f"Sorry, I wasn't able to query the release image pullspec {release_img_pullspec}.")
+        if f'no image tag "{name}" exists' in stderr:
+            so.say(f"I wasn't able to find the image {name} in release {release_img_text}.")
+        elif 'manifest unknown' in stderr:
+            so.say(f"I wasn't able to find the release {release_img_text}.")
+        else:
+            so.say(f"Sorry, something went wrong when I tried to query {release_img_text}.")
         return None, None, None
 
     pullspec = stdout.strip()
@@ -98,12 +103,13 @@ def buildinfo_for_release(so, name, release_img):
         return
 
     # Parse image build info
+    # TODO: This needs to be all tags in "rhcos: payload_tags" group.yml file
     if img_name == "machine-os-content":
         # always a special case... not a brew build
         logger.info('Parsing RHCOS build info')
 
         try:
-            rhcos_build = build_info["config"]["config"]["Labels"]["version"]
+            rhcos_build_id = build_info["config"]["config"]["Labels"]["version"]
             arch = build_info["config"]["architecture"]
         except KeyError:
             logger.error("no 'version' or 'architecture' labels found: %s", build_info['config'])
@@ -111,14 +117,16 @@ def buildinfo_for_release(so, name, release_img):
                    f"{pullspec_text} but didn't see one. Weird huh?")
             return
 
-        contents_url, stream_url = rhcos_build_urls(rhcos_build, arch)
+        ocp_version = util.ocp_version_from_release_img(release_img)
+        contents_url, stream_url = rhcos_build_urls(ocp_version, rhcos_build_id, arch)
         if contents_url:
-            rhcos_build = f"<{contents_url}|{rhcos_build}> (<{stream_url}|stream>)"
+            rhcos_build_url = f"<{contents_url}|{rhcos_build_id}> (<{stream_url}|stream>)"
             logger.info('Found RHCOS build: %s', stream_url)
         else:
+            rhcos_build_url = rhcos_build_id
             logger.warning('No RHCOS build URLs found')
 
-        so.say(f"{release_img_text} `{img_name}` image {pullspec_text} came from RHCOS build {rhcos_build}")
+        so.say(f"{release_img_text} `{img_name}` image {pullspec_text} came from RHCOS build {rhcos_build_url}")
         return
 
     try:
