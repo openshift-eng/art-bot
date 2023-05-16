@@ -3,6 +3,8 @@ import re
 import aiohttp
 import subprocess
 from subprocess import PIPE
+import urllib
+import json
 
 from artbotlib import constants
 
@@ -13,6 +15,17 @@ class RHCOSBuildInfo:
     def __init__(self, ocp_version, stream=None):
         self.ocp_version = ocp_version
         self.stream = stream or self._get_stream()
+
+    @property
+    def _builds_base_url(self):
+        return f'{constants.RHCOS_BASE_URL}/storage/prod/streams/{self.stream}/builds'
+
+    @property
+    def builds_url(self):
+        return f'{self._builds_base_url}/builds.json'
+
+    def build_url(self, build_id, arch="x86_64"):
+        return f'{self._builds_base_url}/{build_id}/{arch}'
 
     def _get_stream(self):
         # doozer --quiet -g openshift-4.14 config:read-group urls.rhcos_release_base.multi --default ''
@@ -35,6 +48,39 @@ class RHCOSBuildInfo:
         else:
             stream = self.ocp_version
         return stream
+
+    def latest_build_id(self, arch="x86_64"):
+        builds_json_url = self.builds_url
+        logger.info('Fetching URL %s', builds_json_url)
+
+        with urllib.request.urlopen(builds_json_url) as url:
+            data = json.loads(url.read().decode())
+
+        for build in data["builds"]:
+            if arch in build["arches"]:
+                logger.info('Found build: %s', build)
+                return build["id"]
+
+        return None
+
+    def build_metadata(self, build_id, arch):
+        """
+        Fetches RHCOS build metadata
+        :param build_id: e.g. '410.84.202212022239-0'
+        :param arch: one in {'x86_64', 'ppc64le', 's390x', 'aarch64'}
+        :return: parsed json metadata
+        """
+
+        logger.info('Retrieving metadata for RHCOS build %s', build_id)
+
+        meta_url = f'{self.build_url(build_id, arch)}/commitmeta.json'
+        try:
+            with urllib.request.urlopen(meta_url) as url:
+                data = json.loads(url.read().decode())
+            return data
+        except aiohttp.client_exceptions.ContentTypeError:
+            logger.error('Failed fetching data from url %s', url)
+            raise
 
 
 async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
@@ -65,47 +111,6 @@ async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
         return release_info
     except KeyError:
         logger.error('Failed retrieving release info')
-        raise
-
-
-async def rhcos_build_metadata(build_id, ocp_version, arch):
-    """
-    Fetches RHCOS build metadata
-    :param build_id: e.g. '410.84.202212022239-0'
-    :param ocp_version: e.g. '4.10'
-    :param arch: one in {'x86_64', 'ppc64le', 's390x', 'aarch64'}
-    :return: tuple of (build info json data, pullspec text, release image text)
-    """
-
-    logger.info('Retrieving metadata for RHCOS build %s', build_id)
-
-    # Old pipeline
-    arch_suffix = '' if arch == 'x86_64' else f'-{arch}'
-    old_pipeline_url = f'{constants.RHCOS_BASE_URL}/storage/releases/rhcos-{ocp_version}{arch_suffix}/' \
-                       f'{build_id}/{arch}/commitmeta.json'
-    try:
-        async with aiohttp.ClientSession() as session:
-            logger.info('Fetching URL %s', old_pipeline_url)
-            async with session.get(old_pipeline_url) as resp:
-                metadata = await resp.json()
-        return metadata
-
-    except aiohttp.client_exceptions.ContentTypeError:
-        # This build belongs to the new pipeline
-        logger.info('Failed fetching data for build %s, trying with the new pipeline...', build_id)
-        pass
-
-    # New pipeline
-    new_pipeline_url = f'{constants.RHCOS_BASE_URL}/storage/prod/streams/{ocp_version}/builds/' \
-                       f'{build_id}/{arch}/commitmeta.json'
-    try:
-        async with aiohttp.ClientSession() as session:
-            logger.info('Fetching URL %s', new_pipeline_url)
-            async with session.get(new_pipeline_url) as resp:
-                metadata = await resp.json()
-            return metadata
-    except aiohttp.client_exceptions.ContentTypeError:
-        logger.error('Failed fetching data from url %s', new_pipeline_url)
         raise
 
 
