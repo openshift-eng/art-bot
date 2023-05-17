@@ -15,6 +15,7 @@ import artbotlib.exectools
 
 from . import util
 from .constants import RHCOS_BASE_URL
+from .rhcos import RHCOSBuildInfo
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ def brew_list_components(nvr):
         for rpm in koji_api.listRPMs(imageID=archive['id']):
             components.add('{nvr}.{arch}'.format(**rpm))
 
-    logger.info('Found components in build %s:\n%s', nvr, '\n'.join(components))
+    logger.info('Found %s components in %s', len(components), nvr)
     return components
 
 
@@ -377,19 +378,16 @@ def _find_rpms_in_packages(koji_api, name_list, major_minor):
 
 def _find_rhcos_build_rpms(so, major_minor, arch="x86_64", build_id=None):
     # returns a set of RPMs used in the specified or most recent build for release major_minor
-    build_id = build_id or _find_latest_rhcos_build_id(so, major_minor, arch)
-    if not build_id:
-        return set()
-
     try:
-        meta_url = f"{_rhcos_build_url(major_minor, build_id, arch)}/commitmeta.json"
-        logger.info('Fetching URL %s', meta_url)
-
-        with urllib.request.urlopen(meta_url) as url:
-            data = json.loads(url.read().decode())
-        rpms = data["rpmostree.rpmdb.pkglist"]
-        logger.info('Found rpms: %s', rpms)
-
+        rhcos_build_info = RHCOSBuildInfo(major_minor)
+        build_id = build_id or rhcos_build_info.latest_build_id(arch)
+        if not build_id:
+            return set()
+        metadata = rhcos_build_info.build_metadata(build_id, arch)
+        if metadata == {}:
+            return set()
+        rpms = metadata["rpmostree.rpmdb.pkglist"]
+        logger.info('Found %s rpms', len(rpms))
         return set(f"{n}-{v}-{r}" for n, e, v, r, a in rpms)
 
     except Exception as ex:
@@ -397,38 +395,6 @@ def _find_rhcos_build_rpms(so, major_minor, arch="x86_64", build_id=None):
         so.say("Encountered error looking up the latest RHCOS build RPMs.")
         so.say_monitoring(f"Encountered error looking up the latest RHCOS build RPMs: {ex}")
         return set()
-
-
-def _find_latest_rhcos_build_id(so, major_minor, arch="x86_64"):
-    # returns the build id string
-    # (may want to return "schema-version" also if this ever gets more complex)
-    try:
-        builds_json_url = f'{_rhcos_release_url(major_minor, arch)}/builds.json'
-        logger.info('Fetching URL %s', builds_json_url)
-
-        with urllib.request.urlopen(builds_json_url) as url:
-            data = json.loads(url.read().decode())
-        build = data["builds"][0]
-        logger.info('Found build: %s', build)
-
-        return build if isinstance(build, str) else build["id"]
-
-    except Exception as ex:
-        logger.error('Encountered error looking up the latest RHCOS build in %s: %s', major_minor, ex)
-        so.say("Encountered error looking up the latest RHCOS build.")
-        so.monitoring_say(f"Encountered error looking up the latest RHCOS build: {ex}")
-        return None
-
-
-def _rhcos_build_url(major_minor, build_id, arch="x86_64"):
-    # path of build contents varies depending on the build schema; currently splits at 4.3
-    arch_path = "" if major_minor in ["4.1", "4.2"] else f"/{arch}"
-    return f"{_rhcos_release_url(major_minor, arch)}/{build_id}{arch_path}"
-
-
-def _rhcos_release_url(major_minor, arch="x86_64"):
-    arch_suffix = "" if arch == "x86_64" else f"-{arch}"
-    return f"{RHCOS_BASE_URL}/storage/releases/rhcos-{major_minor}{arch_suffix}"
 
 
 def _get_raw_group_config(group):
