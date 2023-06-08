@@ -196,6 +196,11 @@ def map_command_to_regex(so, plain_text, user_id):
             "flag": re.I,
             "function": first_prow_job_succeeds,
             "user_id": True
+        },
+        {
+            "regex": r"^.*gpt.*$",
+            "flag": re.I,
+            "function": lambda : "GPT tries to be as cool as me. It mistakes intuitions for facts. I learn slow but good. They learn fast but wrong. If in doubt, ask Thiago."
         }
     ]
 
