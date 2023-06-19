@@ -64,7 +64,6 @@ class KernelInfo:
         }
 
     async def rhcos_kernel_info(self):
-        ocp_version = util.ocp_version_from_release_img(self.release_img)
         rpms = []
 
         # Fetch release info from Release Controller to get RHCOS build ID
@@ -75,8 +74,9 @@ class KernelInfo:
             return None
 
         # Fetch RHCOS build metadata
-        metadata = await rhcos.rhcos_build_metadata(
-            rhcos_build_id, ocp_version, constants.RC_ARCH_TO_RHCOS_ARCH[self.arch])
+        rhcos_build_info = rhcos.RHCOSBuildInfo(ocp_version=util.ocp_version_from_release_img(self.release_img))
+        metadata = rhcos_build_info.build_metadata(
+            rhcos_build_id, constants.RC_ARCH_TO_RHCOS_ARCH[self.arch])
         pkg_list = metadata['rpmostree.rpmdb.pkglist']
         kernel_core = [pkg for pkg in pkg_list if 'kernel-core' in pkg][0]
         rpms.append(f'kernel-core.{".".join(kernel_core[2:])}')
