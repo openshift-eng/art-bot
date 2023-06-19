@@ -64,7 +64,6 @@ class KernelInfo:
         }
 
     async def rhcos_kernel_info(self):
-        ocp_version = util.ocp_version_from_release_img(self.release_img)
         rpms = []
 
         # Fetch release info from Release Controller to get RHCOS build ID
