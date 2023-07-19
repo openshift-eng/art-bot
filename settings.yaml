@@ -8,7 +8,7 @@ monitoring_channel: art-bot-monitoring
 friendly_channels:
 - team-art
 - forum-ocp-art
-- forum-release
+- forum-ocp-release
 - art-release
 - art-release-3-11
 - art-release-4-7
