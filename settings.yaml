@@ -7,7 +7,7 @@ monitoring_channel: art-bot-monitoring
 # channels the bot can respond in instead of DM'ing user back
 friendly_channels:
 - team-art
-- aos-art
+- forum-ocp-art
 - forum-release
 - art-release
 - art-release-3-11

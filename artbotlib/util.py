@@ -43,7 +43,7 @@ def lookup_channel(web_client, name, only_private=False, only_public=False):
     """
     Look up a channel by name.
     Only searches channels to which the bot has been added.
-    Returns None or a channel record e.g. {'id': 'CB95J6R4N', 'name': 'aos-art', 'is_private': False, ...}
+    Returns None or a channel record e.g. {'id': 'CB95J6R4N', 'name': 'forum-ocp-art', 'is_private': False, ...}
     """
     if only_private and only_public:
         raise Exception("channels cannot be both private and public")
