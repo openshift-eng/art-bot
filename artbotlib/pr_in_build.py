@@ -290,7 +290,7 @@ class PrInfo:
 
         earliest = None
         for release in releases:
-            if release['phase'] == 'Failed' or release['phase'] == 'Pending':
+            if release['phase'] in ('Failed', 'Pending'):
                 continue
 
             cmd = f'oc adm release info {release["pullSpec"]} --image-for {self.imagestream_tag}'
