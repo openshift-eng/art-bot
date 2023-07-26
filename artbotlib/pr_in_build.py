@@ -44,7 +44,7 @@ class PrInfo:
             util.please_notify_art_team_of_error(self.so, e)
             return None
 
-        repo_mappings = mappings[self.repo_name]
+        repo_mappings = mappings.get(self.repo_name, None)
         if not repo_mappings:
             self.logger.warning(f'No distgit mapping for repo {self.repo_name}')
             self.so.say(f'Unable to find the distgit repo associated with `{self.repo_name}`: '
