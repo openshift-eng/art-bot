@@ -94,6 +94,10 @@ async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
 
     logger.info('Retrieving rhcos build ID for %s', release_img)
 
+    # Make sure only the release tag is being used
+    release_img = release_img.replace('registry.ci.openshift.org/ocp/release:', '')
+    release_img = release_img.replace('quay.io/openshift-release-dev/ocp-release:', '')
+
     async with aiohttp.ClientSession() as session:
         url = f'{constants.RELEASE_CONTROLLER_URL.substitute(arch=arch)}/releasetag/{release_img}/json'
         logger.info('Fetching URL %s', url)
