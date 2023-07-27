@@ -83,7 +83,7 @@ class RHCOSBuildInfo:
             raise
 
 
-async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
+async def get_rhcos_build_id_from_release(release_img: str, arch: str) -> str:
     """
     Given a nightly or release, return the associated RHCOS build id
 
@@ -97,6 +97,10 @@ async def get_rhcos_build_id_from_release(release_img: str, arch) -> str:
     # Make sure only the release tag is being used
     release_img = release_img.replace('registry.ci.openshift.org/ocp/release:', '')
     release_img = release_img.replace('quay.io/openshift-release-dev/ocp-release:', '')
+
+    # Arch shouldn't be in the name
+    rhcos_arch = constants.RC_ARCH_TO_RHCOS_ARCH[arch]
+    release_img = release_img.replace(f'-{rhcos_arch}', '')
 
     async with aiohttp.ClientSession() as session:
         url = f'{constants.RELEASE_CONTROLLER_URL.substitute(arch=arch)}/releasetag/{release_img}/json'
