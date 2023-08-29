@@ -393,7 +393,7 @@ def _find_rhcos_build_rpms(so, major_minor, arch="x86_64", build_id=None):
     except Exception as ex:
         logger.error('Encountered error looking up latest RHCOS build RPMs in %s: %s', major_minor, ex)
         so.say("Encountered error looking up the latest RHCOS build RPMs.")
-        so.say(f"Encountered error looking up the latest RHCOS build RPMs: {ex}")
+        so.monitoring_say(f"Encountered error looking up the latest RHCOS build RPMs: {ex}")
         return set()
 
 
