@@ -6,7 +6,9 @@ LABEL name="art-bot" \
 # the build will need to run inside the firewall to access internal resources.
 # install Red Hat IT Root CA and RCM repos
 RUN curl -o /etc/pki/ca-trust/source/anchors/RH-IT-Root-CA.crt --fail -L \
-    https://password.corp.redhat.com/RH-IT-Root-CA.crt \
+    https://certs.corp.redhat.com/certs/2015-IT-Root-CA.pem \
+ && curl -o /etc/pki/ca-trust/source/anchors/2022-IT-Root-CA.pem --fail -L \
+    https://certs.corp.redhat.com/certs/2022-IT-Root-CA.pem \
  && update-ca-trust extract \
  && curl -o /etc/yum.repos.d/rcm-tools-fedora.repo https://download.devel.redhat.com/rel-eng/RCMTOOLS/rcm-tools-fedora.repo \
  && dnf install -y \
