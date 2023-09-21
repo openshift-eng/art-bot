@@ -11,6 +11,8 @@ BREW_TASK_STATES = {
     "Failure": "failure"
 }
 
+ONE_WEEK = 7 * 24 * 60 * 60
+
 TWELVE_HOURS = 60 * 60 * 12
 
 FIVE_MINUTES = 60 * 5
