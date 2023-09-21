@@ -199,7 +199,7 @@ def map_command_to_regex(so, plain_text, user_id):
             "user_id": True
         },
         {
-            "regex": r"^Watch \s*(https://)*(github.com/)*(openshift/)*(?P<repo>[a-zA-Z0-9-]+)(/pull/)(?P<pr_id>\d+)",
+            "regex": r"^Watch \s*(https://)*(github.com/)*(?P<org>[a-zA-Z0-9-]+)/*(?P<repo>[a-zA-Z0-9-]+)(/pull/)(?P<pr_id>\d+)",
             "flag": re.I,
             "function": pr_status,
             "user_id": True

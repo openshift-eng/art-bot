@@ -9,11 +9,11 @@ from artbotlib import constants
 logger = logging.getLogger(__name__)
 
 
-def pr_status(so, user_id, repo, pr_id):
+def pr_status(so, user_id, org, repo, pr_id):
     so.say(f'Ok <@{user_id}>, I\'ll respond here when the PR merges')
 
-    pr_url = f'https://github.com/openshift/{repo}/pull/{pr_id}'
-    api_endpoint = f'{constants.GITHUB_API_OPENSHIFT}/{repo}/pulls/{pr_id}'
+    pr_url = f'https://github.com/{org}/{repo}/pull/{pr_id}'
+    api_endpoint = f'{constants.GITHUB_API}/{org}/{repo}/pulls/{pr_id}'
 
     start = time.time()
     while True:
