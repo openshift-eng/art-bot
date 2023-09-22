@@ -3,6 +3,7 @@ import re
 
 from artbotlib import brew_list, elliott
 from artbotlib.buildinfo import buildinfo_for_release, alert_on_build_complete
+from artbotlib.pr_status import pr_status
 from artbotlib.taskinfo import alert_on_task_complete
 from artbotlib.constants import PROW_BASE_URL
 from artbotlib.help import greet_user, show_help
@@ -195,6 +196,12 @@ def map_command_to_regex(so, plain_text, user_id):
             "regex": rf"^Alert ?(if|when|on)? first prow job in(?P<job_paths>(( )*{PROW_BASE_URL}/view/gs/\S*)*) succeeds$",
             "flag": re.I,
             "function": first_prow_job_succeeds,
+            "user_id": True
+        },
+        {
+            "regex": r"^Watch \s*(https://)*(github.com/)*(?P<org>[a-zA-Z0-9-]+)/*(?P<repo>[a-zA-Z0-9-]+)(/pull/)(?P<pr_id>\d+)",
+            "flag": re.I,
+            "function": pr_status,
             "user_id": True
         }
     ]
