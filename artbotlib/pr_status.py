@@ -4,7 +4,7 @@ import time
 
 import requests
 
-from artbotlib import constants
+from artbotlib import constants, variables
 
 logger = logging.getLogger(__name__)
 
@@ -16,14 +16,16 @@ def pr_status(so, user_id, org, repo, pr_id):
     api_endpoint = f'{constants.GITHUB_API}/{org}/{repo}/pulls/{pr_id}'
 
     start = time.time()
-    while True:
-        # Timeout after 12 hrs
-        if time.time() - start > constants.ONE_WEEK:
-            so.say(f'PR {pr_url} did not merge after a week.'
-                   f'Giving up...')
-            return
+    variables.active_slack_objects.add(so)
 
-        try:
+    try:
+        while True:
+            # Timeout after 12 hrs
+            if time.time() - start > constants.ONE_WEEK:
+                so.say(f'PR {pr_url} did not merge after a week.'
+                       f'Giving up...')
+                break
+
             # Fetch API for PR
             logger.info('Fetching PR info from %s', api_endpoint)
 
@@ -49,16 +51,17 @@ def pr_status(so, user_id, org, repo, pr_id):
                     so.say(f'PR {pr_url} was closed unmerged at '
                            f'{datetime.datetime.strftime(dto, "%b %d, %Y at %H:%M:%S")}')
 
-                # All done
-                return
+                    # All done
+                    break
 
-        except requests.exceptions.ConnectionError as e:
-            logger.error('Error fetching data from %s:\n%s', api_endpoint, e)
-            so.say('Sorry, something went wrong when fetching data for %s', pr_url)
-            return
+    except requests.exceptions.ConnectionError as e:
+        logger.error('Error fetching data from %s:\n%s', api_endpoint, e)
+        so.say('Sorry, something went wrong when fetching data for %s', pr_url)
 
-        except KeyError:
-            msg = f'Error retrieving PR status from {api_endpoint}'
-            logger.error(msg)
-            so.say(msg)
-            return
+    except KeyError:
+        msg = f'Error retrieving PR status from {api_endpoint}'
+        logger.error(msg)
+        so.say(msg)
+
+    finally:
+        variables.active_slack_objects.remove(so)
