@@ -51,8 +51,8 @@ def pr_status(so, user_id, org, repo, pr_id):
                     so.say(f'PR {pr_url} was closed unmerged at '
                            f'{datetime.datetime.strftime(dto, "%b %d, %Y at %H:%M:%S")}')
 
-                    # All done
-                    break
+                # All done
+                break
 
     except requests.exceptions.ConnectionError as e:
         logger.error('Error fetching data from %s:\n%s', api_endpoint, e)
