@@ -1,4 +1,5 @@
 import logging
+import re
 
 import artbotlib.exectools
 from . import util
@@ -19,12 +20,32 @@ def image_list(so, advisory_id):
                    filename=f'{advisory_id}.images.txt')
 
 
+def is_valid_nvr(nvr):
+    nvr_regex = re.compile(r'^[a-zA-Z0-9_-]+-v?[0-9]+(\.[0-9]+)+-[0-9]+(\.[a-zA-Z0-9_.-]+)*$')
+    return nvr_regex.match(nvr) is not None
+
+
 def go_nvrs(so, nvr):
-    rc, stdout, stderr = artbotlib.exectools.cmd_assert(so, f'elliott go -n {nvr}')
+    if not is_valid_nvr(nvr):
+        so.say("I assume you are trying to get the go version for NVR. Please ensure you are using the correct format for the NVR or write 'help' to see what I can do!")
+        return
+
+    try:
+        rc, stdout, stderr = artbotlib.exectools.cmd_assert(so, f'elliott go -n {nvr}')
+    except Exception as e:
+        so.say(f"An unexpected error occurred: {e}")
+        util.please_notify_art_team_of_error(so, str(e))
+        return
+
     if rc:
-        util.please_notify_art_team_of_error(so, stderr)
+        so.say("There was a problem with the command.")
+        return
+
+    if not stdout:
+        so.say("Invalid advisory. Try again.")
     else:
-        so.snippet(payload=stdout, intro='Go version for nvr:', filename='go_output.txt')
+        # Assuming 'advisory_id' is defined elsewhere or should be 'nvr'
+        so.snippet(payload=stdout, intro=f"Go version for advisory {nvr}:", filename='go_advisory_output.txt')
 
 
 @util.refresh_krb_auth

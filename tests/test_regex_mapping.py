@@ -9,6 +9,10 @@ from artbotlib.slack_output import SlackDeveloperOutput
 so = SlackDeveloperOutput()
 
 
+def generate_expected_message(example_command):
+    return f"I couldn't understand that. For reference, here's an example of a valid command:'{example_command}?' Try following this format or write 'help' to see what I can do!"
+
+
 class OutputInspector:
     def __init__(self):
         self.output = []
@@ -54,7 +58,7 @@ def test_buildinfo_for_release(buildinfo_mock):
     so_mock = flexmock(so)
 
     # Test valid queries: regex does not check the format of <release_img>,
-    # so even queries like 'what builsfd of ironic is in 4.10' will call the function
+    # so even queries like 'what build of ironic is in 4.10' will call the function
     # The code will fail later, when trying to 'oc adm release info' an invalid release
     query = 'what build of ironic is in 4.10.10'
     so_mock.should_receive('say').once()
@@ -136,13 +140,17 @@ def test_kernel_info(kernel_info_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, 'what kernel is used in 4.10.10 for arch amd64', None)
 
-    # Invlid
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, 'what kernel is in 4.10.10', None)
+    # Invalid
+    query = 'what kernel is in 4.10.10'
+    example_command_valid = "What kernel is used in 4.10.10 for arch amd64"
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
 
     # Invalid
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, 'what kernel is used in 4.10.10 for amd64', None)
+    query = 'what kernel is used in 4.10.10 for amd64'
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
 
 
 @patch('artbotlib.exectools.cmd_assert')
@@ -164,12 +172,16 @@ def test_list_images_in_major_minor(cmd_assert_mock):
     map_command_to_regex(so, 'what images build in 3.11', None)
 
     # Invalid - {major}.{minor}.{patch}
-    so_mock.should_receive('snippet').never()
-    map_command_to_regex(so, 'what images build in 4.10.1', None)
+    query = 'what images build in 4.10.1'
+    example_command_valid = 'What images build in 4.10'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
 
     # Invalid - {major}.{minor}.{patch}
-    so_mock.should_receive('snippet').never()
-    map_command_to_regex(so, 'what images build in 3.11.1', None)
+    query = 'what images build in 3.11.1'
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
 
 
 @patch('artbotlib.brew_list.list_components_for_major_minor')
@@ -187,8 +199,11 @@ def test_list_components_for_major_minor(list_components_mock):
     map_command_to_regex(so_mock, 'what rpms were used in the latest image builds for 4.10', None)
 
     # Invalid - {major}.{minor}.{patch}
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, 'what rpms were used in the latest image builds for 4.10.1', None)
+    query = 'what rpms were used in the latest image builds for 4.10.1'
+    example_command_valid = 'Which rpms were used in the latest image builds for 4.10'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
 
 
 @patch('artbotlib.brew_list.list_components_for_image')
@@ -212,7 +227,9 @@ def test_list_components_for_image(list_components_mock):
 
     # Invalid query - missing 'image'
     query = 'what rpms are in ose-installer-container-v4.10.0-202209241557.p0.gb7e59a8.assembly.stream'
-    so_mock.should_receive('say').never()
+    example_command_valid = 'Which rpms are in image ose-installer-container-v4.10.0-202209241557.p0.gb7e59a8.assembly.stream'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -231,11 +248,6 @@ def test_specific_rpms_for_image(specific_components_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
-    # Invalid - missing 'image'
-    query = 'what rpm ovn is in ose-ovn-kubernetes-container-v4.7.0-202108160002.p0.git.9581e60.assembly.stream'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
     # Valid
     query = 'which rpms ovn, zlib are in image ' \
             'ose-ovn-kubernetes-container-v4.7.0-202108160002.p0.git.9581e60.assembly.stream'
@@ -243,8 +255,15 @@ def test_specific_rpms_for_image(specific_components_mock):
     map_command_to_regex(so_mock, query, None)
 
     # Invalid - missing 'image'
+    query = 'what rpm ovn is in ose-ovn-kubernetes-container-v4.7.0-202108160002.p0.git.9581e60.assembly.stream'
+    example_command_valid = 'Which rpms ovn, zlib are in image ose-ovn-kubernetes-container-v4.7.0-202108160002.p0.git.9581e60.assembly.stream'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
+
+    # Invalid - missing 'image'
     query = 'what rpms ovn, zlib are in ose-ovn-kubernetes-container-v4.7.0-202108160002.p0.git.9581e60.assembly.stream'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -274,7 +293,9 @@ def test_alert_on_build_complete(alert_mock):
 
     # Invalid - missing 'build'
     query = 'alert when https://brewweb.engineering.redhat.com/brew/buildinfo?buildid=123456 completes'
-    so_mock.should_receive('say').never()
+    example_command_valid = 'Alert when https://brewweb.engineering.redhat.com/brew/buildinfo?buildid=123456 completes'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -304,7 +325,9 @@ def test_alert_on_task_complete(alert_mock):
 
     # Invalid - missing 'task'
     query = 'alert if https://brewweb.engineering.redhat.com/brew/taskinfo?taskid=123456 completes'
-    so_mock.should_receive('say').never()
+    example_command_valid = 'Alert if task https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=12345 completes'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -322,19 +345,9 @@ def test_pr_info(pr_info_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
-    # Invalid - wrong PR URL
-    query = 'pr info https://github.com/openshift/ptp-operator/281 in 4.12'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
     # Valid
     query = 'pr info https://github.com/openshift/ptp-operator/pull/281 component ptp-operator in 4.12'
     so_mock.should_receive('say').once()
-    map_command_to_regex(so_mock, query, None)
-
-    # Invalid - component before PR url
-    query = 'pr info component ptp-operator https://github.com/openshift/ptp-operator/pull/281 in 4.12'
-    so_mock.should_receive('say').never()
     map_command_to_regex(so_mock, query, None)
 
     # Valid
@@ -342,9 +355,21 @@ def test_pr_info(pr_info_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
+    # Invalid - wrong PR URL
+    query = 'pr info https://github.com/openshift/ptp-operator/281 in 4.12'
+    example_command_valid = 'pr info https://github.com/openshift/ptp-operator/pull/281 component ptp-operator in 4.12 for arch amd64'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
+
+    # Invalid - component before PR url
+    query = 'pr info component ptp-operator https://github.com/openshift/ptp-operator/pull/281 in 4.12'
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
+
     # Invalid - arch before version
     query = 'pr info https://github.com/openshift/ptp-operator/pull/281 component ptp-operator for arch amd64 in 4.12'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -374,12 +399,14 @@ def test_image_list_advisory(image_list_mock):
 
     # Invalid - missing 'advisory'
     query = 'image list 79678'
-    so_mock.should_receive('say').never()
+    example_command_valid = 'image list for advisory 79678'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
     # Invalid - missing advisory ID
     query = 'image list for advisory'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -409,7 +436,9 @@ def test_go_nvrs(go_nvrs_mock):
 
     # Invalid - missing advisory ID
     query = 'go version for nvr1,nvr2'
-    so_mock.should_receive('say').never()
+    example_command_valid = 'go version for ose-ovn-kubernetes-container-v4.7.0-202108160002.p0.git.9581e60.assembly.stream'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -427,11 +456,6 @@ def test_list_uses_of_rpms(uses_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
-    # Invalid - {major}.{minor}.{patch}
-    query = 'where in 4.10.1 is the ovn rpm used'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
     # Valid
     query = 'where in 4.10 is the ovn package used'
     so_mock.should_receive('say').once()
@@ -442,9 +466,16 @@ def test_list_uses_of_rpms(uses_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
+    # Invalid - {major}.{minor}.{patch}
+    query = 'where in 4.10.1 is the ovn rpm used'
+    example_command_valid = 'Where in 4.10 are the rpm1,rpm2,rpm3 rpms used'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
+
     # Invalid - spaces between rpm names
     query = 'where in 4.10 are the rpm1, rpm2, rpm3 rpms used'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -462,11 +493,6 @@ def test_translate_names(translate_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
-    # Invalid - missing component name
-    query = 'what is the brew-image for distgit'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
     # Valid
     query = 'what is the brew-image for dist-git ironic'
     so_mock.should_receive('say').once()
@@ -477,24 +503,31 @@ def test_translate_names(translate_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
-    # Invalid - invalid name 'brew component'
-    query = 'what is the brew component for dist-git ironic'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
-    # Invalid - invalid name 'invalid-name'
-    query = 'what is the brew-component for invalid-name ironic'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
     # Valid
     query = 'what is the brew-component for dist-git ironic in 4.10'
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
+    # Invalid - missing component name
+    query = 'what is the brew-image for distgit'
+    example_command_valid = 'What is the brew-component for dist-git ironic in 4.10'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
+
+    # Invalid - invalid name 'brew component'
+    query = 'what is the brew component for dist-git ironic'
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
+
+    # Invalid - invalid name 'invalid-name'
+    query = 'what is the brew-component for invalid-name ironic'
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
+
     # Invalid - {major}.{minor}.{patch}
     query = 'what is the brew-component for dist-git ironic in 4.10.1'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -517,21 +550,6 @@ def test_pipeline_from_github(pipeline_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
-    # Invalid - `www`
-    query = 'image pipeline for github https://www.github.com/openshift/oc'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
-    # Invalid
-    query = 'image pipeline for github http://github.com/openshift/oc'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
-    # Invalid - ssh
-    query = 'image pipeline for github git@github.com:openshift/oc.git'
-    so_mock.should_receive('say').never()
-    map_command_to_regex(so_mock, query, None)
-
     # Valid
     query = 'image pipeline for github https://github.com/openshift/oc.git'
     so_mock.should_receive('say').once()
@@ -542,9 +560,26 @@ def test_pipeline_from_github(pipeline_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
+    # Invalid - `www`
+    query = 'image pipeline for github https://www.github.com/openshift/oc'
+    example_command_valid = 'Image pipeline for github https://github.com/openshift/ose-cluster-network-operator in 4.10'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
+
+    # Invalid
+    query = 'image pipeline for github http://github.com/openshift/oc'
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
+
+    # Invalid - ssh
+    query = 'image pipeline for github git@github.com:openshift/oc.git'
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
+
     # Invalid - {major}.{minor}.{patch}
     query = 'image pipeline for github https://github.com/openshift/oc in 4.10.1'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -572,9 +607,9 @@ def test_pipeline_from_distgit(pipeline_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
-    # Invalid - {major}.{minor}.{patch}
-    query = 'image pipeline for distgit ironic in 4.10.1'
-    so_mock.should_receive('say').never()
+    # Valid
+    query = 'image pipeline for distgit containers/ironic in 4.10'
+    so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
     # Valid
@@ -582,14 +617,16 @@ def test_pipeline_from_distgit(pipeline_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
-    # Invalid - missing 'distgit'
-    query = 'image pipeline for ironic'
-    so_mock.should_receive('say').never()
+    # Invalid - {major}.{minor}.{patch}
+    query = 'image pipeline for distgit ironic in 4.10.1'
+    example_command_valid = 'Image pipeline for distgit ironic in 4.10'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
-    # Valid
-    query = 'image pipeline for distgit containers/ironic in 4.10'
-    so_mock.should_receive('say').once()
+    # Invalid - missing 'distgit'
+    query = 'image pipeline for ironic'
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -619,17 +656,19 @@ def test_pipeline_from_brew(pipeline_mock):
 
     # Invalid - {major}.{minor}.{patch}
     query = 'image pipeline for package ironic-container in 4.10.1'
-    so_mock.should_receive('say').never()
+    example_command_valid = 'Image pipeline for package ironic-container in 4.10'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
     # Invalid - missing 'in' before version
     query = 'image pipeline for package ironic-container 4.10'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
     # Invalid - missing 'package'
     query = 'image pipeline for ironic-container in 4.10'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -659,17 +698,19 @@ def test_pipeline_from_cdn(pipeline_mock):
 
     # Invalid - {major}.{minor}.{patch}
     query = 'image pipeline for cdn <name> in 4.10.1'
-    so_mock.should_receive('say').never()
+    example_command_valid = 'Image pipeline for cdn <name> in 4.10'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
     # Invalid - missing 'in' before version
     query = 'image pipeline for cdn <name> 4.10'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
     # Invalid - missing 'cdn'
     query = 'image pipeline for <name> in 4.10'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -709,17 +750,19 @@ def test_pipeline_from_delivery(pipeline_mock):
 
     # Invalid - {major}.{minor}.{patch}
     query = 'image pipeline for image registry.redhat.io/openshift4/name in 4.10.1'
-    so_mock.should_receive('say').never()
+    example_command_valid = 'image pipeline for image registry.redhat.io/openshift4/name in 4.10'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
     # Invalid - missing 'in' before version
     query = 'image pipeline for image registry.redhat.io/openshift4/name 4.10'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
     # Invalid - missing 'image'
     query = 'image pipeline for registry.redhat.io/openshift4/name'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -783,13 +826,15 @@ def test_nightly_color_status(pipeline_mock):
     # Invalid - 'has failed'
     query = 'alert if https://amd64.ocp.releases.ci.openshift.org/releasestream/4.13.0-0.ci/release/' \
             '4.13.0-0.ci-2022-12-19-111818 has failed'
-    so_mock.should_receive('say').never()
+    example_command_valid = 'Alert if https://amd64.ocp.releases.ci.openshift.org/releasestream/4.13.0-0.ci/release/4.13.0-0.ci-2022-12-19-111818 is green'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
     # Invalid - missing arch
     query = 'alert if https://ocp.releases.ci.openshift.org/releasestream/4.13.0-0.ci/release/' \
             '4.13.0-0.ci-2022-12-19-111818 stops being blue'
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
@@ -812,15 +857,15 @@ def test_alert_prow_job(pipeline_mock):
     # Invalid
     query = 'alert when job https://prow.ci.openshift.org/view/gs/origin-ci-test/logs/' \
             'release-openshift-origin-installer-e2e-azure-upgrade/1612684208528953344 completes'
-
-    so_mock.should_receive('say').never()
+    example_command_valid = 'Alert when prow job https://prow.ci.openshift.org/view/gs/origin-ci-test/logs/release-openshift-origin-installer-e2e-azure-upgrade/1612684208528953344 completes'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
     # Invalid
     query = 'alert when prow job https://prow.ci.openshift.org/gs/origin-ci-test/logs/' \
             'release-openshift-origin-installer-e2e-azure-upgrade/1612684208528953344 completes'
-
-    so_mock.should_receive('say').never()
+    so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
 
 
