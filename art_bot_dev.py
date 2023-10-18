@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
 # Script to start the developer interface for art-bot
 
 from artbotlib.regex_mapping import map_command_to_regex
