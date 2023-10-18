@@ -91,8 +91,8 @@ podman run -it --rm \
     -v $CONTAINER/doozer-settings.yaml:/home/$USER/.config/doozer/settings.yaml:ro,cached,z \
     -v $CONTAINER/elliott-settings.yaml:/home/$USER/.config/elliott/settings.yaml:ro,cached,z \
     -v $OPENSHIFT/art-bot/:/workspaces/art-bot/:cached,z \
-    -v $OPENSHIFT/doozer/:/workspaces/doozer/:cached,z \
-    -v $OPENSHIFT/elliott/:/workspaces/elliott/:cached,z \
+    -v $OPENSHIFT/art-tools/doozer/:/workspaces/doozer/:cached,z \
+    -v $OPENSHIFT/art-tools/elliott/:/workspaces/elliott/:cached,z \
         art-bot  # or art-bot:dev
 ```
 
