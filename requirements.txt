@@ -7,3 +7,5 @@ PyYAML
 requests
 slack_bolt==1.15.1
 pip_system_certs
+fuzzywuzzy
+python-Levenshtein
