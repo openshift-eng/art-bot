@@ -13,7 +13,7 @@ USER "$USER_UID"
 
 # install dependencies (allow even openshift's random user to see)
 COPY requirements.txt requirements-dev.txt ./
-RUN umask a+rx && pip3 install --user --upgrade rh-doozer rh-elliott -r ./requirements.txt -r ./requirements-dev.txt
+RUN umask a+rx && pip3 install --user --upgrade rh-doozer rh-elliott rh-artcommon -r ./requirements.txt -r ./requirements-dev.txt
 
 # install art-bot and default configs
 COPY container/krb5-redhat.conf /etc/krb5.conf
