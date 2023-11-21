@@ -4,7 +4,6 @@ cachetools
 aiohttp>=3.7.3
 requests_kerberos
 PyYAML
-requests
 slack_bolt==1.15.1
 pip_system_certs
 fuzzywuzzy
