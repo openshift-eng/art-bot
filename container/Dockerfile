@@ -51,8 +51,8 @@ RUN groupadd --gid "$USER_GID" "$USERNAME" \
 WORKDIR /workspaces/art-bot
 
 # Clone art-tools and run install.sh script
-RUN git clone https://github.com/openshift-eng/art-tools.git /art-tools \
- && cd /art-tools \
+RUN git clone https://github.com/openshift-eng/art-tools.git art-tools \
+ && cd art-tools \
  && ./install.sh
 
 # Install dependencies from requirements.txt
@@ -67,6 +67,5 @@ RUN cp -r /tmp/art-bot/{artbotlib,art-bot.py,art_bot_dev.py} . \
  && cp /tmp/art-bot/container/elliott-settings.yaml /home/"$USERNAME"/.config/elliott/settings.yaml \
  && rm -rf /tmp/art-bot
 
-# Return to non-root user and final work directory
+# Set non-root user
 USER "$USER_UID"
-WORKDIR /workspaces/art-bot

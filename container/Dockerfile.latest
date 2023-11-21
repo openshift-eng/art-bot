@@ -3,17 +3,25 @@ FROM art-bot:base
 # This build is meant to be based on an existing build and
 # update just doozer, elliott, and art-bot.
 
+# Update pip once in the start of this build
+RUN pip3 install --upgrade pip
+
 # use same non-root user from the initial install
 ARG USERNAME=dev
 # On Linux, replace with your actual UID, GID if not the default 1000
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-USER 0
+WORKDIR /workspaces/art-bot
 
-WORKDIR /art-tools
-RUN git pull
-RUN ./install.sh
+RUN git config --global --add safe.directory /workspaces/art-bot/art-tools
+
+# Looks like we need a USER 0 here
+USER 0
+# Clone art-tools and run install.sh script
+RUN cd art-tools \
+ && git pull \
+ && ./install.sh
 
 # Install dependencies from requirements.txt
 COPY requirements.txt ./
@@ -29,4 +37,3 @@ RUN cp -r /tmp/art-bot/{artbotlib,art-bot.py,art_bot_dev.py} . \
 
 # Switch back to the non-root user and final work directory
 USER "$USER_UID"
-WORKDIR /workspaces/art-bot
