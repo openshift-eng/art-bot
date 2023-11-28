@@ -1,7 +1,7 @@
 koji
 slack_sdk==3.19.1
 cachetools
-aiohttp>=3.7.3
+aiohttp>=3.9.0
 requests_kerberos
 PyYAML
 slack_bolt==1.15.1
