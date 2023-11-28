@@ -9,12 +9,14 @@ ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-# Looks like we need a USER 0 here
+# Switch to root user for git operations
 USER 0
 # Clone art-tools and run install.sh script
-RUN cd art-tools \
- && git pull \
- && ./install.sh
+RUN git clone https://github.com/openshift-eng/art-tools.git \
+    && cd art-tools \
+    && ./install.sh \
+    && cd .. \
+    && rm -rf art-tools
 
 # Install dependencies from requirements.txt
 COPY requirements.txt requirements-dev.txt ./

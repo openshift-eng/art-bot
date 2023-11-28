@@ -51,9 +51,11 @@ RUN groupadd --gid "$USER_GID" "$USERNAME" \
 WORKDIR /workspaces/art-bot
 
 # Clone art-tools and run install.sh script
-RUN git clone https://github.com/openshift-eng/art-tools.git art-tools \
- && cd art-tools \
- && ./install.sh
+RUN git clone https://github.com/openshift-eng/art-tools.git \
+    && cd art-tools \
+    && ./install.sh \
+    && cd .. \
+    && rm -rf art-tools
 
 # Install dependencies from requirements.txt
 COPY requirements.txt ./

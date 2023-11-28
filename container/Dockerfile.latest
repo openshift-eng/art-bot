@@ -12,16 +12,16 @@ ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-WORKDIR /workspaces/art-bot
-
 RUN git config --global --add safe.directory /workspaces/art-bot/art-tools
 
-# Looks like we need a USER 0 here
+# Switch to root user for git operations
 USER 0
-# Clone art-tools and run install.sh script
-RUN cd art-tools \
- && git pull \
- && ./install.sh
+# Update art-tools and run the install script
+RUN git clone https://github.com/openshift-eng/art-tools.git \
+    && cd art-tools \
+    && ./install.sh \
+    && cd .. \
+    && rm -rf art-tools  # Clone, update, install, and then remove art-tools
 
 # Install dependencies from requirements.txt
 COPY requirements.txt ./
