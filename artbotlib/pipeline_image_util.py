@@ -62,8 +62,14 @@ def get_image_stream_tag(distgit_name: str, version: str) -> Union[str, None]:
 
     # Check if the image is in the payload
     if yml_file.get('for_payload', False):
-        tag = yml_file['name'].split("/")[1]
-        result = tag[4:] if tag.startswith("ose-") else tag  # remove 'ose-' if present
+        # Use "payload_name" when possible
+        result = yml_file.get('payload_name', None)
+
+        # Fallback to "name" field otherwise
+        if not result:
+            tag = yml_file['name'].split("/")[1]
+            result = tag[4:] if tag.startswith("ose-") else tag  # remove 'ose-' if present
+
         logger.info('Found imagestream tag %s for component %s', result, distgit_name)
         return result
 
