@@ -1,7 +1,7 @@
 import os
 import re
 
-from artbotlib import brew_list, elliott
+from artbotlib import brew_list, elliott, brew
 from artbotlib.buildinfo import buildinfo_for_release, alert_on_build_complete
 from artbotlib.pr_status import pr_status
 from artbotlib.taskinfo import alert_on_task_complete
@@ -217,6 +217,12 @@ def map_command_to_regex(so, plain_text, user_id):
             "flag": re.I,
             "function": elliott.go_advisory,
             "example": "go version for advisory 79678"
+        },
+        {
+            "regex": r"^timestamp (for|of) brew event (?P<brew_event>\d+)$",
+            "flag": re.I,
+            "function": brew.get_event_ts,
+            "example": "timestamp for brew event 55331468"
         },
 
         # ART advisory info:
