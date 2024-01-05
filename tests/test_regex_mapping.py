@@ -905,3 +905,25 @@ def test_first_prow_job_succeeds(pipeline_mock):
             'release-openshift-origin-installer-e2e-azure-upgrade/1612684208528953344 succeeds'
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
+
+
+@patch('artbotlib.brew.get_event_ts')
+def test_brew_event_ts(pipeline_mock):
+    pipeline_mock.side_effect = lambda outputter, *_, **__: outputter.say('mock called')
+    so_mock = flexmock(so)
+
+    # Valid
+    query = 'timestamp for brew event 55331468'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Valid
+    query = 'timestamp of brew event 55331468'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Invalid
+    query = 'timestamp for event 55331468'
+    expected_message = generate_expected_message('timestamp for brew event 55331468')
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
