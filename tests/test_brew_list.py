@@ -84,7 +84,7 @@ def test_rhcos_latest_build_id(mock_urlopen, content, expected):
 @patch('urllib.request.urlopen')
 @pytest.mark.parametrize("content, expected",
                          [
-                             [b'{ }', set()],
+                             [b'{ }', dict()],
                              [
                                  b'''{
                                        "rpmostree.rpmdb.pkglist" : [
@@ -104,7 +104,8 @@ def test_rhcos_latest_build_id(mock_urlopen, content, expected):
                                          ]
                                        ]
                                      }''',
-                                 {"NetworkManager-1.20.0-5.el8_1", "NetworkManager-libnm-1.20.0-5.el8_1"},
+                                 {"build-id": "dummy",
+                                  "rpms": {"NetworkManager-1.20.0-5.el8_1", "NetworkManager-libnm-1.20.0-5.el8_1"}}
                              ],
                          ]
                          )
@@ -144,20 +145,21 @@ def test_find_rpms_in_packages(pkg_name, tag1_builds, tag2_builds, tag1_rpms, ta
     assert expected == brew_list._find_rpms_in_packages(koji_api, [pkg_name], "4.3")
 
 
-@pytest.mark.parametrize("rpm_nvrs, rpms_search, expected_rpms4img, expected_rpms",
+@pytest.mark.parametrize("rhcos_rpms, rpms_search, expected_rpms4img, expected_rpms",
                          [
                              (
-                                 ["spam-1.0-1.el8", "bacon-eggs-2.3-4.el7"],  # rpms from rhcos build
+                                 {"build-id": "dummy",
+                                  "rpms": ["spam-1.0-1.el8", "bacon-eggs-2.3-4.el7"]},  # rpms from rhcos build}
                                  {"spam", "bacon"},  # rpms we're looking for
-                                 dict(RHCOS={"spam-1.0-1.el8"}),  # filtered first by second
+                                 {"RHCOS dummy": {"spam-1.0-1.el8"}},  # filtered first by second
                                  {"spam"},  # rpms we saw
                              ),
                          ]
                          )
-def test_index_rpms_in_rhcos(rpm_nvrs, rpms_search, expected_rpms4img, expected_rpms):
+def test_index_rpms_in_rhcos(rhcos_rpms, rpms_search, expected_rpms4img, expected_rpms):
     rpms_for_image = {}
     rpms_seen = set()
-    brew_list._index_rpms_in_rhcos(rpm_nvrs, rpms_search, rpms_for_image, rpms_seen)
+    brew_list._index_rpms_in_rhcos(rhcos_rpms, rpms_search, rpms_for_image, rpms_seen)
     assert expected_rpms4img == rpms_for_image
     assert expected_rpms == rpms_seen
 
@@ -239,7 +241,7 @@ def test_list_uses_of_rpms_unknown_packages(so):
                                  dict(spam=["spam-eggs", "spam-sausage"], eggs=["eggs"]),
                                  # rpms built for pkgs (for a package search)
                                  dict(imgspam=["sausage-4.0-1.el8.noarch"]),  # images containing rpms
-                                 ["sausage-4.0-1.el8.noarch"],  # rpms in rhcos
+                                 {"build-id": "dummy", "rpms": {"sausage-4.0-1.el8.noarch"}},  # rpms in rhcos
                                  ["nothing in 4.0 uses that"],
                                  # should see this (none of the search rpms were present)
                                  ["sausage"],  # should not see
@@ -249,7 +251,7 @@ def test_list_uses_of_rpms_unknown_packages(so):
                                  dict(spam=["spam-eggs", "spam-sausage"], bacon=["bacon"]),
                                  # rpms built for pkgs (for a package search)
                                  dict(imgspam=["spam-eggs-4.0-1.el8.noarch"]),  # images containing rpms
-                                 ["sausage-4.0-1.el8.noarch"],  # rpms in rhcos
+                                 {"build-id": "dummy", "rpms": {"sausage-4.0-1.el8.noarch"}},  # rpms in rhcos
                                  [  # should see
                                      "Could not find package(s) ['eggs'] in brew",
                                      "package spam includes rpm(s): {'spam-eggs'}",
@@ -261,8 +263,8 @@ def test_list_uses_of_rpms_unknown_packages(so):
                                  "spam,eggs",  # names the user is searching for
                                  None,  # not a pkg search, names are rpm names
                                  dict(imgspam=["spam-4.0-1.el8.noarch"]),  # images containing rpms
-                                 ["eggs-4.0-1.el8", "baked-beans-4-1.el8"],  # rpms in rhcos
-                                 ["imgspam uses {'spam-4.0-1.el8'}", "RHCOS uses {'eggs-4.0-1.el8'}"],
+                                 {"build-id": "dummy", "rpms": {"eggs-4.0-1.el8", "baked-beans-4-1.el8"}},  # rpms in rhcos
+                                 ["imgspam uses {'spam-4.0-1.el8'}", "RHCOS dummy uses {'eggs-4.0-1.el8'}"],
                                  # should see these
                                  ["baked-beans"],  # should not see
                              ),

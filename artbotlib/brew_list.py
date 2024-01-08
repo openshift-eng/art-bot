@@ -319,12 +319,14 @@ def _index_rpms_in_images(image_nvrs, rpms_search, rpms_for_image, rpms_seen):
                 rpms_for_image.setdefault(image_nvr, set()).add(rpm_nvr)
 
 
-def _index_rpms_in_rhcos(rpm_nvrs, rpms_search, rpms_for_image, rpms_seen):
+def _index_rpms_in_rhcos(rhcos_build_rpms, rpms_search, rpms_for_image, rpms_seen):
+    rhcos_build = rhcos_build_rpms.get('build-id')
+    rpm_nvrs = rhcos_build_rpms.get('rpms', [])
     for rpm_nvr in rpm_nvrs:
         name = rpm_nvr.rsplit("-", 2)[0].lower()
         if name in rpms_search:
             rpms_seen.add(name)
-            rpms_for_image.setdefault("RHCOS", set()).add(rpm_nvr)
+            rpms_for_image.setdefault(f"RHCOS {rhcos_build}", set()).add(rpm_nvr)
 
 
 def _find_rpms_in_packages(koji_api, name_list, major_minor):
@@ -376,25 +378,33 @@ def _find_rpms_in_packages(koji_api, name_list, major_minor):
     return rpms_for_package
 
 
-def _find_rhcos_build_rpms(so, major_minor, arch="x86_64", build_id=None):
-    # returns a set of RPMs used in the specified or most recent build for release major_minor
+def _find_rhcos_build_rpms(so, major_minor, arch="x86_64", build_id=None) -> dict:
+    """
+    Returns a dict that includes following keys:
+    'build-id': the ID of the RHCOS build, e.g. 416.92.202401041100-0
+    'rpms': set of RPMs used in the specified or most recent build for release major_minor
+    """
+
     try:
         rhcos_build_info = RHCOSBuildInfo(major_minor)
         build_id = build_id or rhcos_build_info.latest_build_id(arch)
         if not build_id:
-            return set()
+            return dict()
         metadata = rhcos_build_info.build_metadata(build_id, arch)
         if metadata == {}:
-            return set()
+            return dict()
         rpms = metadata["rpmostree.rpmdb.pkglist"]
         logger.info('Found %s rpms', len(rpms))
-        return set(f"{n}-{v}-{r}" for n, e, v, r, a in rpms)
+        return {
+            'build-id': build_id,
+            'rpms': set(f"{n}-{v}-{r}" for n, e, v, r, a in rpms)
+        }
 
     except Exception as ex:
         logger.error('Encountered error looking up latest RHCOS build RPMs in %s: %s', major_minor, ex)
         so.say("Encountered error looking up the latest RHCOS build RPMs.")
         so.monitoring_say(f"Encountered error looking up the latest RHCOS build RPMs: {ex}")
-        return set()
+        return dict()
 
 
 def _get_raw_group_config(group):
