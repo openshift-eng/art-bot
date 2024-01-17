@@ -114,8 +114,13 @@ async def get_tag_specs(so, tag_spec, data_type, sem) -> str:
         if data_type.startswith('nvr'):
             result += f'{component_name}-{component_version}-{component_release}'
         elif data_type.startswith('distgit'):
-            distgit_name = component_name.rstrip('-container')
-            result += f'http://pkgs.devel.redhat.com/cgit/{distgit_name}/commit/?id={component_distgit_commit}'
+            suffix = "-container"
+            distgit_name = ""
+            if suffix in component_name:
+                distgit_name = component_name.rstrip('container')
+                distgit_name = distgit_name.rstrip("-")
+
+            result += f'https://pkgs.devel.redhat.com/cgit/containers/{distgit_name}/commit/?id={component_distgit_commit}'
         elif data_type.startswith('commit'):
             result += f'{component_upstream_commit_url}'
         elif data_type.startswith('catalog'):
