@@ -55,3 +55,28 @@ def go_advisory(so, advisory_id):
         so.say("Invalid advisory. Try again.")
     else:
         so.snippet(payload=stdout, intro=f"Go version for advisory {advisory_id}:", filename='go_advisory_output.txt')
+
+
+@util.refresh_krb_auth
+def go_config(so, ocp_version_string):
+    ocp_versions = re.findall(r'(\d\.\d+)', ocp_version_string)
+    if not ocp_versions:
+        so.say(f"Could not find ocp versions in {ocp_version_string}")
+        return
+    ocp_versions = ",".join(ocp_versions)
+
+    try:
+        rc, stdout, stderr = artbotlib.exectools.cmd_assert(so, f'elliott go:report --ocp-versions {ocp_versions}')
+    except Exception as e:
+        so.say(f"An unexpected error occurred: {e}")
+        util.please_notify_art_team_of_error(so, str(e))
+        return
+
+    if rc:
+        so.say("There was a problem with the command.")
+        return
+
+    if not stdout:
+        so.say("Invalid input")
+    else:
+        so.snippet(payload=stdout, intro="Go config report:", filename='go_config_output.txt')
