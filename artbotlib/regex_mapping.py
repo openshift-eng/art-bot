@@ -223,7 +223,7 @@ def map_command_to_regex(so, plain_text, user_id):
             "regex": r"^(go|golang) config (for|of) (?P<ocp_version_string>.*)$",
             "flag": re.I,
             "function": elliott.go_config,
-            "example": "go config for versions 4.13 4.14 4.15"
+            "example": "go config for versions 4.13 4.14 4.15 (with|including rhel version)"
         },
         {
             "regex": r"^timestamp (for|of) brew event (?P<brew_event>\d+)$",

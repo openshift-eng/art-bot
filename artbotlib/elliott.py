@@ -65,8 +65,16 @@ def go_config(so, ocp_version_string):
         return
     ocp_versions = ",".join(ocp_versions)
 
+    ignore_rhel = True
+    if "with rhel" in ocp_version_string or "including rhel" in ocp_version_string:
+        ignore_rhel = False
+
+    cmd = f"elliott go:report --ocp-versions {ocp_versions}"
+    if ignore_rhel:
+        cmd = f"{cmd} --ignore-rhel"
+
     try:
-        rc, stdout, stderr = artbotlib.exectools.cmd_assert(so, f'elliott go:report --ocp-versions {ocp_versions}')
+        rc, stdout, stderr = artbotlib.exectools.cmd_assert(so, cmd)
     except Exception as e:
         so.say(f"An unexpected error occurred: {e}")
         util.please_notify_art_team_of_error(so, str(e))
