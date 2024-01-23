@@ -218,6 +218,13 @@ def map_command_to_regex(so, plain_text, user_id):
             "function": elliott.go_advisory,
             "example": "go version for advisory 79678"
         },
+        # * (go|golang) config for `major.minor`,`major.minor2`
+        {
+            "regex": r"^(go|golang) config (for|of) (?P<ocp_version_string>.*)$",
+            "flag": re.I,
+            "function": elliott.go_config,
+            "example": "go config for versions 4.13 4.14 4.15 (with|including rhel version)"
+        },
         {
             "regex": r"^timestamp (for|of) brew event (?P<brew_event>\d+)$",
             "flag": re.I,
