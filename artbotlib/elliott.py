@@ -7,6 +7,7 @@ from . import util
 logger = logging.getLogger(__name__)
 
 
+@util.refresh_krb_auth
 def image_list(so, advisory_id):
     logger.info('Getting image list for advisory %s', advisory_id)
     cmd = f'elliott advisory-images -a {advisory_id}'
