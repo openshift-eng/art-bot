@@ -18,6 +18,14 @@ friendly_channels:
 - art-release-4-11
 - art-release-4-12
 - art-release-4-13
+- art-release-4-14
+- art-release-4-15
+- art-release-4-16
+- art-release-4-17
+- art-release-4-18
+- art-release-4-19
+- help-ocp-cve-triage
+- forum-ocp-release-oversight
 
 # files are relative to $HOME if not absolute.
 # you'll need to look these up in vault and create the files locally.
