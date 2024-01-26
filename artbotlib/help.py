@@ -36,6 +36,7 @@ _*ART build info:*_
 * pr info `GitHub PR URL` [component `name`] in `major.minor` [for `arch`]
 * (go|golang) version (for|of) `nvr'
 * timestamp (for|of) brew event `brew-event`
+* mass rebuild status
 
 _*misc:*_
 * How can I get ART to build a new image?
