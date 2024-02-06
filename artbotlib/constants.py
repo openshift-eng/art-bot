@@ -25,9 +25,7 @@ COMET_URL = 'https://comet.engineering.redhat.com/containers/repositories'
 
 ERRATA_TOOL_URL = 'https://errata.devel.redhat.com'
 
-GITHUB_API = "https://api.github.com/repos"
-
-GITHUB_API_OPENSHIFT = f"{GITHUB_API}/openshift"
+GITHUB_API_REPO_URL = "https://api.github.com/repos"
 
 ART_DASH_API_ROUTE = "https://art-dash-server-art-dashboard-server.apps.artc2023.pc3z.p1.openshiftapps.com/api/v1"
 

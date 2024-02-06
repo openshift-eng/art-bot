@@ -201,7 +201,7 @@ def map_command_to_regex(so, plain_text, user_id):
             "example": "Watch https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=12345"
         },
         {
-            'regex': r'^pr info \s*(https://)*(github.com/)*(openshift/)*(?P<repo>[a-zA-Z0-9-]+)(/pull/)(?P<pr_id>\d+)(?: component (?P<component>[a-zA-Z0-9-]+))? in %(major_minor)s(?: for arch (?P<arch>[a-zA-Z0-9-]+))?$' % re_snippets,
+            'regex': r'^pr info \s*(https://)*(github.com/)*(?P<org>[a-zA-Z0-9-]+)\/*(?P<repo>[a-zA-Z0-9-]+)(/pull/)(?P<pr_id>\d+)(?: component (?P<component>[a-zA-Z0-9-]+))? in %(major_minor)s(?: for arch (?P<arch>[a-zA-Z0-9-]+))?$' % re_snippets,
             'flag': re.I,
             'function': pr_info,
             "example": "pr info https://github.com/openshift/ptp-operator/pull/281 component ptp-operator in 4.12 for arch amd64"

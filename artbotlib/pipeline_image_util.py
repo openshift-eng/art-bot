@@ -34,10 +34,12 @@ def github_distgit_mappings(version: str) -> dict:
     for line in out.splitlines():
         github, distgit = line.split(": ")
         reponame = github.split("/")[-1]
+        orgname = github.split("/")[-2]
+        name = f'{orgname}/{reponame}'
         if github not in mappings:
-            mappings[reponame] = [distgit]
+            mappings[name] = [distgit]
         else:
-            mappings[reponame].append(distgit)
+            mappings[name].append(distgit)
 
     if not mappings:
         logger.warning('No github-distgit mapping found in %s', version)

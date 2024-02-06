@@ -10,17 +10,18 @@ import requests
 import artbotlib.exectools
 from artbotlib import util, pipeline_image_util
 from artbotlib.exceptions import NullDataReturned, BrewNVRNotFound
-from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_OPENSHIFT, ART_DASH_API_ROUTE, \
+from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_REPO_URL, ART_DASH_API_ROUTE, \
     RELEASE_CONTROLLER_URL, RELEASE_CONTROLLER_STREAM_PATH
 
 
 class PrInfo:
-    def __init__(self, so, repo_name, pr_id, version, arch, component):
+    def __init__(self, so, org, repo_name, pr_id, version, arch, component):
         self.logger = logging.getLogger(__class__.__name__)
         self.so = so
+        self.org = org
         self.repo_name = repo_name
         self.pr_id = pr_id
-        self.pr_url = f'https://github.com/openshift/{repo_name}/pull/{pr_id}'
+        self.pr_url = f'https://github.com/{org}/{repo_name}/pull/{pr_id}'
 
         self.version = version
         self.arch = arch if arch else 'amd64'
@@ -40,14 +41,15 @@ class PrInfo:
             mappings = pipeline_image_util.github_distgit_mappings(self.version)
         except NullDataReturned as e:
             self.logger.warning('Exception raised while getting github/distgit mappings: %s', e)
-            self.so.say(f'Could not retrieve distgit name for {self.repo_name}')
+            self.so.say(f'Could not retrieve distgit name for {self.org}/{self.repo_name}')
             util.please_notify_art_team_of_error(self.so, e)
             return None
 
-        repo_mappings = mappings.get(self.repo_name, None)
+        repo_with_org = f'{self.org}/{self.repo_name}'
+        repo_mappings = mappings.get(repo_with_org, None)
         if not repo_mappings:
-            self.logger.warning(f'No distgit mapping for repo {self.repo_name}')
-            self.so.say(f'Unable to find the distgit repo associated with `{self.repo_name}`: '
+            self.logger.warning(f'No distgit mapping for repo {repo_with_org}')
+            self.so.say(f'Unable to find the distgit repo associated with `{repo_with_org}`: '
                         f'please check the query and try again')
             return None
 
@@ -55,8 +57,8 @@ class PrInfo:
         if len(repo_mappings) > 1:
             # The user must explicitly provide the component name
             if not self.component:
-                self.logger.warning('Multiple components build from %s: one must be specified', self.repo_name)
-                self.so.say(f'Multiple components build from `{self.repo_name}`: '
+                self.logger.warning('Multiple components build from %s: one must be specified', repo_with_org)
+                self.so.say(f'Multiple components build from `{repo_with_org}`: '
                             f'please specify the one you\'re interested in and try again')
                 return None
 
@@ -156,7 +158,7 @@ class PrInfo:
         Return the timestamp associated with a commit: e.g. "2022-10-21T19:48:29Z"
         """
 
-        url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits/{commit}"
+        url = f"{GITHUB_API_REPO_URL}/{self.org}/{self.repo_name}/commits/{commit}"
         self.logger.info('Fetching url %s', url)
 
         response = requests.get(url, headers=self.header)
@@ -179,7 +181,7 @@ class PrInfo:
         """
 
         datetime = self.get_commit_time(commit)
-        url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/commits?sha=release-{self.version}&since={datetime}"
+        url = f"{GITHUB_API_REPO_URL}/{self.org}/{self.repo_name}/commits?sha=release-{self.version}&since={datetime}"
 
         commits = util.github_api_all(url)
 
@@ -193,7 +195,7 @@ class PrInfo:
         Return the merge commit SHA associated with a PR
         """
 
-        url = f"{GITHUB_API_OPENSHIFT}/{self.repo_name}/pulls/{self.pr_id}"
+        url = f"{GITHUB_API_REPO_URL}/{self.org}/{self.repo_name}/pulls/{self.pr_id}"
         self.logger.info('Fetching url %s', url)
 
         response = requests.get(url, headers=self.header)
@@ -377,5 +379,5 @@ class PrInfo:
                         f'will not look into nightlies nor releases...')
 
 
-def pr_info(so, repo, pr_id, major, minor, arch, component):
-    asyncio.new_event_loop().run_until_complete(PrInfo(so, repo, pr_id, f'{major}.{minor}', arch, component).run())
+def pr_info(so, org, repo, pr_id, major, minor, arch, component):
+    asyncio.new_event_loop().run_until_complete(PrInfo(so, org, repo, pr_id, f'{major}.{minor}', arch, component).run())
