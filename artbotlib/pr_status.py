@@ -13,7 +13,7 @@ def pr_status(so, user_id, org, repo, pr_id):
     so.say(f'Ok <@{user_id}>, I\'ll respond here when the PR merges')
 
     pr_url = f'https://github.com/{org}/{repo}/pull/{pr_id}'
-    api_endpoint = f'{constants.GITHUB_API}/{org}/{repo}/pulls/{pr_id}'
+    api_endpoint = f'{constants.GITHUB_API_REPO_URL}/{org}/{repo}/pulls/{pr_id}'
 
     start = time.time()
     variables.active_slack_objects.add(so)
