@@ -2,7 +2,7 @@ import os
 import re
 
 from artbotlib import brew_list, elliott, brew
-from artbotlib.buildinfo import buildinfo_for_release, alert_on_build_complete
+from artbotlib.buildinfo import buildinfo_for_release, alert_on_build_complete, mass_rebuild_status
 from artbotlib.pr_status import pr_status
 from artbotlib.taskinfo import alert_on_task_complete
 from artbotlib.constants import PROW_BASE_URL
@@ -230,6 +230,12 @@ def map_command_to_regex(so, plain_text, user_id):
             "flag": re.I,
             "function": brew.get_event_ts,
             "example": "timestamp for brew event 55331468"
+        },
+        {
+            "regex": "^mass rebuild status$",
+            "flag": re.I,
+            "function": mass_rebuild_status,
+            "example": "mass rebuild status"
         },
 
         # ART advisory info:

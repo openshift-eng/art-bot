@@ -7,6 +7,9 @@ import time
 from enum import Enum
 
 import koji
+from artcommonlib import redis
+from pyartcd.constants import JENKINS_UI_URL
+from pyartcd.locks import Lock, Keys
 
 from . import util, constants, exectools, variables
 from .rhcos import rhcos_build_urls
@@ -249,3 +252,30 @@ def alert_on_build_complete(so, user_id, build_id):
 
     finally:
         variables.active_slack_objects.remove(so)
+
+
+def mass_rebuild_status(so):
+    output = []
+
+    async def check_active():
+        # Check for active mass rebuild
+        job_path = await redis.get_value(Lock.MASS_REBUILD.value)
+        if not job_path:
+            output.append('No mass rebuild currently running')
+        else:
+            output.append(f':construction: Mass rebuild actively running at {JENKINS_UI_URL}/{job_path}')
+
+    async def check_enqueued():
+        # Check for enqueued mass rebuilds
+        result = await redis.call('zrange', Keys.MASS_REBUILD_QUEUE.value, 0, -1, desc=True)
+        if not result:
+            output.append('No mass rebuild currently enqueued')
+        else:
+            output.append(f':hourglass: Mass rebuilds currently waiting in the queue: {", ".join(result)}')
+
+    tasks = [check_active(), check_enqueued()]
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(asyncio.gather(*tasks))
+
+    so.say('\n'.join(output))

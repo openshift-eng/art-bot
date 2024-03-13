@@ -8,3 +8,5 @@ slack_bolt==1.15.1
 pip_system_certs
 fuzzywuzzy
 python-Levenshtein
+artcommon @ git+https://github.com/openshift-eng/art-tools.git@main#subdirectory=artcommon
+pyartcd @ git+https://github.com/openshift-eng/art-tools.git@main#subdirectory=pyartcd
