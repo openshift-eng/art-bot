@@ -70,14 +70,6 @@ def handle_message(client, event):
                 raise Exception(f"Invalid monitoring channel configured: {bot_config['monitoring_channel']}")
             bot_config["monitoring_channel_id"] = found["id"]
 
-        bot_config.setdefault("friendly_channels", [])
-        bot_config["friendly_channel_ids"] = []
-        for channel in bot_config["friendly_channels"]:
-            found = lookup_channel(web_client, channel)
-            if not found:
-                raise Exception(f"Invalid friendly channel configured: {channel}")
-            bot_config["friendly_channel_ids"].append(found["id"])
-
         bot_config.setdefault("username", bot_config["self"]["name"])
 
     except Exception as exc:
@@ -106,18 +98,8 @@ def respond(client, event):
             # things like snippets may look like they are from normal users; if it is from us, ignore it.
             return
 
-        if from_channel in bot_config["friendly_channel_ids"] or data.get('bot_id'):
-            # in these channels we allow the bot to respond directly instead of DM'ing user back, or it was invoked by another bot
-            target_channel_id = from_channel
-        else:
-            # we don't support respond directly in the channel
-            response = web_client.conversations_open(users=user_id)
-            direct_message_channel_id = response["channel"]["id"]
-            target_channel_id = direct_message_channel_id
-            # If we're changing channels, we cannot target the initial message to create a thread
-            if target_channel_id != from_channel:
-                thread_ts = None
-
+        # Always allow the bot to respond directly instead of DM'ing user back, or it was invoked by another bot
+        target_channel_id = from_channel
         alt_username = None
         if bot_config["self"]["name"] != bot_config["username"]:
             alt_username = bot_config["username"]

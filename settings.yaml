@@ -4,20 +4,6 @@
 
 # channel where bot reports what is being asked and any errors
 monitoring_channel: art-bot-monitoring
-# channels the bot can respond in instead of DM'ing user back
-friendly_channels:
-- team-art
-- forum-ocp-art
-- forum-ocp-release
-- art-release
-- art-release-3-11
-- art-release-4-7
-- art-release-4-8
-- art-release-4-9
-- art-release-4-10
-- art-release-4-11
-- art-release-4-12
-- art-release-4-13
 
 # files are relative to $HOME if not absolute.
 # you'll need to look these up in vault and create the files locally.
