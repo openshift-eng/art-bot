@@ -66,9 +66,10 @@ def handle_message(client, event):
             logger.warning("Warning: no monitoring_channel configured.")
         else:
             found = lookup_channel(web_client, bot_config["monitoring_channel"], only_private=True)
-            if not found:
-                raise Exception(f"Invalid monitoring channel configured: {bot_config['monitoring_channel']}")
-            bot_config["monitoring_channel_id"] = found["id"]
+            if found:
+                bot_config["monitoring_channel_id"] = found["id"]
+            else:
+                logger.warning("Invalid monitoring channel configured: %s", bot_config['monitoring_channel'])
 
         bot_config.setdefault("username", bot_config["self"]["name"])
 
