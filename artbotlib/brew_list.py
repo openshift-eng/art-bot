@@ -14,7 +14,7 @@ import yaml
 import artbotlib.exectools
 
 from . import util
-from .constants import RHCOS_BASE_URL
+from .constants import NIGHTLY_REGISTRY, QUAY_REGISTRY
 from .rhcos import RHCOSBuildInfo
 
 logger = logging.getLogger(__name__)
@@ -143,9 +143,9 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
     so.say('Let me look into that. It may take a minute...')
 
     if 'nightly-' in release_tag:
-        repo_url = 'registry.ci.openshift.org/ocp/release'
+        repo_url = NIGHTLY_REGISTRY
     else:
-        repo_url = 'quay.io/openshift-release-dev/ocp-release'
+        repo_url = QUAY_REGISTRY
 
     image_url = f'{repo_url}:{release_tag}-x86_64'
 
