@@ -143,7 +143,7 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
     so.say('Let me look into that. It may take a minute...')
 
     if 'nightly-' in release_tag:
-        repo_url = 'registry.svc.ci.openshift.org/ocp/release'
+        repo_url = 'registry.ci.openshift.org/ocp/release'
     else:
         repo_url = 'quay.io/openshift-release-dev/ocp-release'
 
