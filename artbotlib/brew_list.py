@@ -144,10 +144,10 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
 
     if 'nightly-' in release_tag:
         repo_url = NIGHTLY_REGISTRY
+        image_url = f'{repo_url}:{release_tag}'
     else:
         repo_url = QUAY_REGISTRY
-
-    image_url = f'{repo_url}:{release_tag}-x86_64'
+        image_url = f'{repo_url}:{release_tag}-x86_64'
 
     logger.info('Getting image info for %s', image_url)
     rc, stdout, stderr = artbotlib.exectools.cmd_assert(so, f'oc adm release info -o=json --pullspecs {image_url}')
