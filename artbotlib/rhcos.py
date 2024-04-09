@@ -95,8 +95,8 @@ async def get_rhcos_build_id_from_release(release_img: str, arch: str) -> str:
     logger.info('Retrieving rhcos build ID for %s', release_img)
 
     # Make sure only the release tag is being used
-    release_img = release_img.replace('registry.ci.openshift.org/ocp/release:', '')
-    release_img = release_img.replace('quay.io/openshift-release-dev/ocp-release:', '')
+    release_img = release_img.replace(f"{constants.NIGHTLY_REGISTRY}:", '')
+    release_img = release_img.replace(f"{constants.QUAY_REGISTRY}:", '')
 
     # Arch shouldn't be in the name
     rhcos_arch = constants.RC_ARCH_TO_RHCOS_ARCH[arch]

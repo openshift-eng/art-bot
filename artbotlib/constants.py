@@ -35,6 +35,10 @@ RELEASE_CONTROLLER_STREAM_PATH = Template("/releasestream/${type}/release/${name
 
 PROW_BASE_URL = 'https://prow.ci.openshift.org'
 
+NIGHTLY_REGISTRY = 'registry.ci.openshift.org/ocp/release'
+
+QUAY_REGISTRY = 'quay.io/openshift-release-dev/ocp-release'
+
 # Release Controller and RHCOS browser call arches in different ways;
 # these two dictionaries easily map names from/to one namespace to the other
 RC_ARCH_TO_RHCOS_ARCH = {
