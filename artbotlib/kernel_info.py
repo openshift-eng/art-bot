@@ -65,12 +65,11 @@ class KernelInfo:
 
     async def rhcos_kernel_info(self):
         rpms = []
-
-        # Fetch release info from Release Controller to get RHCOS build ID
-        rhcos_build_id = await rhcos.get_rhcos_build_id_from_release(self.release_img, self.arch)
+        pullspec, _ = buildinfo.get_img_pullspec(self.release_img)
+        rhcos_build_id = await rhcos.get_rhcos_build_id_from_pullspec(pullspec)
         if not rhcos_build_id:
-            self.logger.error('Couldn\'t find release %s on RC', self.release_img)
-            self.so.say(f'Couldn\'t find release `{self.release_img}` on Release Controller')
+            self.logger.warning('Failed to fetch RHCOS info for %s', self.release_img)
+            self.so.say(f'Failed to fetch RHCOS info for {self.release_img}')
             return None
 
         # Fetch RHCOS build metadata
@@ -80,13 +79,6 @@ class KernelInfo:
         pkg_list = metadata['rpmostree.rpmdb.pkglist']
         kernel_core = [pkg for pkg in pkg_list if 'kernel-core' in pkg][0]
         rpms.append(f'kernel-core.{".".join(kernel_core[2:])}')
-
-        # Get kernel-rt-core from build labels, if available
-        build_info, pullspec, _ = await buildinfo.get_image_info(
-            self.so, 'machine-os-content', self.release_img)
-        labels = build_info['config']['config']['Labels']
-        if 'com.coreos.rpm.kernel-rt-core' in labels:
-            rpms.append(f"kernel-rt-core.{labels['com.coreos.rpm.kernel-rt-core']}")
 
         return {
             'name': 'rhcos',
