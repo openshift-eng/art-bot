@@ -95,15 +95,18 @@ async def get_rhcos_build_id_from_pullspec(release_img_pullspec: str) -> str:
 
     build_id = None
     # TODO: use artcommonlib to do all of this
-    # Hardcode rhcos_tag for now
+    # Hardcode rhcos tags for now
     # this comes from https://github.com/openshift-eng/ocp-build-data/blob/cc6a68a3446f2e80dddbaa9210897ed2812cb103/group.yml#L71C13-L71C24
     # we have logic in artcommonlib.rhcos to do all of this, so do not repeat it here
-    rhcos_tag = "rhel-coreos"
-
-    rc, stdout, stderr = exectools.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for {rhcos_tag}")
+    rhcos_tag_1 = "machine-os-content"
+    rhcos_tag_2 = "rhel-coreos"
+    rc, stdout, stderr = exectools.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for {rhcos_tag_1}")
     if rc:
-        logger.error('oc failed with rc %s: %s', rc, stderr)
-        return None
+        rc, stdout, stderr = exectools.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for {rhcos_tag_2}")
+        if rc:
+            logger.error('Failed to get RHCOS image for %s: %s', release_img_pullspec, stderr)
+            return None
+
     pullspec = stdout.split('\n')[0]
 
     try:
