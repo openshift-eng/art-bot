@@ -68,7 +68,7 @@ class KernelInfo:
         pullspec, _ = buildinfo.get_img_pullspec(self.release_img)
         rhcos_build_id = await rhcos.get_rhcos_build_id_from_pullspec(pullspec)
         if not rhcos_build_id:
-            self.logger.warning('Failed to fetch RHCOS info for %s', self.release_img)
+            self.logger.error('Failed to fetch RHCOS info for %s', self.release_img)
             self.so.say(f'Failed to fetch RHCOS info for {self.release_img}')
             return None
 
