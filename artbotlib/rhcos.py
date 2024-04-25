@@ -7,6 +7,8 @@ import urllib
 import json
 
 from artbotlib import constants
+from artbotlib import exectools
+from artcommonlib.rhcos import get_build_id_from_rhcos_pullspec
 
 logger = logging.getLogger(__name__)
 
@@ -83,43 +85,36 @@ class RHCOSBuildInfo:
             raise
 
 
-async def get_rhcos_build_id_from_release(release_img: str, arch: str) -> str:
+async def get_rhcos_build_id_from_pullspec(release_img_pullspec: str) -> str:
     """
     Given a nightly or release, return the associated RHCOS build id
 
-    :param release_img: e.g. 4.12.0-0.nightly-2022-12-20-034740, 4.10.10
-    :param arch: one in {'amd64', 'arm64', 'ppc64le', 's390x'}
+    :param release_img_pullspec: e.g. registry.ci.openshift.org/ocp/release:4.12.0-0.nightly-2022-12-20-034740
     :return: e.g. 412.86.202212170457-0
     """
 
-    logger.info('Retrieving rhcos build ID for %s', release_img)
+    build_id = None
+    # TODO: use artcommonlib to do all of this
+    # Hardcode rhcos tags for now
+    # this comes from https://github.com/openshift-eng/ocp-build-data/blob/cc6a68a3446f2e80dddbaa9210897ed2812cb103/group.yml#L71C13-L71C24
+    # we have logic in artcommonlib.rhcos to do all of this, so do not repeat it here
+    rhcos_tag_1 = "machine-os-content"
+    rhcos_tag_2 = "rhel-coreos"
+    rc, stdout, stderr = exectools.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for {rhcos_tag_1}")
+    if rc:
+        rc, stdout, stderr = exectools.cmd_gather(f"oc adm release info {release_img_pullspec} --image-for {rhcos_tag_2}")
+        if rc:
+            logger.error('Failed to get RHCOS image for %s: %s', release_img_pullspec, stderr)
+            return None
 
-    # Make sure only the release tag is being used
-    release_img = release_img.replace(f"{constants.NIGHTLY_REGISTRY}:", '')
-    release_img = release_img.replace(f"{constants.QUAY_REGISTRY}:", '')
-
-    # Arch shouldn't be in the name
-    rhcos_arch = constants.RC_ARCH_TO_RHCOS_ARCH[arch]
-    release_img = release_img.replace(f'-{rhcos_arch}', '')
-
-    async with aiohttp.ClientSession() as session:
-        url = f'{constants.RELEASE_CONTROLLER_URL.substitute(arch=arch)}/releasetag/{release_img}/json'
-        logger.info('Fetching URL %s', url)
-
-        async with session.get(url) as resp:
-            try:
-                release_info = await resp.json()
-            except aiohttp.client_exceptions.ContentTypeError:
-                logger.warning('Failed fetching url %s', url)
-                return None
+    pullspec = stdout.split('\n')[0]
 
     try:
-        release_info = release_info['displayVersions']['machine-os']['Version']
-        logger.info('Retrieved release info: %s', release_info)
-        return release_info
-    except KeyError:
-        logger.error('Failed retrieving release info')
-        raise
+        build_id = get_build_id_from_rhcos_pullspec(pullspec)
+    except Exception as e:
+        logger.error('Failed to fetch RHCOS build id from pullspec %s: %s', pullspec, e)
+
+    return build_id
 
 
 def rhcos_build_urls(ocp_version, build_id, arch="x86_64"):
