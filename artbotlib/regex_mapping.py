@@ -8,7 +8,7 @@ from artbotlib.taskinfo import alert_on_task_complete
 from artbotlib.constants import PROW_BASE_URL
 from artbotlib.help import greet_user, show_help
 from artbotlib.kernel_info import kernel_info
-from artbotlib.nightly_color import nightly_color_status
+from artbotlib.nightly_color import nightly_color_status, latest_nightly_color_status
 from artbotlib.pipeline_image_names import pipeline_from_github, pipeline_from_distgit, pipeline_from_brew, \
     pipeline_from_cdn, pipeline_from_delivery
 from artbotlib.pr_in_build import pr_info
@@ -306,6 +306,13 @@ def map_command_to_regex(so, plain_text, user_id):
             "function": nightly_color_status,
             "user_id": True,
             "example": "Watch https://amd64.ocp.releases.ci.openshift.org/releasestream/4.13.0-0.ci/release/4.13.0-0.ci-2022-12-19-111818"
+        },
+        {
+            "regex": r"^Watch latest (?P<version>\d+\.\d+)$",
+            "flag": re.I,
+            "function": latest_nightly_color_status,
+            "user_id": True,
+            "example": "Watch latest 4.16"
         },
         {
             "regex": rf"^Alert ?(if|when|on)? prow job {PROW_BASE_URL}/view/gs/(?P<job_path>\S*) completes$",

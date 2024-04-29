@@ -24,6 +24,7 @@ _*ART releases:*_
 _*ART release/Brew monitoring:*_
 * Watch `release_url|brew_url|prow_job_url|github_pr_url`
 * Alert (if|when|on) `release_url` (stops being blue|fails|is rejected|is red|is accepted|is green)
+* Watch latest `major.minor`
 * Alert (if|when|on) prow job `Prow job URL` completes
 * Alert (if|when|on) build `Brew build URL|Brew build ID` completes
 * Alert (if|when|on) task `Brew task URL|Brew task ID` completes

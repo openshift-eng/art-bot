@@ -62,6 +62,40 @@ def get_failed_jobs(release_url, release_browser) -> str:
     return payload
 
 
+def get_latest_nightly_name(release_stream) -> Union[str, None]:
+    url = f"https://amd64.ocp.releases.ci.openshift.org/api/v1/releasestream/{release_stream}/tags"
+    logger.info('Fetching URL %s', url)
+
+    response = requests.get(url)  # query API to get list of nightly tags
+    if response.status_code != 200:
+        logger.error('Server responded with status code %s', response.status_code)
+        return None
+
+    return response.json()['tags'][0]['name']
+
+
+def latest_nightly_color_status(so, user_id, version) -> None:
+    """
+    Driver function to provide slack update if color of the latest nightly changes from blue to green/red
+
+    :param so: Slack object
+    :param user_id: User ID of the person who invoked ART-Bot
+    :param version: OCP version eg: 4.15/4.16
+    :return: None
+    """
+
+    release_stream = f"{version}.0-0.nightly"
+
+    latest_nightly_name = get_latest_nightly_name(release_stream)
+    if latest_nightly_name is None:
+        so.say(f"<@{user_id}> I could not retrieve latest nightlies from https://amd64.ocp.releases.ci.openshift.org/api/v1/releasestream/{release_stream}/tags")
+        return
+
+    latest_release_url = f"/releasestream/{release_stream}/release/{latest_nightly_name}"
+
+    nightly_color_status(so, user_id, latest_release_url, "amd64")
+
+
 def nightly_color_status(so, user_id, release_url, release_browser) -> None:
     """
     Driver function to provide slack update if color of nightly changes from blue to green/red
