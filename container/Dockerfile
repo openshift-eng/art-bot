@@ -50,6 +50,9 @@ RUN groupadd --gid "$USER_GID" "$USERNAME" \
 # Set work directory
 WORKDIR /workspaces/art-bot
 
+# Fixes issue "ERROR: Cannot uninstall requests 2.25.1, RECORD file not found. Hint: The package was installed by rpm."
+RUN rpm -e --nodeps python3-requests
+
 # Clone art-tools and run install.sh script
 RUN git clone https://github.com/openshift-eng/art-tools.git art-tools \
  && cd art-tools \
