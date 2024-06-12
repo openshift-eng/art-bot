@@ -17,7 +17,7 @@ _*ART config:*_
 
 _*ART releases:*_
 * Which build of `image_name` is in `release image name or pullspec`?
-* What (commits|catalogs|distgits|nvrs|images) are associated with `release-tag`?
+* What (commits|catalogs|distgits|nvrs|images|rpms) are associated with `release-tag`?
 * Image list advisory `advisory_id`
 * What kernel is used in `release image name or pullspec`?
 

@@ -4,7 +4,7 @@ import json
 import logging
 import re
 import urllib.request
-from typing import cast, Dict
+from typing import cast, Dict, List, Set
 from urllib.parse import quote
 
 import koji
@@ -15,13 +15,13 @@ import artbotlib.exectools
 
 from . import util
 from .constants import NIGHTLY_REGISTRY, QUAY_REGISTRY
-from .rhcos import RHCOSBuildInfo
+from .rhcos import RHCOSBuildInfo, get_rhcos_build_id_from_pullspec
 
 logger = logging.getLogger(__name__)
 
 
 @util.cached
-def brew_list_components(nvr):
+def brew_list_components(nvr) -> Set:
     koji_api = util.koji_client_session()
     logger.info('Getting info for build %s', nvr)
     build = koji_api.getBuild(nvr, strict=True)
@@ -85,7 +85,7 @@ def specific_rpms_for_image(so, rpms, nvr):
                    filename='{}-rpms.txt'.format(nvr))
 
 
-async def get_tag_specs(so, tag_spec, data_type, sem) -> str:
+async def get_tag_specs(so, tag_spec, data_type, sem) -> List[str]:
     """
     Fetches tag information by running 'oc image info'
     and returns the appropriate field depending on the data type provided
@@ -98,7 +98,7 @@ async def get_tag_specs(so, tag_spec, data_type, sem) -> str:
         if rc:
             logger.error('Command failed with status code %s:\n%s', rc, stderr)
             util.please_notify_art_team_of_error(so, stderr)
-            return ''
+            return ['']
 
         logger.debug('Image info for %s:\n%s', release_component_image, stdout)
         release_component_image_info = json.loads(stdout)
@@ -109,10 +109,16 @@ async def get_tag_specs(so, tag_spec, data_type, sem) -> str:
         component_upstream_commit_url = component_labels.get('io.openshift.build.commit.url', '?')
         component_distgit_commit = component_labels.get('vcs-ref', '?')
         component_rhcc_url = component_labels.get('url', '?')
+        nvr = f'{component_name}-{component_version}-{component_release}'
+
+        if data_type.startswith('rpm'):
+            if release_component_name.startswith('rhel-coreos') or release_component_name.startswith('machine-os-content') or component_name == 'UNKNOWN':
+                return []  # RPMS from rhcos are not included.
+            return list(brew_list_components(nvr))
 
         result = f'{release_component_name}='
         if data_type.startswith('nvr'):
-            result += f'{component_name}-{component_version}-{component_release}'
+            result += nvr
         elif data_type.startswith('distgit'):
             suffix = "-container"
             distgit_name = ""
@@ -129,12 +135,12 @@ async def get_tag_specs(so, tag_spec, data_type, sem) -> str:
             result += release_component_image
 
         logger.debug('Tag specs for %s: %s', data_type, result)
-        return result
+        return [result]
 
 
 def list_component_data_for_release_tag(so, data_type, release_tag):
     data_type = data_type.lower()
-    data_types = ('nvr', 'distgit', 'commit', 'catalog', 'image')
+    data_types = ('rpm', 'nvr', 'distgit', 'commit', 'catalog', 'image')
     if not data_type.startswith(data_types):
         logger.error('The type of information about each component needs to be one of %s', data_types)
         so.say(f"Sorry, the type of information you want about each component needs to be one of: {data_types}")
@@ -156,7 +162,11 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
         util.please_notify_art_team_of_error(so, stderr)
         return
 
-    payload = f'Finding information for: {image_url}\n'
+    payload = f'''Information for: {image_url}
+NOTE:
+- This listing only includes information specific to the x86_64 OpenShift release payload.
+- It does not include information about non-payload RPMs/Images/OLM Optional Operators that ART may release.
+'''
 
     release_info = json.loads(stdout)
     tag_specs = list(release_info['references']['spec']['tags'])
@@ -165,11 +175,32 @@ def list_component_data_for_release_tag(so, data_type, release_tag):
     asyncio.set_event_loop(loop)
     sem = asyncio.Semaphore(100)
 
+    flat_results = []
     # Send semaphore along with the get_tag_specs function to make sure that the semaphore uses the same event loop
     results = loop.run_until_complete(
         asyncio.gather(
             *[get_tag_specs(so, tag_spec, data_type, sem) for tag_spec in sorted(tag_specs, key=lambda x: x['name'])]))
-    payload += '\n'.join(results)
+    for result in results:
+        # Each result can be a list, so ex
+        flat_results.extend(result)
+    if data_type.startswith('rpm'):
+        async def get_build_id():
+            return await get_rhcos_build_id_from_pullspec(image_url)
+        rhcos_build_id = asyncio.run(get_build_id())
+        if not rhcos_build_id:
+            payload += "ERROR: Unable to retrieve RHCOS payload information; listing will not be complete."
+        else:
+            major_minor_nodot = rhcos_build_id.split(".")[0]  # '412.86.202212170457' => '412'
+            major_minor = major_minor_nodot[0] + '.' + major_minor_nodot[1:]  # "412" => "4.12"
+            flat_results.extend(_find_rhcos_build_rpms(so, major_minor, build_id=rhcos_build_id)['rpms'])
+
+        dedupe = set()
+        for nvr in flat_results:
+            if nvr.endswith(('.x86_64', '.s390x', '.ppc64le', '.aarch64', '.noarch')):
+                nvr = nvr.rsplit('.', maxsplit=1)[0]  # Remove the arch suffix
+            dedupe.add(nvr)
+        flat_results = sorted(list(dedupe))
+    payload += '\n'.join(flat_results)
 
     so.snippet(payload=payload,
                intro=f'The release components map to {data_type} as follows:',
