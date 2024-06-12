@@ -14,7 +14,7 @@ import yaml
 import artbotlib.exectools
 
 from . import util
-from .constants import NIGHTLY_REGISTRY, QUAY_REGISTRY
+from .constants import NIGHTLY_REGISTRY, QUAY_REGISTRY, CATALOG_URL, DISTGIT_URL, ART_DASH_API_ROUTE
 from .rhcos import RHCOSBuildInfo
 
 logger = logging.getLogger(__name__)
@@ -108,7 +108,7 @@ async def get_tag_specs(so, tag_spec, data_type, sem) -> str:
         component_release = component_labels.get('release', '?')
         component_upstream_commit_url = component_labels.get('io.openshift.build.commit.url', '?')
         component_distgit_commit = component_labels.get('vcs-ref', '?')
-        component_rhcc_url = component_labels.get('url', '?')
+        logger.info(f"\n\nCOMPONENT_NAME: {component_name}")
 
         result = f'{release_component_name}='
         if data_type.startswith('nvr'):
@@ -120,16 +120,61 @@ async def get_tag_specs(so, tag_spec, data_type, sem) -> str:
                 distgit_name = component_name.rstrip('container')
                 distgit_name = distgit_name.rstrip("-")
 
-            result += f'https://pkgs.devel.redhat.com/cgit/containers/{distgit_name}/commit/?id={component_distgit_commit}'
+            result += f'{DISTGIT_URL}/{distgit_name}/commit/?id={component_distgit_commit}'
+
         elif data_type.startswith('commit'):
             result += f'{component_upstream_commit_url}'
         elif data_type.startswith('catalog'):
-            result += f'{component_rhcc_url}'
+            image_type = 'distgit'
+            suffix = "-container"
+            catalog_name = ""
+            if suffix in component_name:
+                catalog_name = component_name.rstrip('container')
+                catalog_name = catalog_name.rstrip("-")
+            # component_version comes in format i.e. v4.14.18 - needed version in four digits format (i.e. 4.14)
+            version = component_version.strip('v')
+            version = version[:4]
+            data_info = catalog_api_query(so, image_type, catalog_name, version)
+
+            try:
+                for item in data_info:
+                    cat_id, cat_name = item
+                    result += f"{CATALOG_URL}/{cat_name}/{cat_id}\n"
+            except TypeError as e:
+                # Handle TypeError exceptions that might occur within the try block
+                logger.warning("Payload is empty:", e)
+
         elif data_type.startswith('image'):
             result += release_component_image
 
         logger.debug('Tag specs for %s: %s', data_type, result)
         return result
+
+
+def catalog_api_query(so, image_type, catalog_name, version):
+    url = f"{ART_DASH_API_ROUTE}/" \
+          f"pipeline-image?starting_from={image_type}&name={catalog_name}&version={version}"
+    logger.info(f"URL: {url}")
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        logger.error(f"API Server error. Status code: {response.status_code}")
+        so.say("API server error. Contact ART Team.")
+        so.monitoring_say("ERROR: API server error.")
+        return
+
+    try:
+        catalogs_info = response.json()
+    except Exception as e:
+        logger.error(f"JSON Error: {e}")
+        so.say("Error. Contact ART Team")
+        so.monitoring_say(f"JSON Error: {e}")
+        return
+
+    catalog_data = [(repo['delivery']['delivery_repo_id'], repo['delivery']['delivery_repo_name']) for dg in catalogs_info["payload"]["distgit"] for repo in dg["brew"]["cdn"]]
+    #logger.info(f"CATALOG_DATA: {catalog_data}")
+
+    return catalog_data
 
 
 def list_component_data_for_release_tag(so, data_type, release_tag):

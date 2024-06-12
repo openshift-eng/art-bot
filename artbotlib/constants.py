@@ -19,9 +19,13 @@ FIVE_MINUTES = 60 * 5
 
 BREW_URL = 'https://brewweb.engineering.redhat.com/brew'
 
+CATALOG_URL = 'https://catalog.redhat.com/software/containers'
+
 CGIT_URL = 'https://pkgs.devel.redhat.com/cgit'
 
 COMET_URL = 'https://comet.engineering.redhat.com/containers/repositories'
+
+DISTGIT_URL = 'https://pkgs.devel.redhat.com/cgit/containers'
 
 ERRATA_TOOL_URL = 'https://errata.devel.redhat.com'
 
