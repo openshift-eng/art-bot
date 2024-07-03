@@ -175,13 +175,13 @@ class PrInfo:
             self.logger.error('Could not find commit time in json data: %s', json_data)
             raise
 
-    def get_commits_after(self, commit) -> list:
+    def get_commits_after(self, commit, branch) -> list:
         """
         Return commits in a repo from the given time (includes the current commit).
         """
 
         datetime = self.get_commit_time(commit)
-        url = f"{GITHUB_API_REPO_URL}/{self.org}/{self.repo_name}/commits?sha=release-{self.version}&since={datetime}"
+        url = f"{GITHUB_API_REPO_URL}/{self.org}/{self.repo_name}/commits?sha={self.branch}&since={datetime}"
 
         commits = util.github_api_all(url)
 
@@ -208,7 +208,9 @@ class PrInfo:
         try:
             sha = json_data["merge_commit_sha"]
             self.logger.info('Found merge commit SHA: %s', sha)
-            return sha
+            branch = json_data["base"]["ref"]
+            self.logger.info('Merge request branch: %s', branch)
+            return sha, branch
         except KeyError:
             self.logger.error('Commit SHA not found in json data: %s', json_data)
             raise
@@ -334,13 +336,13 @@ class PrInfo:
         self.so.say(msg)
         self.logger.info(msg)
 
-        # Get merge commit associated to the PPR
-        self.merge_commit = self.pr_merge_commit()
+        # Get merge commit and branch associated with the PPR
+        self.merge_commit, self.branch = self.pr_merge_commit()
         # Get the commits that we need to check
-        self.commits = self.get_commits_after(self.merge_commit)
+        self.commits = self.get_commits_after(self.merge_commit, self.branch)
         if self.merge_commit not in self.commits:
             self.logger.debug("This branch doesn't have this PR merge commit")
-            self.so.say(f"release-{self.version} branch does not include this PR")
+            self.so.say(f"{self.branch} branch does not include this PR")
             return
         self.logger.debug(f'Found commits after {self.merge_commit}: {self.commits}')
 
