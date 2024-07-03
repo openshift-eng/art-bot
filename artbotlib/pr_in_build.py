@@ -209,7 +209,7 @@ class PrInfo:
             sha = json_data["merge_commit_sha"]
             self.logger.info('Found merge commit SHA: %s', sha)
             branch = json_data["base"]["ref"]
-            elf.logger.info('Merge request branch: %s', branch)
+            self.logger.info('Merge request branch: %s', branch)
             return sha, branch
         except KeyError:
             self.logger.error('Commit SHA not found in json data: %s', json_data)
