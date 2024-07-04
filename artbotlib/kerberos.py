@@ -15,7 +15,7 @@ def do_kinit():
 
     if "NEEDS_KINIT" in os.environ:  # check to see if the code is in production environment
         logger.info('Running kinit')
-        cmd = 'kinit -kt /tmp/keytab/keytab ocp-build/buildvm.openshift.eng.bos.redhat.com@IPA.REDHAT.COM'
+        cmd = 'kinit -kt /tmp/keytab/keytab exd-ocp-buildvm-bot-prod@IPA.REDHAT.COM'
         rc, stdout, stderr = exectools.cmd_gather(cmd)
         if rc:
             logger.error('Kerberos error: %s', stderr)
