@@ -248,8 +248,11 @@ class PrInfo:
             if response_data and count > 0:
                 self.logger.info('Found %s builds from commit %s', count, commit)
                 builds = response_data["results"]
-                build_ids = [x["build_0_id"] for x in builds]
-                return sorted(build_ids)
+                build_for_image = {}
+                for image_name, build_id in [(b["build_0_name"], int(b["build_0_id"])) for b in builds]:
+                    if image_name not in build_for_image or build_id < build_for_image[image_name]:
+                        build_for_image[image_name] = build_id
+                return build_for_image.values()
             self.logger.info('Found no builds from commit %s', commit)
 
     def find_builds(self):
@@ -261,24 +264,24 @@ class PrInfo:
         successful_builds = self.build_from_commit(BREW_TASK_STATES["Success"])
         if successful_builds:
             self.logger.info("Found successful builds for given PR")
-            first_success = successful_builds[0]
-            try:
-                nvr = util.get_build_nvr(first_success)
-            except BrewNVRNotFound as e:
-                self.logger.error(f"Could not find NVR from build: {e}")
-                self.so.say("Could not find NVR from build")
-                return
-            self.so.say(
-                f"First successful build: <{BREW_URL}/buildinfo?buildID={first_success}|{nvr}>. All consecutive builds will include this PR.")
+            nvr = None
+            for build in successful_builds:
+                try:
+                    nvr = util.get_build_nvr(build)
+                except BrewNVRNotFound as e:
+                    self.logger.error(f"Could not find NVR from build: {e}")
+                    self.so.say(f"Could not find NVR from buildid {build}")
+                self.so.say(
+                    f"First successful build: <{BREW_URL}/buildinfo?buildID={build}|{nvr}>. All consecutive builds will include this PR.")
             return
 
         self.logger.info("No successful builds found given PR")
         failed_builds = self.build_from_commit(BREW_TASK_STATES["Failure"])
         if failed_builds:
-            first_failure = failed_builds[0]
-            self.logger.info(f"First failed build: {first_failure}")
-            self.so.say(
-                f"No successful build found. First failed build: <{BREW_URL}/buildinfo?buildID={first_failure}|{first_failure}>")
+            for build in failed_builds:
+                self.logger.info(f"First failed build: {build}")
+                self.so.say(
+                    f"No successful build found. First failed build: <{BREW_URL}/buildinfo?buildID={build}|{build}>")
             return
 
         self.logger.info("No builds have run yet.")
