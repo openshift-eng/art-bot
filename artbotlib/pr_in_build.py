@@ -6,6 +6,7 @@ import os
 from collections.abc import Iterable
 
 import requests
+import yaml
 
 import artbotlib.exectools
 from artbotlib import util, pipeline_image_util
@@ -236,6 +237,19 @@ class PrInfo:
 
         return response.json()
 
+    def is_image_for_release(self, image_name):
+        """
+        Exclude images that are not in payloads
+        """
+        url = f'https://raw.githubusercontent.com/openshift-eng/ocp-build-data/openshift-{self.version}/images/{image_name}.yml'
+        response = requests.get(url)
+        if response.status_code == 200:
+            yaml_content = yaml.safe_load(response.text)
+            # Check key value for for_relaese
+            return yaml_content.get('for_release', True)
+        else:
+            self.logger.info(f'response.status_code = {response.status_code}')
+
     def build_from_commit(self, task_state):
         """
         Function to get all the build ids associated with a list of commits
@@ -249,8 +263,9 @@ class PrInfo:
                 self.logger.info('Found %s builds from commit %s', count, commit)
                 builds = response_data["results"]
                 build_for_image = {}
-                for image_name, build_id in [(b["build_0_name"], int(b["build_0_id"])) for b in builds]:
-                    if image_name not in build_for_image or build_id < build_for_image[image_name]:
+                for image_name, build_id, dg_name in [(b["build_0_name"], int(b["build_0_id"]), b["dg_name"]) for b in builds]:
+                    # checks which image to exclude from payload
+                    if self.is_image_for_release(dg_name) and (image_name not in build_for_image or build_id < build_for_image.get(image_name, float('inf'))):
                         build_for_image[image_name] = build_id
                 return build_for_image.values()
             self.logger.info('Found no builds from commit %s', commit)
@@ -263,6 +278,7 @@ class PrInfo:
 
         successful_builds = self.build_from_commit(BREW_TASK_STATES["Success"])
         if successful_builds:
+            self.logger.info(f'*** successful_builds: {successful_builds} ***')
             self.logger.info("Found successful builds for given PR")
             nvr = None
             for build in successful_builds:
