@@ -263,10 +263,10 @@ class PrInfo:
                 self.logger.info('Found %s builds from commit %s', count, commit)
                 builds = response_data["results"]
                 build_for_image = {}
-                for image_name, build_id, dg_name in [(b["build_0_name"], int(b["build_0_id"]), b["dg_name"]) for b in builds]:
+                for image_name, build_id, dg_name, image_nvr in [(b["build_0_name"], int(b["build_0_id"]), b["dg_name"], b["build_0_nvr"]) for b in builds]:
                     # checks which image to exclude from payload
-                    if self.is_image_for_release(dg_name) and (image_name not in build_for_image or build_id < build_for_image.get(image_name, float('inf'))):
-                        build_for_image[image_name] = build_id
+                    if self.is_image_for_release(dg_name) and (image_name not in build_for_image or build_id < build_for_image.get(image_name, float('inf'))[0]):
+                        build_for_image[image_name] = [build_id, image_nvr]
                 return build_for_image.values()
             self.logger.info('Found no builds from commit %s', commit)
 
@@ -280,15 +280,9 @@ class PrInfo:
         if successful_builds:
             self.logger.info(f'*** successful_builds: {successful_builds} ***')
             self.logger.info("Found successful builds for given PR")
-            nvr = None
             for build in successful_builds:
-                try:
-                    nvr = util.get_build_nvr(build)
-                except BrewNVRNotFound as e:
-                    self.logger.error(f"Could not find NVR from build: {e}")
-                    self.so.say(f"Could not find NVR from buildid {build}")
                 self.so.say(
-                    f"First successful build: <{BREW_URL}/buildinfo?buildID={build}|{nvr}>. All consecutive builds will include this PR.")
+                    f"First successful build: <{BREW_URL}/buildinfo?buildID={build[0]}|{build[1]}>. All consecutive builds will include this PR.")
             return
 
         self.logger.info("No successful builds found given PR")
@@ -297,7 +291,7 @@ class PrInfo:
             for build in failed_builds:
                 self.logger.info(f"First failed build: {build}")
                 self.so.say(
-                    f"No successful build found. First failed build: <{BREW_URL}/buildinfo?buildID={build}|{build}>")
+                    f"No successful build found. First failed build: <{BREW_URL}/buildinfo?buildID={build[0]}|{build[1]}>")
             return
 
         self.logger.info("No builds have run yet.")
