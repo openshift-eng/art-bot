@@ -110,6 +110,10 @@ def test_list_component_data_for_release_tag(brew_list_mock):
     so_mock.should_receive('say').once()
     map_command_to_regex(so_mock, query, None)
 
+    query = 'what rpms are associated with 4.10.10'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
 
 def test_invalid_component_types():
     """
@@ -118,9 +122,9 @@ def test_invalid_component_types():
 
     inspector = OutputInspector()
 
-    map_command_to_regex(inspector, 'what rpms are associated with 4.10.10', None)
+    map_command_to_regex(inspector, 'what widgets are associated with 4.10.10', None)
     assert "Sorry, the type of information you want about each component needs to be one of: " \
-           "('nvr', 'distgit', 'commit', 'catalog', 'image')" in inspector.output
+           "('rpm', 'nvr', 'distgit', 'commit', 'catalog', 'image')" in inspector.output
 
 
 @patch('artbotlib.regex_mapping.kernel_info')
