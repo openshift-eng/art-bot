@@ -1,10 +1,12 @@
 import logging
+import os
 import re
 import aiohttp
 import subprocess
 from subprocess import PIPE
 import urllib
 import json
+from typing import Optional
 
 from artbotlib import constants
 from artbotlib import exectools
@@ -41,7 +43,7 @@ class RHCOSBuildInfo:
             "--default",
             "''"
         ]
-        result = subprocess.run(cmd, stdout=PIPE, stderr=PIPE, check=False, universal_newlines=True)
+        result = subprocess.run(cmd, stdout=PIPE, stderr=PIPE, check=False, universal_newlines=True, env=os.environ.copy())
         if result.returncode != 0:
             raise IOError(f"Command {cmd} returned {result.returncode}: stdout={result.stdout}, stderr={result.stderr}")
         match = re.search(r'streams/(.*)/builds', result.stdout)
@@ -85,7 +87,7 @@ class RHCOSBuildInfo:
             raise
 
 
-async def get_rhcos_build_id_from_pullspec(release_img_pullspec: str) -> str:
+async def get_rhcos_build_id_from_pullspec(release_img_pullspec: str) -> Optional[str]:
     """
     Given a nightly or release, return the associated RHCOS build id
 
