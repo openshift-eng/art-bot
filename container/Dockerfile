@@ -5,9 +5,7 @@ LABEL name="art-bot" \
 
 # This build will need to be run inside the firewall to access internal resources.
 # Install Red Hat IT Root CA and RCM repos, runtime dependencies, and upgrade pip
-RUN curl -o /etc/pki/ca-trust/source/anchors/RH-IT-Root-CA.crt --fail -L \
-    https://certs.corp.redhat.com/certs/2015-IT-Root-CA.pem \
- && curl -o /etc/pki/ca-trust/source/anchors/2022-IT-Root-CA.pem --fail -L \
+RUN curl -o /etc/pki/ca-trust/source/anchors/2022-IT-Root-CA.pem --fail -L \
     https://certs.corp.redhat.com/certs/2022-IT-Root-CA.pem \
  && update-ca-trust extract \
  && curl -o /etc/yum.repos.d/rcm-tools-fedora.repo https://download.devel.redhat.com/rel-eng/RCMTOOLS/rcm-tools-fedora.repo \
