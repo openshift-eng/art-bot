@@ -267,7 +267,7 @@ def mass_rebuild_status(so):
 
     async def check_enqueued():
         # Check for enqueued mass rebuilds
-        result = await redis.call('zrange', Keys.MASS_REBUILD_QUEUE.value, 0, -1, desc=True)
+        result = await redis.call('zrange', Keys.BREW_MASS_REBUILD_QUEUE.value, 0, -1, desc=True)
         if not result:
             output.append('No mass rebuild currently enqueued')
         else:
