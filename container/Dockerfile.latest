@@ -18,10 +18,10 @@ RUN git config --global --add safe.directory /workspaces/art-bot/art-tools
 
 # Looks like we need a USER 0 here
 USER 0
-# Clone art-tools and run install.sh script
+# Clone art-tools and install all dependencies
 RUN cd art-tools \
  && git pull \
- && ./install.sh
+ && pip install -e artcommon/ -e doozer/ -e elliott/ -e pyartcd/ -e ocp-build-data-validator/
 
 # Install dependencies from requirements.txt
 COPY requirements.txt ./

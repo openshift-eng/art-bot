@@ -51,8 +51,7 @@ WORKDIR /workspaces/art-bot
 # Fixes issue "ERROR: Cannot uninstall requests 2.25.1, RECORD file not found. Hint: The package was installed by rpm."
 RUN rpm -e --nodeps python3-requests
 
-# Clone art-tools and run install.sh script
-# Also install uv needed by art-tools install script
+# Clone art-tools install dependencies
 RUN git clone https://github.com/openshift-eng/art-tools.git art-tools \
  && cd art-tools \
  && pip install -e artcommon/ -e doozer/ -e elliott/ -e pyartcd/ -e ocp-build-data-validator/
