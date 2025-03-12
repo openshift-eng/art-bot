@@ -52,7 +52,9 @@ WORKDIR /workspaces/art-bot
 RUN rpm -e --nodeps python3-requests
 
 # Clone art-tools and run install.sh script
+# Also install uv needed by art-tools install script
 RUN git clone https://github.com/openshift-eng/art-tools.git art-tools \
+ && curl -LsSf https://astral.sh/uv/install.sh | sh \
  && cd art-tools \
  && ./install.sh
 
