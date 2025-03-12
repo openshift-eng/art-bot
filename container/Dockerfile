@@ -55,6 +55,7 @@ RUN rpm -e --nodeps python3-requests
 # Also install uv needed by art-tools install script
 RUN git clone https://github.com/openshift-eng/art-tools.git art-tools \
  && curl -LsSf https://astral.sh/uv/install.sh | sh \
+ && source $HOME/.local/bin/env \
  && cd art-tools \
  && ./install.sh
 
