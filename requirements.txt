@@ -1,17 +1,7 @@
-koji
-slack_sdk==3.19.1
 cachetools
-aiohttp>=3.9.2
-requests_kerberos
-PyYAML
-slack_bolt==1.15.1
-pip_system_certs
+slack_bolt
 fuzzywuzzy
 python-Levenshtein
 artcommon @ git+https://github.com/openshift-eng/art-tools.git@main#subdirectory=artcommon
 rh-doozer @ git+https://github.com/openshift-eng/art-tools.git@main#subdirectory=doozer
 pyartcd @ git+https://github.com/openshift-eng/art-tools.git@main#subdirectory=pyartcd
-mysql-connector-python>=8.4.0 # not directly required, pinned by Snyk to avoid a vulnerability
-requests>=2.32.2 # not directly required, pinned by Snyk to avoid a vulnerability
-urllib3>=2.2.2 # not directly required, pinned by Snyk to avoid a vulnerability
-zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
