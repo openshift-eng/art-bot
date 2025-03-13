@@ -232,7 +232,7 @@ def map_command_to_regex(so, plain_text, user_id):
             "example": "timestamp for brew event 55331468"
         },
         {
-            "regex": "^(?P<build_system>[a-zA-Z0-9-]+) mass rebuild status$",
+            "regex": "^((?P<build_system>[a-zA-Z0-9-]+) )?mass rebuild status$",
             "flag": re.I,
             "function": mass_rebuild_status,
             "example": "mass rebuild status"

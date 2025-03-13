@@ -255,7 +255,7 @@ def alert_on_build_complete(so, user_id, build_id):
 
 
 def mass_rebuild_status(so, build_system: str):
-    build_system = build_system.lower()
+    build_system = build_system.lower() if build_system else 'brew'
     if build_system.lower() not in ['brew', 'konflux']:
         so.say(f'Invalid build system "{build_system}. Valid values are ("brew", "konflux")')
         return
