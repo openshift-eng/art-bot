@@ -254,12 +254,24 @@ def alert_on_build_complete(so, user_id, build_id):
         variables.active_slack_objects.remove(so)
 
 
-def mass_rebuild_status(so):
+def mass_rebuild_status(so, build_system: str):
+    build_system = build_system.lower()
+    if build_system.lower() not in ['brew', 'konflux']:
+        so.say(f'Invalid build system "{build_system}. Valid values are ("brew", "konflux")')
+        return
+
+    if build_system.lower() == 'brew':
+        lock = Lock.MASS_REBUILD.value
+        key = Keys.BREW_MASS_REBUILD_QUEUE.value
+    else:  # build_system.lower() == 'konflux'
+        lock = Lock.KONFLUX_MASS_REBUILD.value
+        key = Keys.KONFLUX_MASS_REBUILD_QUEUE.value
+
     output = []
 
     async def check_active():
         # Check for active mass rebuild
-        job_path = await redis.get_value(Lock.MASS_REBUILD.value)
+        job_path = await redis.get_value(lock)
         if not job_path:
             output.append('No mass rebuild currently running')
         else:
@@ -267,7 +279,7 @@ def mass_rebuild_status(so):
 
     async def check_enqueued():
         # Check for enqueued mass rebuilds
-        result = await redis.call('zrange', Keys.BREW_MASS_REBUILD_QUEUE.value, 0, -1, desc=True)
+        result = await redis.call('zrange', key, 0, -1, desc=True)
         if not result:
             output.append('No mass rebuild currently enqueued')
         else:
