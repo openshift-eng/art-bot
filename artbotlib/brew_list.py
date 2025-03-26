@@ -264,6 +264,7 @@ def list_components_for_major_minor(so, major, minor):
     )
 
 
+@util.refresh_krb_auth
 def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
     """
     List all of the uses for a list of RPMs or packages,
