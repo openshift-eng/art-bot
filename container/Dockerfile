@@ -5,6 +5,7 @@ LABEL name="art-bot" \
 
 # This build will need to be run inside the firewall to access internal resources.
 # Install Red Hat IT Root CA and RCM repos, runtime dependencies, and upgrade pip
+# Install Red Hat IT Root CA and RCM repos, runtime dependencies, and upgrade pip
 RUN curl -o /etc/pki/ca-trust/source/anchors/2022-IT-Root-CA.pem --fail -L \
     https://certs.corp.redhat.com/certs/2022-IT-Root-CA.pem \
  && update-ca-trust extract \
@@ -12,16 +13,25 @@ RUN curl -o /etc/pki/ca-trust/source/anchors/2022-IT-Root-CA.pem --fail -L \
  && dnf install -y \
     # runtime dependencies
     krb5-workstation git rsync \
-    python3 python3-certifi python3-rpm python3-rhmsg \
+    python3.11 python3-certifi python3-rpm python3-rhmsg \
     # development dependencies
-    gcc krb5-devel python3-devel python3-pip \
+    gcc krb5-devel python3.11-devel python3-pip \
+    # rust and maturin for pydantic-core build
+    rust cargo \
     # other tools
     bash-completion vim tmux wget curl iputils procps-ng psmisc net-tools iproute \
     # install brewkoji
     koji brewkoji \
  && dnf clean all \
+    # install pip manually for python3.11
+ && curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
+ && python3.11 get-pip.py \
+ && rm get-pip.py \
     # upgrade pip
- && pip3 install --upgrade pip
+ && python3.11 -m pip install --upgrade pip \
+    # Install maturin for building Rust extensions
+ && pip install maturin
+
 
 # Install OpenShift Client
 ARG OC_VERSION=candidate
@@ -49,7 +59,7 @@ RUN groupadd --gid "$USER_GID" "$USERNAME" \
 WORKDIR /workspaces/art-bot
 
 # Fixes issue "ERROR: Cannot uninstall requests 2.25.1, RECORD file not found. Hint: The package was installed by rpm."
-RUN rpm -e --nodeps python3-requests
+#RUN rpm -e --nodeps python3-requests
 
 # Clone art-tools install dependencies
 RUN git clone https://github.com/openshift-eng/art-tools.git art-tools \
