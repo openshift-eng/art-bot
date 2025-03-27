@@ -4,7 +4,7 @@ FROM art-bot:base
 # update just doozer, elliott, and art-bot.
 
 # Update pip once in the start of this build
-RUN pip3 install --upgrade pip
+RUN python3.11 -m pip install --upgrade pip
 
 # use same non-root user from the initial install
 ARG USERNAME=dev
@@ -21,11 +21,11 @@ USER 0
 # Clone art-tools and install all dependencies
 RUN cd art-tools \
  && git pull \
- && pip install -e artcommon/ -e doozer/ -e elliott/ -e pyartcd/ -e ocp-build-data-validator/
+ && python3.11 -m pip install -e artcommon/ -e doozer/ -e elliott/ -e pyartcd/ -e ocp-build-data-validator/
 
 # Install dependencies from requirements.txt
 COPY requirements.txt ./
-RUN pip3 install --upgrade -r requirements.txt
+RUN python3.11 -m pip install --upgrade -r requirements.txt
 
 # Install art-bot and default configs
 COPY container/krb5-redhat.conf /etc/krb5.conf
