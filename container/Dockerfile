@@ -7,7 +7,7 @@ LABEL name="art-bot" \
 # Install Red Hat IT Root CA and RCM repos, runtime dependencies, and upgrade pip
 # Install Red Hat IT Root CA and RCM repos, runtime dependencies, and upgrade pip
 RUN curl -o /etc/pki/ca-trust/source/anchors/2022-IT-Root-CA.pem --fail -L \
-    https://certs.corp.redhat.com/certs/2022-IT-Root-CA.pem \
+    https://certs.corp.redhat.com/certs/Current-IT-Root-CAs.pem \
  && update-ca-trust extract \
  && curl -o /etc/yum.repos.d/rcm-tools-fedora.repo https://download.devel.redhat.com/rel-eng/RCMTOOLS/rcm-tools-fedora.repo \
  && dnf install -y \
