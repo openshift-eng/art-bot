@@ -69,4 +69,4 @@ RUN git clone https://github.com/openshift-eng/art-tools.git art-tools \
  && cd art-tools \
  && /workspaces/art-bot/venv/bin/python -m pip install artcommon/ -e doozer/ -e elliott/ -e pyartcd/ -e ocp-build-data-validator/ \
  && cd .. \
- && rm -rf art-tools \
+ && rm -rf art-tools
