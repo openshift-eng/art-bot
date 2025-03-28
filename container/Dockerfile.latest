@@ -26,3 +26,4 @@ RUN cp -r /tmp/art-bot/{artbotlib,art-bot.py,art_bot_dev.py} . \
 
 # Switch back to the non-root user and final work directory
 USER "$USER_UID"
+ENV PATH="/workspaces/art-bot/venv/bin:${PATH}"
