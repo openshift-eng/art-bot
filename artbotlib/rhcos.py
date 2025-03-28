@@ -33,7 +33,7 @@ class RHCOSBuildInfo:
 
     def _get_stream(self):
         # doozer --quiet -g openshift-4.14 config:read-group urls.rhcos_release_base.multi --default ''
-        # https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/storage/prod/streams/4.14-9.2/builds
+        # https://releases-rhcos--prod-pipeline.apps.int.prod-stable-spoke1-dc-iad2.itup.redhat.com/storage/prod/streams/4.14-9.2/builds
         cmd = [
             "doozer",
             "--quiet",
@@ -124,7 +124,7 @@ def rhcos_build_urls(ocp_version, build_id, arch="x86_64"):
     base url for a release stream in the release browser
     @param build_id  the RHCOS build id string (e.g. "46.82.202009222340-0")
     @param arch      architecture we are interested in (e.g. "s390x")
-    @return e.g.: https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com/?stream=releases/rhcos-4.6&release=46.82.202009222340-0#46.82.202009222340-0
+    @return e.g.: https://releases-rhcos--prod-pipeline.apps.int.prod-stable-spoke1-dc-iad2.itup.redhat.com/?stream=releases/rhcos-4.6&release=46.82.202009222340-0#46.82.202009222340-0
     """
 
     arch = constants.RC_ARCH_TO_RHCOS_ARCH.get(arch, arch)

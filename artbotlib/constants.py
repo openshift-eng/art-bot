@@ -1,6 +1,6 @@
 from string import Template
 
-RHCOS_BASE_URL = "https://releases-rhcos-art.apps.ocp-virt.prod.psi.redhat.com"
+RHCOS_BASE_URL = "https://releases-rhcos--prod-pipeline.apps.int.prod-stable-spoke1-dc-iad2.itup.redhat.com"
 
 COLOR_MAPS = {
     'Accepted': 'Green',
