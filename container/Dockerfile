@@ -27,8 +27,6 @@ RUN curl -o /etc/pki/ca-trust/source/anchors/Current-IT-Root-CAs.pem --fail -L \
  && curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
  && python3.11 get-pip.py \
  && rm get-pip.py \
-    # upgrade pip
- && python3.11 -m pip install --upgrade pip \
     # Install maturin for building Rust extensions
  && pip install maturin
 
@@ -58,25 +56,17 @@ RUN groupadd --gid "$USER_GID" "$USERNAME" \
 # Set work directory
 WORKDIR /workspaces/art-bot
 
-# Fixes issue "ERROR: Cannot uninstall requests 2.25.1, RECORD file not found. Hint: The package was installed by rpm."
-#RUN rpm -e --nodeps python3-requests
-
-# Clone art-tools install dependencies
-RUN git clone https://github.com/openshift-eng/art-tools.git art-tools \
- && cd art-tools \
- && pip install -e artcommon/ -e doozer/ -e elliott/ -e pyartcd/ -e ocp-build-data-validator/
-
-# Install dependencies from requirements.txt
-COPY requirements.txt ./
-RUN pip3 install --upgrade -r requirements.txt
-
-# Install art-bot and default configs
-COPY container/krb5-redhat.conf /etc/krb5.conf
-COPY . /tmp/art-bot
-RUN cp -r /tmp/art-bot/{artbotlib,art-bot.py,art_bot_dev.py} . \
- && cp /tmp/art-bot/container/doozer-settings.yaml /home/"$USERNAME"/.config/doozer/settings.yaml \
- && cp /tmp/art-bot/container/elliott-settings.yaml /home/"$USERNAME"/.config/elliott/settings.yaml \
- && rm -rf /tmp/art-bot
-
 # Set non-root user
 USER "$USER_UID"
+
+# Create a virtual environment
+RUN python3.11 -m venv venv \
+  # upgrade pip
+  && /workspaces/art-bot/venv/bin/python -m pip install --upgrade pip
+
+# Clone art-tools and install dependencies
+RUN git clone https://github.com/openshift-eng/art-tools.git art-tools \
+ && cd art-tools \
+ && /workspaces/art-bot/venv/bin/python -m pip install artcommon/ -e doozer/ -e elliott/ -e pyartcd/ -e ocp-build-data-validator/ \
+ && cd .. \
+ && rm -rf art-tools \
