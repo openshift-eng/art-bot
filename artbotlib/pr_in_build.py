@@ -263,7 +263,7 @@ class PrInfo:
                 self.logger.info('Found %s builds from commit %s', count, commit)
                 builds = response_data["results"]
                 build_for_image = {}
-                for image_name, build_id, dg_name, image_nvr in [(b["build_0_name"], int(b["build_0_id"]), b["dg_name"], b["build_0_nvr"]) for b in builds]:
+                for image_name, build_id, dg_name, image_nvr in [(b["build_0_name"], int(b["build_0_id"]), b["dg_name"], b["build_0_nvr"]) for b in builds if b['incomplete']==False ]:
                     # checks which image to exclude from payload
                     if self.is_image_for_release(dg_name) and (image_name not in build_for_image or build_id < build_for_image.get(image_name, float('inf'))[0]):
                         build_for_image[image_name] = [build_id, image_nvr]
