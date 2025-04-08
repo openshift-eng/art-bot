@@ -91,7 +91,7 @@ def respond(client, event):
         from_channel = data['channel']
 
         # Get the id of the Slack user associated with the incoming event
-        user_id = data['user'] if data.get('user', None) else data['messgae']['user']
+        user_id = data.get('user', data['message']['user'])
         ts = data['ts']
         thread_ts = data.get('thread_ts', ts)
 
