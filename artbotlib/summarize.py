@@ -8,6 +8,7 @@ def summarize_thread(so, thread_url: str):
     params = {
         "url": thread_url
     }
+    so.say('Generating summary, this will take a while...')
     response = requests.get(url, params=params)
 
     if response.status_code != 200:
@@ -26,6 +27,9 @@ def summarize_art_attention_threads(so):
         return
     summaries = response.json()
 
-    so.say('Here are the ART important threads summarized:')
-    for item in summaries:
-        so.say(f'- {item["permalink"]}:\n{item["summary"]}\n\n')
+    if summaries:
+        so.say('Here are the ART important threads summarized:')
+        for item in summaries:
+            so.say(f'- {item["permalink"]}:\n{item["summary"]}\n\n')
+    else:
+        so.say('No ART important threads found.')
