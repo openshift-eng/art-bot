@@ -4,7 +4,7 @@ import re
 from artbotlib import brew_list, elliott, brew
 from artbotlib.buildinfo import buildinfo_for_release, alert_on_build_complete, mass_rebuild_status
 from artbotlib.pr_status import pr_status
-from artbotlib.summarize import summarize_thread
+from artbotlib.summarize import summarize_thread, summarize_art_attention_threads
 from artbotlib.taskinfo import alert_on_task_complete
 from artbotlib.constants import PROW_BASE_URL
 from artbotlib.help import greet_user, show_help
@@ -348,6 +348,13 @@ def map_command_to_regex(so, plain_text, user_id):
             "function": summarize_thread,
             "user_id": False,
             "example": "Summarize https://redhat-internal.slack.com/archives/CB95J6R4N/p1745408504674989"
+        },
+        {
+            "regex": r"^Summarize art threads$",
+            "flag": re.I,
+            "function": summarize_art_attention_threads,
+            "user_id": False,
+            "example": "Summarize art threads"
         },
     ]
     matched = match_and_execute(so, plain_text, user_id, regex_maps)
