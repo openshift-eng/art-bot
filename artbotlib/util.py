@@ -5,9 +5,16 @@ import logging
 import functools
 import requests
 import os
+import json
+import yaml
+from urllib.parse import quote
 from threading import RLock
 from artbotlib.exceptions import BrewNVRNotFound
 from artbotlib.kerberos import do_kinit
+from artbotlib.constants import RHCOS_ARCH_TO_RC_ARCH
+import artbotlib.exectools
+
+from typing import Optional, cast
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +153,56 @@ def get_build_nvr(build_id):
         raise BrewNVRNotFound(e)
 
 
+def extract_file_from_image(image_pullspec: str, file_path: str, temp_dir: str) -> Optional[str]:
+    """
+    Extract a file from a container image using oc image extract.
+
+    :param image_pullspec: Container image pullspec
+    :param file_path: Path to file inside the container
+    :param temp_dir: Local directory to extract file to
+    :return: Path to extracted file or None if failed
+    """
+    try:
+        rc, _, stderr = artbotlib.exectools.cmd_gather(
+            f"oc image extract {image_pullspec} --path {file_path}:{temp_dir} --confirm"
+        )
+        if rc:
+            logger.error('Error extracting %s from %s: %s', file_path, image_pullspec, stderr)
+            return None
+
+        # Return the full path to the extracted file
+        filename = os.path.basename(file_path)
+        return os.path.join(temp_dir, filename)
+
+    except Exception as e:
+        logger.error('Error extracting %s from %s: %s', file_path, image_pullspec, e)
+        return None
+
+
+def get_image_labels(image_pullspec: str, arch="x86_64") -> Optional[dict[str, str]]:
+    """
+    Get labels from a container image using oc image info.
+
+    :param image_pullspec: Container image pullspec
+    :return: Dict of labels or None if failed
+    """
+    arch = RHCOS_ARCH_TO_RC_ARCH[arch]
+    try:
+        rc, stdout, stderr = artbotlib.exectools.cmd_gather(
+            f"oc image info --filter-by-os {arch} {image_pullspec} -o json"
+        )
+        if rc != 0:
+            logger.error('Failed to get image info for %s: %s', image_pullspec, stderr)
+            return None
+
+        image_info = json.loads(stdout)
+        return image_info['config']['config']['Labels']
+
+    except Exception as e:
+        logger.error('Exception getting labels from %s: %s', image_pullspec, e)
+        return None
+
+
 def github_api_all(url: str):
     """
     GitHub API paginates results. This function goes through all the pages and returns everything.
@@ -171,3 +228,10 @@ def github_api_all(url: str):
         results += response.json()
         num_requests += 1
     return results
+
+
+def _get_raw_group_config(group):
+    response = requests.get(f"https://raw.githubusercontent.com/openshift/ocp-build-data/{quote(group)}/group.yml")
+    response.raise_for_status()
+    raw_group_config = cast(dict, yaml.safe_load(response.text))
+    return raw_group_config
