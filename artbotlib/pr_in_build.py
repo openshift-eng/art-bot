@@ -351,6 +351,13 @@ class PrInfo:
 
         # Get merge commit and branch associated with the PPR
         self.merge_commit, self.branch = self.pr_merge_commit()
+
+        # Handle closed PRs
+        if self.merge_commit is None:
+            self.logger.debug("PR has been closed without being merged")
+            self.so.say(f"{self.branch} branch does not include this PR")
+            return
+
         # Get the commits that we need to check
         self.commits = self.get_commits_after(self.merge_commit, self.branch)
         if self.merge_commit not in self.commits:
