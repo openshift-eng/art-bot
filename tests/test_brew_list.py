@@ -3,7 +3,7 @@ import pytest
 from mock import Mock
 from unittest.mock import patch, MagicMock
 
-from artbotlib import brew_list, constants, rhcos
+from artbotlib import brew_list, constants, rhcos, util
 
 
 @pytest.mark.parametrize("params, expected",
@@ -23,7 +23,7 @@ def test_rhcos_build_url(params, expected):
 @patch("requests.get")
 def test_get_raw_group_config(get):
     get.return_value.text = '{"vars": {"MAJOR": 4, "MINOR": 10 }}'
-    assert brew_list._get_raw_group_config("4.10") == {"vars": {"MAJOR": 4, "MINOR": 10}}
+    assert util._get_raw_group_config("4.10") == {"vars": {"MAJOR": 4, "MINOR": 10}}
 
 
 @patch("requests.get")
@@ -43,7 +43,7 @@ def test_get_et_config(get):
 
 
 @patch("artbotlib.brew_list._get_et_config")
-@patch("artbotlib.brew_list._get_raw_group_config")
+@patch("artbotlib.util._get_raw_group_config")
 def test_tags_for_version(_get_raw_group_config: Mock, _get_et_config: Mock):
     major, minor = 4, 10
     _get_raw_group_config.return_value = {"vars": {"MAJOR": major, "MINOR": minor}}
@@ -84,7 +84,7 @@ def test_rhcos_latest_build_id(mock_urlopen, content, expected):
 @patch('urllib.request.urlopen')
 @pytest.mark.parametrize("content, expected",
                          [
-                             [b'{ }', dict()],
+                             [b'{ }', {"build-id": "dummy", "rpms": set()}],
                              [
                                  b'''{
                                        "rpmostree.rpmdb.pkglist" : [
@@ -109,12 +109,78 @@ def test_rhcos_latest_build_id(mock_urlopen, content, expected):
                              ],
                          ]
                          )
-def test_find_latest_rhcos_build_rpms(mock_urlopen, content, expected):
+def test_find_latest_rhcos_build_rpms_non_layered(mock_urlopen, content, expected):
+    """Test non-layered RHCOS RPM discovery"""
     so = MagicMock()
+    flexmock.flexmock(rhcos.util).should_receive("_get_raw_group_config").and_return({
+        "rhcos": {"layered_rhcos": False},
+        "vars": {"RHCOS_EL_MAJOR": "8", "RHCOS_EL_MINOR": "6"}
+    })
     flexmock.flexmock(rhcos.RHCOSBuildInfo, _get_stream="dummy")
     flexmock.flexmock(rhcos.RHCOSBuildInfo, latest_build_id="dummy")
     _urlopen_cm(mock_urlopen, content)
     assert expected == brew_list._find_rhcos_build_rpms(so, "m_m")
+
+
+@patch('artbotlib.util.get_image_labels')
+@patch('artbotlib.util.extract_file_from_image')
+@patch('urllib.request.urlopen')
+def test_find_latest_rhcos_build_rpms_layered(mock_urlopen, mock_extract_file, mock_get_labels):
+    """Test layered RHCOS RPM discovery"""
+    so = MagicMock()
+
+    flexmock.flexmock(rhcos.util).should_receive("_get_raw_group_config").and_return({
+        "rhcos": {"layered_rhcos": True},
+        "vars": {"RHCOS_EL_MAJOR": "9", "RHCOS_EL_MINOR": "6"}
+    })
+    flexmock.flexmock(rhcos.RHCOSBuildInfo, _get_stream="dummy")
+
+    mock_get_labels.side_effect = [
+        {"coreos.build.manifest-list-tag": "dummy-node-image-extensions"},  # For latest_build_id
+        {"org.opencontainers.image.version": "9.6.20250611-0"}  # For node image labels
+    ]
+
+    mock_extract_file.side_effect = [
+        "/tmp/extensions.json",
+        "/tmp/meta.json",
+    ]
+
+    # Mock file contents and JSON loading
+    with patch('builtins.open'), patch('json.load', side_effect=[
+        # extensions.json content
+        {"NetworkManager-libreswan": "1.2.24-1.el9.aarch64", "libreswan": "5.2-1.el9fdp.aarch64"},
+        # meta.json content
+        {"rpmdb.pkglist": [
+            ["cri-o", "0", "1.32.6", "5.rhaos4.19.git03afa42.el9", "aarch64"],
+            ["cri-tools", "0", "1.32.0", "2.el9", "aarch64"]
+        ]}
+    ]):
+
+        rhel_commitmeta_content = b'''{
+            "rpmostree.rpmdb.pkglist": [
+                ["kernel", "0", "5.14.0", "570.35.1.el9_6", "x86_64"],
+                ["kernel-core", "0", "5.14.0", "570.35.1.el9_6", "x86_64"]
+            ]
+        }'''
+        _urlopen_cm(mock_urlopen, rhel_commitmeta_content)
+
+        expected = {
+            "build-id": "dummy",
+            "rpms": {
+                # RHEL Layer RPMs
+                "kernel-5.14.0-570.35.1.el9_6",
+                "kernel-core-5.14.0-570.35.1.el9_6",
+                # Node layer RPMs
+                "cri-o-1.32.6-5.rhaos4.19.git03afa42.el9",
+                "cri-tools-1.32.0-2.el9",
+                # Extensions layer RPMs
+                "NetworkManager-libreswan-1.2.24-1.el9",
+                "libreswan-5.2-1.el9fdp"
+            }
+        }
+
+        result = brew_list._find_rhcos_build_rpms(so, "4.19")
+        assert expected == result
 
 
 @pytest.mark.parametrize("pkg_name, tag1_builds, tag2_builds, tag1_rpms, tag2_rpms, expected",

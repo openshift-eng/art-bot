@@ -3,7 +3,6 @@ import fnmatch
 import json
 import logging
 import re
-import urllib.request
 from typing import cast, Dict, List, Set
 from urllib.parse import quote
 
@@ -190,8 +189,15 @@ NOTE:
         if not rhcos_build_id:
             payload += "ERROR: Unable to retrieve RHCOS payload information; listing will not be complete."
         else:
-            major_minor_nodot = rhcos_build_id.split(".")[0]  # '412.86.202212170457' => '412'
-            major_minor = major_minor_nodot[0] + '.' + major_minor_nodot[1:]  # "412" => "4.12"
+            # Layered format
+            if rhcos_build_id.count("-") > 1:
+                major_minor = rhcos_build_id.split("-")[0]
+
+            # Non layered format
+            else:
+                major_minor_nodot = rhcos_build_id.split(".")[0]  # '412.86.202212170457' => '412'
+                major_minor = major_minor_nodot[0] + '.' + major_minor_nodot[1:]  # "412" => "4.12"
+
             flat_results.extend(_find_rhcos_build_rpms(so, major_minor, build_id=rhcos_build_id)['rpms'])
 
         dedupe = set()
@@ -427,14 +433,11 @@ def _find_rhcos_build_rpms(so, major_minor, arch="x86_64", build_id=None) -> dic
         build_id = build_id or rhcos_build_info.latest_build_id(arch)
         if not build_id:
             return dict()
-        metadata = rhcos_build_info.build_metadata(build_id, arch)
-        if metadata == {}:
-            return dict()
-        rpms = metadata["rpmostree.rpmdb.pkglist"]
+        rpms = rhcos_build_info.find_rhcos_rpms(build_id=build_id, arch=arch)
         logger.info('Found %s rpms', len(rpms))
         return {
             'build-id': build_id,
-            'rpms': set(f"{n}-{v}-{r}" for n, e, v, r, a in rpms)
+            'rpms': rpms
         }
 
     except Exception as ex:
@@ -442,13 +445,6 @@ def _find_rhcos_build_rpms(so, major_minor, arch="x86_64", build_id=None) -> dic
         so.say("Encountered error looking up the latest RHCOS build RPMs.")
         so.monitoring_say(f"Encountered error looking up the latest RHCOS build RPMs: {ex}")
         return dict()
-
-
-def _get_raw_group_config(group):
-    response = requests.get(f"https://raw.githubusercontent.com/openshift/ocp-build-data/{quote(group)}/group.yml")
-    response.raise_for_status()
-    raw_group_config = cast(dict, yaml.safe_load(response.text))
-    return raw_group_config
 
 
 def _get_et_config(group: str, replace_vars: Dict[str, str]):
@@ -460,7 +456,7 @@ def _get_et_config(group: str, replace_vars: Dict[str, str]):
 
 def _tags_for_version(major_minor):
     group = f"openshift-{major_minor}"
-    raw_group_config = _get_raw_group_config(group)
+    raw_group_config = util._get_raw_group_config(group)
     replace_vars = raw_group_config.get("vars", {})
     et_config = _get_et_config(group, replace_vars=replace_vars)
     tag_pv_mapping = et_config.get("brew_tag_product_version_mapping", {})

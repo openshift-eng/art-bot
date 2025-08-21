@@ -74,11 +74,9 @@ class KernelInfo:
 
         # Fetch RHCOS build metadata
         rhcos_build_info = rhcos.RHCOSBuildInfo(ocp_version=util.ocp_version_from_release_img(self.release_img))
-        metadata = rhcos_build_info.build_metadata(
-            rhcos_build_id, constants.RC_ARCH_TO_RHCOS_ARCH[self.arch])
-        pkg_list = metadata['rpmostree.rpmdb.pkglist']
+        pkg_list = rhcos_build_info.find_rhcos_rpms(build_id=rhcos_build_id)
         kernel_core = [pkg for pkg in pkg_list if 'kernel-core' in pkg][0]
-        rpms.append(f'kernel-core.{".".join(kernel_core[2:])}')
+        rpms.append(kernel_core)
 
         return {
             'name': 'rhcos',
