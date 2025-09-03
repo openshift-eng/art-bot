@@ -2,8 +2,10 @@ import random
 
 
 def greet_user(so):
-    greetings = ["Hi", "Hey", "Hello", "Howdy", "What's up", "Yo", "Greetings", "G'day", "Mahalo"]
-    so.say(f"{greetings[random.randint(1, len(greetings)) - 1]}, {so.from_user_mention()}")
+    greetings = ["Hi", "Hey", "Hello", "Howdy",
+                 "What's up", "Yo", "Greetings", "G'day", "Mahalo"]
+    so.say(f"{greetings[random.randint(1, len(greetings)) - 1]
+              }, {so.from_user_mention()}")
 
 
 def show_help(so):
@@ -37,7 +39,7 @@ _*ART build info:*_
 * pr info `GitHub PR URL` [component `name`] in `major.minor` [for `arch`]
 * (go|golang) version (for|of) `nvr'
 * timestamp (for|of) brew event `brew-event`
-* (brew|konflux) mass rebuild status
+* mass rebuild status
 
 _*misc:*_
 * How can I get ART to build a new image?

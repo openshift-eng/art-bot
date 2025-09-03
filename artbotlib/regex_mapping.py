@@ -24,7 +24,8 @@ def recommend_command(plain_text, patterns):
     - plain_text: the input command text.
     - patterns: known command patterns for comparison.
     """
-    command_tokens = set(re.findall(r"[\w']+", plain_text.lower()))  # Tokenizing the input
+    command_tokens = set(re.findall(
+        r"[\w']+", plain_text.lower()))  # Tokenizing the input
 
     def evaluate_match(example):
         # Inner function to calculate match score between input and known command example
@@ -33,10 +34,12 @@ def recommend_command(plain_text, patterns):
         common_tokens_count = len(common_tokens)
 
         # Special weight scores for certain tokens
-        weights = {"pr": 3, "info": 2, "watch": 5, "where": 70, "in": 70, "rpm": 30, "used": 20}
+        weights = {"pr": 3, "info": 2, "watch": 5,
+                   "where": 70, "in": 70, "rpm": 30, "used": 20}
 
         # Calculate adjusted score considering weights
-        common_token_weights = [weights.get(token, 1) for token in common_tokens]
+        common_token_weights = [weights.get(
+            token, 1) for token in common_tokens]
         adjusted_score = sum(common_token_weights)
 
         # Calculate how closely the input matches the example using FuzzyWuzzy
@@ -50,7 +53,8 @@ def recommend_command(plain_text, patterns):
         return common_tokens_count + adjusted_score + fuzziness_score
 
     # Find the highest scoring pattern
-    patterns = sorted(patterns, key=lambda p: evaluate_match(p["example"]), reverse=True)
+    patterns = sorted(patterns, key=lambda p: evaluate_match(
+        p["example"]), reverse=True)
 
     closest_match_pattern = patterns[0]
     closest_match_example = closest_match_pattern["example"]
@@ -59,7 +63,8 @@ def recommend_command(plain_text, patterns):
     repo_match = re.search(r"https://github.com/([\w-]+)/([\w-]+)", plain_text)
     if repo_match:
         repo_name = repo_match.group(2)
-        closest_match_example = closest_match_example.replace("{repo}", repo_name)
+        closest_match_example = closest_match_example.replace(
+            "{repo}", repo_name)
 
     # Suggest the closest match or prompt for 'help'
     return f"I couldn't understand that. For reference, here's an example of a valid command:'{closest_match_example}?' Try following this format or write 'help' to see what I can do!"
@@ -74,7 +79,8 @@ def match_and_execute(so, plain_text, user_id, regex_maps):
     - regex_maps: mapping of regex patterns to corresponding functions.
     """
     for r in regex_maps:
-        m = re.match(r["regex"], plain_text, r["flag"])  # Try to match text with current pattern
+        # Try to match text with current pattern
+        m = re.match(r["regex"], plain_text, r["flag"])
         if m:
             # If user_id is required, pass it to the function, otherwise call function with matched groups
             if r.get("user_id", False):
@@ -95,7 +101,9 @@ def handle_unmatched_command(so, plain_text, regex_maps):
     if recommended_command:
         so.say(recommended_command)  # Suggest a command
     else:
-        so.say(f"'{plain_text}' did not match any known commands. Write 'help' to see what I can do!")  # Inform user of no match
+        # Inform user of no match
+        so.say(f"'{
+               plain_text}' did not match any known commands. Write 'help' to see what I can do!")
 
 
 def map_command_to_regex(so, plain_text, user_id):
@@ -233,7 +241,7 @@ def map_command_to_regex(so, plain_text, user_id):
             "example": "timestamp for brew event 55331468"
         },
         {
-            "regex": "^((?P<build_system>[a-zA-Z0-9-]+) )?mass rebuild status$",
+            "regex": "^mass rebuild status$",
             "flag": re.I,
             "function": mass_rebuild_status,
             "example": "mass rebuild status"
