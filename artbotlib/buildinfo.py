@@ -45,8 +45,10 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
     logger.info('Retrieving pullspec for release image %s', release_img)
     release_img_pullspec, release_img_text = get_img_pullspec(release_img)
     if not release_img_pullspec:
-        logger.error('Only pullspecs for quay.io or registry.ci.openshift.org can be looked up')
-        so.say("Sorry, I can only look up pullspecs for quay.io or registry.ci.openshift.org")
+        logger.error(
+            'Only pullspecs for quay.io or registry.ci.openshift.org can be looked up')
+        so.say(
+            "Sorry, I can only look up pullspecs for quay.io or registry.ci.openshift.org")
         return None, None, None
 
     # Get image pullspec
@@ -96,11 +98,13 @@ def buildinfo_for_release(so, name, release_img):
             'registry.ci.openshift.org/ocp/release:4.11.0-0.nightly-2022-07-11-080250', '4.10.22'
     """
 
-    img_name = "machine-os-content" if name == "rhcos" else name  # rhcos shortcut...
+    # rhcos shortcut...
+    img_name = "machine-os-content" if name == "rhcos" else name
 
     loop = asyncio.new_event_loop()
 
-    build_info, pullspec_text, release_img_text = loop.run_until_complete(get_image_info(so, img_name, release_img))
+    build_info, pullspec_text, release_img_text = loop.run_until_complete(
+        get_image_info(so, img_name, release_img))
     if not build_info:
         # Errors have already been notified: just do nothing
         return
@@ -115,13 +119,15 @@ def buildinfo_for_release(so, name, release_img):
             rhcos_build_id = build_info["config"]["config"]["Labels"]["version"]
             arch = build_info["config"]["architecture"]
         except KeyError:
-            logger.error("no 'version' or 'architecture' labels found: %s", build_info['config'])
+            logger.error(
+                "no 'version' or 'architecture' labels found: %s", build_info['config'])
             so.say(f"Sorry, I expected a 'version' label and architecture for pullspec "
                    f"{pullspec_text} but didn't see one. Weird huh?")
             return
 
         ocp_version = util.ocp_version_from_release_img(release_img)
-        contents_url, stream_url = rhcos_build_urls(ocp_version, rhcos_build_id, arch)
+        contents_url, stream_url = rhcos_build_urls(
+            ocp_version, rhcos_build_id, arch)
         if contents_url:
             rhcos_build_url = f"<{contents_url}|{rhcos_build_id}> (<{stream_url}|stream>)"
             logger.info('Found RHCOS build: %s', stream_url)
@@ -181,7 +187,8 @@ def get_img_pullspec(release_img: str) -> Union[Tuple[None, None], Tuple[str, st
             # assume x86_64 if not specified; TODO: handle older images released without -x86_64 in pullspec
             release_img_pullspec = f"{release_img_pullspec}-x86_64"
 
-    logger.info('Found pullspec for image %s: %s', release_img, release_img_pullspec)
+    logger.info('Found pullspec for image %s: %s',
+                release_img, release_img_pullspec)
     return release_img_pullspec, f"<docker://{release_img_pullspec}|{release_img}>"
 
 
@@ -214,7 +221,8 @@ def alert_on_build_complete(so, user_id, build_id):
         while True:
             # Timeout after 12 hrs
             if time.time() - start > constants.TWELVE_HOURS:
-                so.say(f'Build {build_id} did not complete in 12 hours, giving up...')
+                so.say(
+                    f'Build {build_id} did not complete in 12 hours, giving up...')
                 break
 
             # Retrieve build info
@@ -254,18 +262,9 @@ def alert_on_build_complete(so, user_id, build_id):
         variables.active_slack_objects.remove(so)
 
 
-def mass_rebuild_status(so, build_system: str):
-    build_system = build_system.lower() if build_system else 'brew'
-    if build_system.lower() not in ['brew', 'konflux']:
-        so.say(f'Invalid build system "{build_system}. Valid values are ("brew", "konflux")')
-        return
-
-    if build_system.lower() == 'brew':
-        lock = Lock.MASS_REBUILD.value
-        key = Keys.BREW_MASS_REBUILD_QUEUE.value
-    else:  # build_system.lower() == 'konflux'
-        lock = Lock.KONFLUX_MASS_REBUILD.value
-        key = Keys.KONFLUX_MASS_REBUILD_QUEUE.value
+def mass_rebuild_status(so):
+    lock = Lock.KONFLUX_MASS_REBUILD.value
+    key = Keys.KONFLUX_MASS_REBUILD_QUEUE.value
 
     output = []
 
