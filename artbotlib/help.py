@@ -4,8 +4,7 @@ import random
 def greet_user(so):
     greetings = ["Hi", "Hey", "Hello", "Howdy",
                  "What's up", "Yo", "Greetings", "G'day", "Mahalo"]
-    so.say(f"{greetings[random.randint(1, len(greetings)) - 1]
-              }, {so.from_user_mention()}")
+    so.say(f"{greetings[random.randint(1, len(greetings)) - 1]}, {so.from_user_mention()}")
 
 
 def show_help(so):

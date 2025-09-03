@@ -102,8 +102,7 @@ def handle_unmatched_command(so, plain_text, regex_maps):
         so.say(recommended_command)  # Suggest a command
     else:
         # Inform user of no match
-        so.say(f"'{
-               plain_text}' did not match any known commands. Write 'help' to see what I can do!")
+        so.say(f"'{plain_text}' did not match any known commands. Write 'help' to see what I can do!")
 
 
 def map_command_to_regex(so, plain_text, user_id):

@@ -59,13 +59,11 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
     if rc:
         logger.error('oc failed with rc %s: %s', rc, stderr)
         if f'no image tag "{name}" exists' in stderr:
-            so.say(f"I wasn't able to find the image {
-                   name} in release {release_img_text}.")
+            so.say(f"I wasn't able to find the image {name} in release {release_img_text}.")
         elif 'manifest unknown' in stderr:
             so.say(f"I wasn't able to find the release {release_img_text}.")
         else:
-            so.say(f"Sorry, something went wrong when I tried to query {
-                   release_img_text}.")
+            so.say(f"Sorry, something went wrong when I tried to query {release_img_text}.")
         return None, None, None
 
     pullspec = stdout.strip()
@@ -75,8 +73,7 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
     rc, stdout, stderr = await exectools.cmd_gather_async(f"oc image info {pullspec} -o json")
     if rc:
         logger.error('oc failed with rc %s: %s', rc, stderr)
-        so.say(f"Sorry, I wasn't able to query the component image pullspec {
-               pullspec}.")
+        so.say(f"Sorry, I wasn't able to query the component image pullspec {pullspec}.")
         util.please_notify_art_team_of_error(so, stderr)
         return None, None, None
 
@@ -86,8 +83,7 @@ async def get_image_info(so, name, release_img) -> Union[Tuple[None, None, None]
         data = json.loads(stdout)
     except Exception as exc:
         logger.error('Failed decoding the JSON info for pullspec %s', pullspec)
-        so.say(f"Sorry, I wasn't able to decode the JSON info for pullspec {
-               pullspec}.")
+        so.say(f"Sorry, I wasn't able to decode the JSON info for pullspec {pullspec}.")
         util.please_notify_art_team_of_error(so, str(exc))
         return None, None, None
 
@@ -133,15 +129,13 @@ def buildinfo_for_release(so, name, release_img):
         contents_url, stream_url = rhcos_build_urls(
             ocp_version, rhcos_build_id, arch)
         if contents_url:
-            rhcos_build_url = f"<{contents_url}|{
-                rhcos_build_id}> (<{stream_url}|stream>)"
+            rhcos_build_url = f"<{contents_url}|{rhcos_build_id}> (<{stream_url}|stream>)"
             logger.info('Found RHCOS build: %s', stream_url)
         else:
             rhcos_build_url = rhcos_build_id
             logger.warning('No RHCOS build URLs found')
 
-        so.say(f"{release_img_text} `{img_name}` image {
-               pullspec_text} came from RHCOS build {rhcos_build_url}")
+        so.say(f"{release_img_text} `{img_name}` image {pullspec_text} came from RHCOS build {rhcos_build_url}")
         return
 
     try:
@@ -154,8 +148,7 @@ def buildinfo_for_release(so, name, release_img):
         source_commit_url = labels.get("io.openshift.build.commit.url")
     except KeyError:
         logger.error('Some of the expected labels were not found: %s', labels)
-        so.say(f"Some labels are missing for pullspec {
-               pullspec_text}. Weird huh?")
+        so.say(f"Some labels are missing for pullspec {pullspec_text}. Weird huh?")
         return
 
     nvr = f"{name}-{version}-{release}"
@@ -163,16 +156,13 @@ def buildinfo_for_release(so, name, release_img):
 
     url = brew_build_url(nvr)
     if not url:
-        so.say(f'Sorry, I encountered an error searching for image {
-               nvr} components in brew')
+        so.say(f'Sorry, I encountered an error searching for image {nvr} components in brew')
         return
     logger.info('Found brew build URL: %s', url)
     nvr_text = f"<{url}|{nvr}>" if url else nvr
 
-    source_text = f" from commit <{source_commit_url}|{
-        source_commit}>" if source_commit_url else ""
-    so.say(f"{release_img_text} `{img_name}` image {
-           pullspec_text} came from brew build {nvr_text}{source_text}")
+    source_text = f" from commit <{source_commit_url}|{source_commit}>" if source_commit_url else ""
+    so.say(f"{release_img_text} `{img_name}` image {pullspec_text} came from brew build {nvr_text}{source_text}")
 
 
 def get_img_pullspec(release_img: str) -> Union[Tuple[None, None], Tuple[str, str]]:
@@ -188,13 +178,11 @@ def get_img_pullspec(release_img: str) -> Union[Tuple[None, None], Tuple[str, st
     elif "nightly" in release_img:
         suffix = "-s390x" if "s390x" in release_img else "-ppc64le" if "ppc64le" in release_img \
             else "-arm64" if "arm64" in release_img else ""
-        release_img_pullspec = f"registry.ci.openshift.org/ocp{
-            suffix}/release{suffix}:{release_img}"
+        release_img_pullspec = f"registry.ci.openshift.org/ocp{suffix}/release{suffix}:{release_img}"
 
     else:
         # assume public release name
-        release_img_pullspec = f"quay.io/openshift-release-dev/ocp-release:{
-            release_img}"
+        release_img_pullspec = f"quay.io/openshift-release-dev/ocp-release:{release_img}"
         if not re.search(r"-(s390x|ppc64le|x86_64)$", release_img_pullspec):
             # assume x86_64 if not specified; TODO: handle older images released without -x86_64 in pullspec
             release_img_pullspec = f"{release_img_pullspec}-x86_64"
@@ -209,8 +197,7 @@ def brew_build_url(nvr):
         build = util.koji_client_session().getBuild(nvr, strict=True)
     except Exception as e:
         # not clear how we'd like to learn about this... shouldn't happen much
-        logger.error(f"error searching for image {
-                     nvr} components in brew: {e}")
+        logger.error(f"error searching for image {nvr} components in brew: {e}")
         return None
 
     url = f"{constants.BREW_URL}/buildinfo?buildID={build['id']}"
@@ -287,8 +274,7 @@ def mass_rebuild_status(so):
         if not job_path:
             output.append('No mass rebuild currently running')
         else:
-            output.append(f':construction: Mass rebuild actively running at {
-                          JENKINS_UI_URL}/{job_path}')
+            output.append(f':construction: Mass rebuild actively running at {JENKINS_UI_URL}/{job_path}')
 
     async def check_enqueued():
         # Check for enqueued mass rebuilds
@@ -296,8 +282,7 @@ def mass_rebuild_status(so):
         if not result:
             output.append('No mass rebuild currently enqueued')
         else:
-            output.append(f':hourglass: Mass rebuilds currently waiting in the queue: {
-                          ", ".join(result)}')
+            output.append(f':hourglass: Mass rebuilds currently waiting in the queue: {", ".join(result)}')
 
     tasks = [check_active(), check_enqueued()]
     loop = asyncio.new_event_loop()
