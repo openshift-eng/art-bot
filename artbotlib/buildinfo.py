@@ -8,6 +8,7 @@ from enum import Enum
 
 import koji
 from artcommonlib import redis
+from pyartcd import jenkins
 from pyartcd.constants import JENKINS_UI_URL
 from pyartcd.locks import Lock, Keys
 
@@ -274,7 +275,21 @@ def mass_rebuild_status(so):
         if not job_path:
             output.append('No mass rebuild currently running')
         else:
-            output.append(f':construction: Mass rebuild actively running at {JENKINS_UI_URL}/{job_path}')
+            build_url = f'{JENKINS_UI_URL}/{job_path}'
+            build_version = None
+
+            try:
+                params = jenkins.get_build_parameters(job_path)
+                if params:
+                    build_version = params.get('BUILD_VERSION')
+
+            except Exception as e:
+                logger.error(f'Failed to get Jenkins build info for {job_path}: {e}')
+
+            if build_version:
+                output.append(f':construction: Mass rebuild for OCP {build_version} actively running at {build_url}')
+            else:
+                output.append(f':construction: Mass rebuild actively running at {build_url}')
 
     async def check_enqueued():
         # Check for enqueued mass rebuilds
