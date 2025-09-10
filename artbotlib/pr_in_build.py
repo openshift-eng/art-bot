@@ -182,7 +182,7 @@ class PrInfo:
         """
 
         datetime = self.get_commit_time(commit)
-        url = f"{GITHUB_API_REPO_URL}/{self.org}/{self.repo_name}/commits?sha={self.branch}&since={datetime}"
+        url = f"{GITHUB_API_REPO_URL}/{self.org}/{self.repo_name}/commits?sha={branch}&since={datetime}"
 
         commits = util.github_api_all(url)
 
@@ -227,7 +227,7 @@ class PrInfo:
             "brew_task_state": task_state
         }
         url = f"{ART_DASH_API_ROUTE}/builds/"
-        self.logger.info('Fetching url %s', url)
+        self.logger.info('Fetching url %s with params %s', url, params)
 
         response = requests.get(url, params=params)
         if response.status_code != 200:
@@ -359,7 +359,16 @@ class PrInfo:
             return
 
         # Get the commits that we need to check
-        self.commits = self.get_commits_after(self.merge_commit, self.branch)
+        # Handle master == main
+        try:
+            self.commits = self.get_commits_after(self.merge_commit, self.branch)
+        except Exception as e:
+            if self.branch == 'master':
+                self.logger.debug('Could not find commits after %s in master branch: trying main branch', self.merge_commit)
+                self.commits = self.get_commits_after(self.merge_commit, 'main')
+            else:
+                raise e
+
         if self.merge_commit not in self.commits:
             self.logger.debug("This branch doesn't have this PR merge commit")
             self.so.say(f"{self.branch} branch does not include this PR")
