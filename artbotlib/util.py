@@ -216,6 +216,8 @@ def github_api_all(url: str):
     max_requests = 100
 
     response = requests.get(url, params=params, headers=header)
+    response.raise_for_status()
+
     results = response.json()
 
     while "next" in response.links.keys() and num_requests <= max_requests:
