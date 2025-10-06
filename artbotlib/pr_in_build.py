@@ -1,18 +1,19 @@
 import asyncio
 import json
-import re
 import logging
 import os
+import re
 from collections.abc import Iterable
 
 import requests
 import yaml
+from artcommonlib.konflux.konflux_build_record import KonfluxBuildRecord
+from artcommonlib.konflux.konflux_db import KonfluxDb
 
 import artbotlib.exectools
-from artbotlib import util, pipeline_image_util
-from artbotlib.exceptions import NullDataReturned, BrewNVRNotFound
-from artbotlib.constants import BREW_TASK_STATES, BREW_URL, GITHUB_API_REPO_URL, ART_DASH_API_ROUTE, \
-    RELEASE_CONTROLLER_URL, RELEASE_CONTROLLER_STREAM_PATH
+from artbotlib import pipeline_image_util, util
+from artbotlib.constants import ART_BUILD_HISTORY_URL, RELEASE_CONTROLLER_STREAM_PATH, RELEASE_CONTROLLER_URL, GITHUB_API_REPO_URL
+from artbotlib.exceptions import NullDataReturned
 
 
 class PrInfo:
@@ -216,26 +217,22 @@ class PrInfo:
             self.logger.error('Commit SHA not found in json data: %s', json_data)
             raise
 
-    def get_builds_from_db(self, commit, task_state):
+    async def get_builds_from_db(self, commit, task_state):
         """
-        Function to find the build using commit, from API, which queries the database.
+        Function to find builds from Konflux BigQuery DB using commit.
+        Returns a list of KonfluxBuildRecord objects.
         """
+        konflux_db = KonfluxDb()
+        konflux_db.bind(KonfluxBuildRecord)
 
-        params = {
-            "group": f"openshift-{self.version}",
-            "label_io_openshift_build_commit_id": commit,
-            "brew_task_state": task_state
-        }
-        url = f"{ART_DASH_API_ROUTE}/builds/"
-        self.logger.info('Fetching url %s with params %s', url, params)
-
-        response = requests.get(url, params=params)
-        if response.status_code != 200:
-            msg = f'Request to {url} returned with status code {response.status_code}'
-            self.logger.error(msg)
-            raise RuntimeError(msg)
-
-        return response.json()
+        builds = [build async for build in konflux_db.search_builds_by_fields(
+            where={
+                "group": f"openshift-{self.version}",
+                "commitish": commit,
+                "outcome": task_state
+            },
+        )]
+        return builds
 
     def is_image_for_release(self, image_name):
         """
@@ -250,48 +247,45 @@ class PrInfo:
         else:
             self.logger.info(f'response.status_code = {response.status_code}')
 
-    def build_from_commit(self, task_state):
+    async def build_from_commit(self, task_state):
         """
         Function to get all the build ids associated with a list of commits
         """
 
         for commit in self.commits:
-            response_data = self.get_builds_from_db(commit, task_state)
-            count = response_data["count"]
+            builds = await self.get_builds_from_db(commit, task_state)
 
-            if response_data and count > 0:
-                self.logger.info('Found %s builds from commit %s', count, commit)
-                builds = response_data["results"]
+            if builds:
+                self.logger.info('Found %s builds from commit %s', len(builds), commit)
                 build_for_image = {}
-                for image_name, build_id, dg_name, image_nvr in [(b["build_0_name"], int(b["build_0_id"]), b["dg_name"], b["build_0_nvr"]) for b in builds if not b['incomplete']]:
-                    # checks which image to exclude from payload
-                    if self.is_image_for_release(dg_name) and (image_name not in build_for_image or build_id < build_for_image.get(image_name, float('inf'))[0]):
-                        build_for_image[image_name] = [build_id, image_nvr]
+                for build in builds:
+                    if self.is_image_for_release(build.name) and (build.name not in build_for_image or build.start_time < build_for_image[build.name].start_time):
+                        build_for_image[build.name] = build
+
                 return build_for_image.values()
+
             self.logger.info('Found no builds from commit %s', commit)
 
-    def find_builds(self):
+    async def find_builds(self):
         """
         Find successful or failed builds for the PR/merge commit. If none, report back to the user that the build
         hasn't started yet.
         """
 
-        successful_builds = self.build_from_commit(BREW_TASK_STATES["Success"])
+        successful_builds = await self.build_from_commit("success")
         if successful_builds:
             self.logger.info(f'*** successful_builds: {successful_builds} ***')
             self.logger.info("Found successful builds for given PR")
             for build in successful_builds:
-                self.so.say(
-                    f"First successful build: <{BREW_URL}/buildinfo?buildID={build[0]}|{build[1]}>. All consecutive builds will include this PR.")
+                self.so.say(f"First successful build: <{ART_BUILD_HISTORY_URL}/?nvr={build.nvr}|{build.nvr}>. All consecutive builds will include  this PR.")
             return
 
         self.logger.info("No successful builds found given PR")
-        failed_builds = self.build_from_commit(BREW_TASK_STATES["Failure"])
+        failed_builds = await self.build_from_commit("failure")
         if failed_builds:
             for build in failed_builds:
                 self.logger.info(f"First failed build: {build}")
-                self.so.say(
-                    f"No successful build found. First failed build: <{BREW_URL}/buildinfo?buildID={build[0]}|{build[1]}>")
+                self.so.say(f"No successful build found. First failed build: <{ART_BUILD_HISTORY_URL}/?nvr={build.nvr}|{build.nvr}>")
             return
 
         self.logger.info("No builds have run yet.")
@@ -376,7 +370,7 @@ class PrInfo:
         self.logger.debug(f'Found commits after {self.merge_commit}: {self.commits}')
 
         # Check if a build is associated for the merge commit
-        self.find_builds()
+        await self.find_builds()
 
         # Check into nightlies and releases
         self.imagestream_tag = self.get_imagestream_tag()
