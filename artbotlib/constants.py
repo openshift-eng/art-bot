@@ -6,10 +6,6 @@ COLOR_MAPS = {
     'Accepted': 'Green',
     'Rejected': 'Red'
 }
-BREW_TASK_STATES = {
-    "Success": "success",
-    "Failure": "failure"
-}
 
 ONE_WEEK = 7 * 24 * 60 * 60
 
@@ -18,6 +14,8 @@ TWELVE_HOURS = 60 * 60 * 12
 FIVE_MINUTES = 60 * 5
 
 BREW_URL = 'https://brewweb.engineering.redhat.com/brew'
+
+ART_BUILD_HISTORY_URL = "https://art-build-history-art-build-history.apps.artc2023.pc3z.p1.openshiftapps.com"
 
 CGIT_URL = 'https://pkgs.devel.redhat.com/cgit'
 
