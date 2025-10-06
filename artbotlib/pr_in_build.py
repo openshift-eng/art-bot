@@ -9,10 +9,11 @@ import requests
 import yaml
 from artcommonlib.konflux.konflux_build_record import KonfluxBuildRecord
 from artcommonlib.konflux.konflux_db import KonfluxDb
+from doozerlib.constants import ART_BUILD_HISTORY_URL
 
 import artbotlib.exectools
 from artbotlib import pipeline_image_util, util
-from artbotlib.constants import ART_BUILD_HISTORY_URL, RELEASE_CONTROLLER_STREAM_PATH, RELEASE_CONTROLLER_URL, GITHUB_API_REPO_URL
+from artbotlib.constants import RELEASE_CONTROLLER_STREAM_PATH, RELEASE_CONTROLLER_URL, GITHUB_API_REPO_URL
 from artbotlib.exceptions import NullDataReturned
 
 
