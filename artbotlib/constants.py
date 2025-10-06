@@ -15,8 +15,6 @@ FIVE_MINUTES = 60 * 5
 
 BREW_URL = 'https://brewweb.engineering.redhat.com/brew'
 
-ART_BUILD_HISTORY_URL = "https://art-build-history-art-build-history.apps.artc2023.pc3z.p1.openshiftapps.com"
-
 CGIT_URL = 'https://pkgs.devel.redhat.com/cgit'
 
 COMET_URL = 'https://comet.engineering.redhat.com/containers/repositories'
