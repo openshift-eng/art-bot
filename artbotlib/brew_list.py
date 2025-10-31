@@ -3,6 +3,7 @@ import concurrent.futures
 import fnmatch
 import json
 import logging
+import os
 import re
 from typing import Dict, List, Optional, Set, cast
 from urllib.parse import quote
@@ -10,13 +11,13 @@ from urllib.parse import quote
 import koji
 import requests
 import yaml
-from artcommonlib.konflux.konflux_build_record import KonfluxBuildRecord
+from artcommonlib.konflux.konflux_build_record import KonfluxBuildRecord, KonfluxBuildOutcome
 from artcommonlib.konflux.konflux_db import KonfluxDb
 
 import artbotlib.exectools
 
 from . import util
-from .constants import NIGHTLY_REGISTRY, QUAY_REGISTRY
+from .constants import GITHUB_API_REPO_URL, NIGHTLY_REGISTRY, QUAY_REGISTRY
 from .rhcos import RHCOSBuildInfo, get_rhcos_build_id_from_pullspec
 
 logger = logging.getLogger(__name__)
@@ -268,6 +269,46 @@ NOTE:
                filename='{}-{}.txt'.format(release_tag, data_type))
 
 
+def get_distgit_keys_for_group(major_minor: str) -> List[str]:
+    """
+    Fetch list of distgit keys of images in a group from ocp-build-data via GitHub API
+    """
+    github_token = os.environ.get('GITHUB_PERSONAL_ACCESS_TOKEN')
+    if not github_token:
+        raise ValueError("GITHUB_PERSONAL_ACCESS_TOKEN environment variable is not set. "
+                         "This is required to fetch image lists from GitHub API.")
+
+    url = f"{GITHUB_API_REPO_URL}/openshift-eng/ocp-build-data/contents/images?ref=openshift-{major_minor}"
+    headers = {"Authorization": f"token {github_token}"}
+
+    logger.info('Fetching image distgit keys from GitHub for openshift-%s', major_minor)
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+
+    files = response.json()
+    distgit_keys = [f['name'].removesuffix('.yml') for f in files if f['name'].endswith('.yml')]
+    logger.info('Found %d images in openshift-%s', len(distgit_keys), major_minor)
+
+    return distgit_keys
+
+
+async def get_latest_konflux_builds_for_group(major_minor: str) -> List[str]:
+    """Get latest Konflux build NVRs for all images in a group."""
+    distgit_keys = get_distgit_keys_for_group(major_minor)
+
+    konflux_db = KonfluxDb()
+    konflux_db.bind(KonfluxBuildRecord)
+
+    builds = await konflux_db.get_latest_builds(
+        names=distgit_keys,
+        group=f"openshift-{major_minor}",
+        assembly="stream",
+        outcome=KonfluxBuildOutcome.SUCCESS
+    )
+    logger.info('Found %d builds for openshift-%s', len(builds), major_minor)
+    return [b.nvr for b in builds if b is not None]
+
+
 def latest_images_for_version(so, major_minor):
     key = f'latest_images_built_for_version-{major_minor}'
     image_nvrs = util.CACHE_TTL.get(key)
@@ -278,24 +319,17 @@ def latest_images_for_version(so, major_minor):
     so.say(f"Determining images for {major_minor} - this may take a few minutes...")
 
     try:
-        logger.info('Determining images for %s', major_minor)
-        rc, stdout, stderr = artbotlib.exectools.cmd_assert(
-            so, f"doozer --build-system=konflux --disable-gssapi --group openshift-{major_minor} --assembly stream images:print "
-            f"'{{component}}-{{version}}-{{release}}' --show-base --show-non-release --short"
-        )
+        logger.info('Determining images for %s using Konflux DB', major_minor)
+        image_nvrs = asyncio.run(get_latest_konflux_builds_for_group(major_minor))
 
-    except Exception as e:  # convert any exception into generic (cmd_assert already reports details to monitoring)
+    except Exception as e:
         logger.error('Failed retrieving latest images for %s: %s', major_minor, e)
-        so.say(
-            f"Failed to retrieve latest images for version '{major_minor}': doozer could not find version '{major_minor}'")
+        so.say(f"Failed to retrieve latest images for version '{major_minor}': {e}")
         return []
 
-    image_nvrs = [nvr.strip() for nvr in stdout.strip().split('\n')]
     logger.info('Found image nvrs in %s:\n%s', major_minor, '\n'.join(image_nvrs))
 
-    # if there is no build for an image, doozer still prints it out like "component--".
-    # filter out those non-builds so we don't expect to find them later.
-    util.CACHE_TTL[key] = image_nvrs = [nvr for nvr in image_nvrs if not nvr.endswith('-')]
+    util.CACHE_TTL[key] = image_nvrs
     return image_nvrs
 
 
