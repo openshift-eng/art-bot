@@ -1,14 +1,17 @@
 import asyncio
+import concurrent.futures
 import fnmatch
 import json
 import logging
 import re
-from typing import cast, Dict, List, Set
+from typing import Dict, List, Optional, Set, cast
 from urllib.parse import quote
 
 import koji
 import requests
 import yaml
+from artcommonlib.konflux.konflux_build_record import KonfluxBuildRecord
+from artcommonlib.konflux.konflux_db import KonfluxDb
 
 import artbotlib.exectools
 
@@ -22,7 +25,7 @@ logger = logging.getLogger(__name__)
 @util.cached
 def brew_list_components(nvr) -> Set:
     koji_api = util.koji_client_session()
-    logger.info('Getting info for build %s', nvr)
+    logger.info('Getting info for build %s from Brew', nvr)
     build = koji_api.getBuild(nvr, strict=True)
 
     components = set()
@@ -30,28 +33,80 @@ def brew_list_components(nvr) -> Set:
         for rpm in koji_api.listRPMs(imageID=archive['id']):
             components.add('{nvr}.{arch}'.format(**rpm))
 
-    logger.info('Found %s components in %s', len(components), nvr)
+    logger.info('Found %s components in %s from Brew', len(components), nvr)
     return components
+
+
+async def konflux_list_components(nvr: str) -> Optional[Set[str]]:
+    """
+    Try to get rpms list from Konflux BigQuery DB for the given NVR.
+    Returns None if not found or on error.
+    """
+    try:
+        konflux_db = KonfluxDb()
+        konflux_db.bind(KonfluxBuildRecord)
+        builds = [build async for build in konflux_db.search_builds_by_fields(
+            where={"nvr": nvr, "outcome": ["success", "failure"]},
+            limit=1
+        )]
+        if builds:
+            components = set(builds[0].installed_rpms)
+            logger.info('Found %s components in %s from Konflux DB', len(components), nvr)
+            return components
+        else:
+            logger.info('Image %s not found in Konflux DB', nvr)
+            return None
+    except Exception as e:
+        logger.warning('Failed to query Konflux DB for image %s: %s', nvr, e)
+        return None
+
+
+def list_image_components(nvr: str) -> Set[str]:
+    """
+    Searches for components in image specified by nvr.
+    First searches in ART's BigQuery DB. If the build is not found there, falls back to Brew build records.
+    """
+    # Try to fetch the builds from BigQuery first
+    try:
+        # See if we're running in a loop already
+        asyncio.get_running_loop()
+        # Loop exists, spawn new thread and loop
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(lambda: asyncio.run(konflux_list_components(nvr)))
+            konflux_components = future.result()
+    except RuntimeError:
+        # No loop running
+        konflux_components = asyncio.run(konflux_list_components(nvr))
+
+    if konflux_components:
+        return konflux_components
+
+    # Fallback to Brew
+    logger.info('Falling back to Brew for %s', nvr)
+    return brew_list_components(nvr)
 
 
 def list_components_for_image(so, nvr):
     try:
         logger.info('Getting components for build %s', nvr)
-        components = brew_list_components(nvr)
+        components = list_image_components(nvr)
     except Exception as e:
         logger.error('Failed getting component list for build %s: %s', nvr, e)
-        so.say(f"Sorry, I couldn't find image {nvr} RPMs in brew: {e}")
+        so.say(f"Sorry, I couldn't find image {nvr} RPMs: {e}")
         return
 
-    so.snippet(payload='\n'.join(sorted(components)),
-               intro='The following rpms are used',
-               filename='{}-rpms.txt'.format(nvr))
+    if components:
+        so.snippet(payload='\n'.join(sorted(components)),
+                   intro='The following rpms are used',
+                   filename='{}-rpms.txt'.format(nvr))
+    else:  # no RPMs are used in the build
+        so.say(f'Build {nvr} does not include any RPMs')
 
 
 def list_specific_rpms_for_image(matchers, nvr) -> set:
     logger.info(f'Searching for {matchers} in {nvr}')
     matched = set()
-    for rpma in brew_list_components(nvr):
+    for rpma in list_image_components(nvr):
         name, _, _ = rpma.rsplit("-", 2)
         if any(fnmatch.fnmatch(name, m) for m in matchers):
             matched.add(rpma)
@@ -113,7 +168,7 @@ async def get_tag_specs(so, tag_spec, data_type, sem) -> List[str]:
         if data_type.startswith('rpm'):
             if release_component_name.startswith('rhel-coreos') or release_component_name.startswith('machine-os-content') or component_name == 'UNKNOWN':
                 return []  # RPMS from rhcos are not included.
-            return list(brew_list_components(nvr))
+            return list(list_image_components(nvr))
 
         result = f'{release_component_name}='
         if data_type.startswith('nvr'):
@@ -225,7 +280,7 @@ def latest_images_for_version(so, major_minor):
     try:
         logger.info('Determining images for %s', major_minor)
         rc, stdout, stderr = artbotlib.exectools.cmd_assert(
-            so, f"doozer --disable-gssapi --group openshift-{major_minor} --assembly stream images:print "
+            so, f"doozer --build-system=konflux --disable-gssapi --group openshift-{major_minor} --assembly stream images:print "
             f"'{{component}}-{{version}}-{{release}}' --show-base --show-non-release --short"
         )
 
@@ -253,7 +308,7 @@ def list_components_for_major_minor(so, major, minor):
 
     all_components = set()
     for nvr in image_nvrs:
-        all_components.update(brew_list_components(nvr))
+        all_components.update(list_image_components(nvr))
 
     image_nvrs = '\n'.join(sorted(image_nvrs))
 
@@ -354,7 +409,7 @@ def list_uses_of_rpms(so, names, major, minor, search_type="rpm"):
 
 def _index_rpms_in_images(image_nvrs, rpms_search, rpms_for_image, rpms_seen):
     for image_nvr in image_nvrs:
-        for rpm_nvra in brew_list_components(image_nvr):
+        for rpm_nvra in list_image_components(image_nvr):
             name = rpm_nvra.rsplit("-", 2)[0].lower()
             if name in rpms_search:
                 rpms_seen.add(name)
