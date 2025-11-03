@@ -314,6 +314,7 @@ def latest_images_for_version(so, major_minor):
     image_nvrs = util.CACHE_TTL.get(key)
     if image_nvrs:
         logger.info('Using cached image nvrs: %s', image_nvrs)
+        so.say(f"Using cached image NVRs for {major_minor}...")
         return image_nvrs
 
     so.say(f"Determining images for {major_minor} - this may take a few minutes...")
