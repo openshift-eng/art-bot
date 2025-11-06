@@ -37,6 +37,10 @@ QUAY_REGISTRY = 'quay.io/openshift-release-dev/ocp-release'
 
 SLACK_SUMMARIZER = 'https://slack-summarizer-hackspace-dpaolell.apps.artc2023.pc3z.p1.openshiftapps.com'
 
+GITLAB_INSTANCE_URL = "https://gitlab.cee.redhat.com"
+
+GITLAB_PROJECT_PATH = "hybrid-platforms/art/ocp-shipment-data"
+
 # Release Controller and RHCOS browser call arches in different ways;
 # these two dictionaries easily map names from/to one namespace to the other
 RC_ARCH_TO_RHCOS_ARCH = {
