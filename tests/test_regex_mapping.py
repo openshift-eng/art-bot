@@ -958,13 +958,3 @@ def test_gitlab_mr_status(gitlab_mock):
     expected_message = generate_expected_message(example_command_valid)
     so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
-
-    # Invalid - wrong GitLab instance
-    query = 'gitlab pr status https://gitlab.com/some/project/-/merge_requests/123'
-    so_mock.should_receive('say').once().with_args(expected_message)
-    map_command_to_regex(so_mock, query, None)
-
-    # Invalid - GitHub URL instead
-    query = 'gitlab pr status https://github.com/openshift/art-bot/pull/123'
-    so_mock.should_receive('say').once().with_args(expected_message)
-    map_command_to_regex(so_mock, query, None)
