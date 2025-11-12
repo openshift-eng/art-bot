@@ -351,7 +351,7 @@ def map_command_to_regex(so, plain_text, user_id):
             "example": "Watch https://github.com/openshift-eng/art-bot/pull/157"
         },
         {
-            "regex": r"^gitlab pr status (?P<mr_url>https://gitlab\.cee\.redhat\.com/[\w/-]+/-/merge_requests/\d+)$",
+            "regex": r"^gitlab mr status (?P<mr_url>https://gitlab\.cee\.redhat\.com/[\w/-]+/-/merge_requests/\d+)$",
             "flag": re.I,
             "function": gitlab_mr_status,
             "user_id": False,
