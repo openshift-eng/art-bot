@@ -15,6 +15,7 @@ from artbotlib.pipeline_image_names import pipeline_from_github, pipeline_from_d
 from artbotlib.pr_in_build import pr_info
 from artbotlib.prow import prow_job_status, first_prow_job_succeeds
 from artbotlib.translation import translate_names
+from artbotlib.gitlab_mr_status import gitlab_mr_status
 from fuzzywuzzy import process
 
 
@@ -348,6 +349,13 @@ def map_command_to_regex(so, plain_text, user_id):
             "function": pr_status,
             "user_id": True,
             "example": "Watch https://github.com/openshift-eng/art-bot/pull/157"
+        },
+        {
+            "regex": r"^gitlab mr status (?P<mr_url>https://gitlab\.cee\.redhat\.com/[\w/-]+/-/merge_requests/\d+)$",
+            "flag": re.I,
+            "function": gitlab_mr_status,
+            "user_id": False,
+            "example": "gitlab pr status https://gitlab.cee.redhat.com/hybrid-platforms/art/ocp-shipment-data/-/merge_requests/207"
         },
         {
             "regex": r"^Summarize (?P<thread_url>https\://[\w\-]+\.slack\.com/archives/[A-Z0-9]+/p\d+)$",
