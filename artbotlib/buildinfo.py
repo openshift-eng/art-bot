@@ -8,6 +8,7 @@ from enum import Enum
 
 import koji
 from artcommonlib import redis
+from doozerlib.constants import ART_BUILD_HISTORY_URL
 from pyartcd import jenkins
 from pyartcd.constants import JENKINS_UI_URL
 from pyartcd.locks import Lock, Keys
@@ -155,15 +156,11 @@ def buildinfo_for_release(so, name, release_img):
     nvr = f"{name}-{version}-{release}"
     logger.info('Found nvr: %s', nvr)
 
-    url = brew_build_url(nvr)
-    if not url:
-        so.say(f'Sorry, I encountered an error searching for image {nvr} components in brew')
-        return
-    logger.info('Found brew build URL: %s', url)
-    nvr_text = f"<{url}|{nvr}>" if url else nvr
+    url = build_url(nvr)
+    nvr_text = f"<{url}|{nvr}>"
 
     source_text = f" from commit <{source_commit_url}|{source_commit}>" if source_commit_url else ""
-    so.say(f"{release_img_text} `{img_name}` image {pullspec_text} came from brew build {nvr_text}{source_text}")
+    so.say(f"{release_img_text} `{img_name}` image {pullspec_text} came from build {nvr_text}{source_text}")
 
 
 def get_img_pullspec(release_img: str) -> Union[Tuple[None, None], Tuple[str, str]]:
@@ -193,17 +190,24 @@ def get_img_pullspec(release_img: str) -> Union[Tuple[None, None], Tuple[str, st
     return release_img_pullspec, f"<docker://{release_img_pullspec}|{release_img}>"
 
 
-def brew_build_url(nvr):
+def build_url(nvr):
+    """
+    Get build URL for an NVR, trying Brew first and falling back to art-build-history.
+
+    :param nvr: Build NVR (name-version-release)
+    :return: URL string for the build
+    """
     try:
         build = util.koji_client_session().getBuild(nvr, strict=True)
+        url = f"{constants.BREW_URL}/buildinfo?buildID={build['id']}"
+        logger.info('Found brew build URL for %s: %s', nvr, url)
+        return url
     except Exception as e:
-        # not clear how we'd like to learn about this... shouldn't happen much
-        logger.error(f"error searching for image {nvr} components in brew: {e}")
-        return None
-
-    url = f"{constants.BREW_URL}/buildinfo?buildID={build['id']}"
-    logger.info('Found brew build URL for %s: %s', nvr, url)
-    return url
+        # Build not found in Brew - assume it's a Konflux build
+        logger.info(f"Build {nvr} not found in brew, will use art-build-history URL: {e}")
+        url = f"{ART_BUILD_HISTORY_URL}/build?nvr={nvr}&outcome=success"
+        logger.info('Using art-build-history URL for %s: %s', nvr, url)
+        return url
 
 
 def alert_on_build_complete(so, user_id, build_id):
