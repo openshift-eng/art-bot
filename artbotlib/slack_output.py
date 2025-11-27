@@ -32,9 +32,9 @@ class SlackOutput:
         self.said_something = True
         logger.info(f"Called with payload: {payload}")
         logger.info(f"Responding back through: {self.target_channel_id}")
-        r = self.web_client.files_upload(
+        r = self.web_client.files_upload_v2(
             initial_comment=intro,
-            channels=self.target_channel_id,
+            channel=self.target_channel_id,
             content=payload,
             filename=filename,
             filetype=filetype,
@@ -63,9 +63,9 @@ class SlackOutput:
             return
         try:
             logger.info("Called with monitoring payload: {}".format(payload))
-            r = self.web_client.files_upload(
+            r = self.web_client.files_upload_v2(
                 initial_comment=intro,
-                channels=self.monitoring_channel_id,
+                channel=self.monitoring_channel_id,
                 content=payload,
                 filename=filename,
                 filetype=filetype,
