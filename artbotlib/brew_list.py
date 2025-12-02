@@ -296,7 +296,7 @@ async def get_latest_konflux_builds_for_group(major_minor: str) -> List[str]:
     """Get latest Konflux build NVRs for all images in a group."""
     distgit_keys = get_distgit_keys_for_group(major_minor)
 
-    konflux_db = KonfluxDb()
+    konflux_db = KonfluxDb(enable_cache=False)
     konflux_db.bind(KonfluxBuildRecord)
 
     builds = await konflux_db.get_latest_builds(
