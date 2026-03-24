@@ -3,6 +3,7 @@ import re
 
 from artbotlib import brew_list, elliott, brew
 from artbotlib.buildinfo import buildinfo_for_release, alert_on_build_complete, mass_rebuild_status
+from artbotlib.konflux_pipelinerun import watch_konflux_pipelinerun
 from artbotlib.pr_status import pr_status
 from artbotlib.summarize import summarize_thread, summarize_art_attention_threads
 from artbotlib.taskinfo import alert_on_task_complete
@@ -344,7 +345,7 @@ def map_command_to_regex(so, plain_text, user_id):
             "example": "Alert when first prow job in https://prow.ci.openshift.org/view/gs/origin-ci-test/logs/release-openshift-origin-installer-e2e-azure-upgrade/1612684208528953344 succeeds"
         },
         {
-            "regex": r"^Watch \s*(https://)*(github.com/)*(?P<org>[a-zA-Z0-9-]+)/*(?P<repo>[a-zA-Z0-9-]+)(/pull/)(?P<pr_id>\d+)",
+            "regex": r"^Watch \s*(https://)*(github.com/)*(?P<org>[a-zA-Z0-9-]+)/*(?P<repo>[a-zA-Z0-9-]+)(/pull/)(?P<pr_id>\d+)$",
             "flag": re.I,
             "function": pr_status,
             "user_id": True,
@@ -370,6 +371,13 @@ def map_command_to_regex(so, plain_text, user_id):
             "function": summarize_art_attention_threads,
             "user_id": False,
             "example": "Summarize art threads"
+        },
+        {
+            "regex": r"^Watch (?P<pipelinerun_url>https://konflux-ui\.apps\.[\w.-]+/ns/[\w-]+/applications/[\w.-]+/pipelineruns/[\w-]+)$",
+            "flag": re.I,
+            "function": watch_konflux_pipelinerun,
+            "user_id": True,
+            "example": "Watch https://konflux-ui.apps.kflux-ocp-p01.7ayg.p1.openshiftapps.com/ns/ocp-art-tenant/applications/openshift-4-23/pipelineruns/ose-4-23-ptp-operator-bundle-8kj8p"
         },
     ]
     matched = match_and_execute(so, plain_text, user_id, regex_maps)

@@ -933,6 +933,7 @@ def test_brew_event_ts(pipeline_mock):
     map_command_to_regex(so_mock, query, None)
 
 
+
 @patch('artbotlib.regex_mapping.gitlab_mr_status')
 def test_gitlab_mr_status(gitlab_mock):
     """
@@ -958,3 +959,36 @@ def test_gitlab_mr_status(gitlab_mock):
     expected_message = generate_expected_message(example_command_valid)
     so_mock.should_receive('say').once().with_args(expected_message)
     map_command_to_regex(so_mock, query, None)
+
+
+@patch('artbotlib.regex_mapping.watch_konflux_pipelinerun')
+def test_watch_konflux_pipelinerun(watch_mock):
+    """
+    Test valid/invalid queries for konflux_pipelinerun.watch_konflux_pipelinerun()
+    """
+
+    watch_mock.side_effect = lambda outputter, *_, **__: outputter.say('mock called')
+    so_mock = flexmock(so)
+
+    # Valid
+    query = 'watch https://konflux-ui.apps.kflux-ocp-p01.7ayg.p1.openshiftapps.com/ns/ocp-art-tenant/applications/openshift-4-23/pipelineruns/ose-4-23-ptp-operator-bundle-8kj8p'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Valid - different domain
+    query = 'watch https://konflux-ui.apps.another-cluster.example.com/ns/test-ns/applications/my-app/pipelineruns/my-run-123'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
+    # Invalid - missing 'watch'
+    query = 'https://konflux-ui.apps.kflux-ocp-p01.7ayg.p1.openshiftapps.com/ns/ocp-art-tenant/applications/openshift-4-23/pipelineruns/ose-4-23-ptp-operator-bundle-8kj8p'
+    example_command_valid = 'Watch https://konflux-ui.apps.kflux-ocp-p01.7ayg.p1.openshiftapps.com/ns/ocp-art-tenant/applications/openshift-4-23/pipelineruns/ose-4-23-ptp-operator-bundle-8kj8p'
+    expected_message = generate_expected_message(example_command_valid)
+    so_mock.should_receive('say').once().with_args(expected_message)
+    map_command_to_regex(so_mock, query, None)
+
+    # Invalid - wrong URL format (just check that an error message is returned, don't check specific content)
+    query = 'watch https://wrong-url.com/something'
+    so_mock.should_receive('say').once()
+    map_command_to_regex(so_mock, query, None)
+
